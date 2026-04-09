@@ -1,30 +1,29 @@
 import type { Metadata, Viewport } from 'next'
-import { Noto_Sans, Noto_Sans_SC } from 'next/font/google'
+import { Inter, JetBrains_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AuthProvider } from '@/lib/auth-context'
 import './globals.css'
 
-const notoSans = Noto_Sans({ 
+const inter = Inter({ 
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap"
 })
 
-const notoSansSC = Noto_Sans_SC({ 
+const jetbrainsMono = JetBrains_Mono({ 
   subsets: ["latin"],
-  variable: "--font-chinese",
-  weight: ["400", "500", "700"],
+  variable: "--font-mono",
   display: "swap"
 })
 
 export const metadata: Metadata = {
-  title: 'HanYu Academy - Learn Chinese Online',
-  description: 'Master Mandarin Chinese with personalized lessons, expert instructors, and interactive learning tools. Start your Chinese language journey today.',
+  title: 'Lingua - Chinese Language Platform',
+  description: 'Master Mandarin Chinese with structured lessons, vocabulary training, and interactive exercises. A modern approach to language learning.',
   keywords: ['Chinese', 'Mandarin', 'language learning', 'HSK', 'online courses'],
 }
 
 export const viewport: Viewport = {
-  themeColor: '#b54839',
+  themeColor: '#0a0a0a',
   width: 'device-width',
   initialScale: 1,
 }
@@ -35,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${notoSans.variable} ${notoSansSC.variable}`}>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="font-sans antialiased">
         <AuthProvider>
           {children}

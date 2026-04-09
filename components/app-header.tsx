@@ -35,12 +35,12 @@ export function AppHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="flex h-16 items-center gap-4 px-4 md:px-6">
         {/* Mobile menu */}
         <Sheet>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="md:hidden">
+            <Button variant="ghost" size="icon" className="md:hidden rounded-xl">
               <Menu className="h-5 w-5" />
               <span className="sr-only">Toggle menu</span>
             </Button>
@@ -51,12 +51,12 @@ export function AppHeader() {
         </Sheet>
 
         {/* Logo */}
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-lg">
-            中
+        <Link href="/dashboard" className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground text-background font-semibold text-sm">
+            L
           </div>
-          <span className="hidden font-semibold text-foreground sm:inline-block">
-            HanYu Academy
+          <span className="hidden font-semibold text-foreground sm:inline-block tracking-tight">
+            Lingua
           </span>
         </Link>
 
@@ -67,13 +67,14 @@ export function AppHeader() {
               <Input
                 type="search"
                 placeholder="Search courses, lessons..."
-                className="w-40 sm:w-64"
+                className="w-40 sm:w-64 h-10 rounded-xl bg-muted/50 border-0"
                 autoFocus
               />
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setSearchOpen(false)}
+                className="rounded-xl"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -83,6 +84,7 @@ export function AppHeader() {
               variant="ghost"
               size="icon"
               onClick={() => setSearchOpen(true)}
+              className="rounded-xl"
             >
               <Search className="h-5 w-5" />
               <span className="sr-only">Search</span>
@@ -92,35 +94,32 @@ export function AppHeader() {
           {/* Notifications */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
+              <Button variant="ghost" size="icon" className="relative rounded-xl">
                 <Bell className="h-5 w-5" />
                 {unreadCount > 0 && (
-                  <Badge
-                    variant="destructive"
-                    className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
-                  >
+                  <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-foreground text-background text-[10px] font-medium flex items-center justify-center">
                     {unreadCount}
-                  </Badge>
+                  </span>
                 )}
                 <span className="sr-only">Notifications</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
-              <div className="px-3 py-2 font-semibold text-sm">
+            <DropdownMenuContent align="end" className="w-80 rounded-xl">
+              <div className="px-3 py-2.5 font-semibold text-sm">
                 Notifications
               </div>
               <DropdownMenuSeparator />
               {mockNotifications.slice(0, 4).map((notification) => (
                 <DropdownMenuItem
                   key={notification.id}
-                  className="flex flex-col items-start gap-1 p-3"
+                  className="flex flex-col items-start gap-1 p-3 cursor-pointer"
                 >
                   <div className="flex items-center gap-2 w-full">
                     <span className="font-medium text-sm">
                       {notification.title}
                     </span>
                     {!notification.read && (
-                      <span className="h-2 w-2 rounded-full bg-primary ml-auto" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-foreground ml-auto" />
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground line-clamp-1">
@@ -129,7 +128,7 @@ export function AppHeader() {
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="justify-center text-primary">
+              <DropdownMenuItem className="justify-center text-sm font-medium">
                 View all notifications
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -140,16 +139,16 @@ export function AppHeader() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                 <Avatar className="h-9 w-9">
-                  <AvatarFallback className="bg-primary/10 text-primary">
+                  <AvatarFallback className="bg-muted text-foreground text-sm font-medium">
                     {user ? getInitials(user.name) : "?"}
                   </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <div className="flex items-center gap-2 p-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-primary/10 text-primary text-sm">
+            <DropdownMenuContent align="end" className="w-56 rounded-xl">
+              <div className="flex items-center gap-2.5 p-3">
+                <Avatar className="h-9 w-9">
+                  <AvatarFallback className="bg-muted text-foreground text-sm font-medium">
                     {user ? getInitials(user.name) : "?"}
                   </AvatarFallback>
                 </Avatar>
@@ -164,7 +163,7 @@ export function AppHeader() {
               <DropdownMenuItem asChild>
                 <Link
                   href="/account"
-                  className={pathname === "/account" ? "bg-accent" : ""}
+                  className={pathname === "/account" ? "bg-muted" : ""}
                 >
                   My Account
                 </Link>
@@ -175,7 +174,7 @@ export function AppHeader() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={logout}
-                className="text-destructive focus:text-destructive"
+                className="text-muted-foreground focus:text-foreground"
               >
                 Log out
               </DropdownMenuItem>

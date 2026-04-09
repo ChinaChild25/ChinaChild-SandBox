@@ -2,7 +2,6 @@
 
 import { Calendar, Clock, Video, Radio, FileText, HelpCircle } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { Lesson } from "@/lib/types"
 
@@ -12,10 +11,10 @@ interface LessonCardProps {
 
 export function LessonCard({ lesson }: LessonCardProps) {
   const typeConfig = {
-    Video: { icon: Video, color: "bg-blue-100 text-blue-700" },
-    Live: { icon: Radio, color: "bg-red-100 text-red-700" },
-    Practice: { icon: FileText, color: "bg-green-100 text-green-700" },
-    Quiz: { icon: HelpCircle, color: "bg-amber-100 text-amber-700" }
+    Video: { icon: Video, label: "Video" },
+    Live: { icon: Radio, label: "Live" },
+    Practice: { icon: FileText, label: "Practice" },
+    Quiz: { icon: HelpCircle, label: "Quiz" }
   }
 
   const config = typeConfig[lesson.type]
@@ -41,35 +40,37 @@ export function LessonCard({ lesson }: LessonCardProps) {
   }
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="border-0 bg-muted/30 shadow-none hover:bg-muted/50 transition-colors">
       <CardContent className="p-4">
         <div className="flex items-start gap-4">
-          <div
-            className={`h-12 w-12 rounded-lg ${config.color} flex items-center justify-center shrink-0`}
-          >
-            <Icon className="h-6 w-6" />
+          <div className="h-12 w-12 rounded-xl bg-background border border-border flex items-center justify-center shrink-0">
+            <Icon className="h-5 w-5 text-muted-foreground" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <Badge variant="secondary" className={`text-xs ${config.color}`}>
+              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2 py-0.5 rounded-md bg-background border border-border">
                 {lesson.type}
-              </Badge>
+              </span>
             </div>
-            <h4 className="font-semibold truncate">{lesson.title}</h4>
-            <p className="text-sm text-primary">{lesson.titleChinese}</p>
-            <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+            <h4 className="font-medium truncate">{lesson.title}</h4>
+            <p className="text-sm text-muted-foreground">{lesson.titleChinese}</p>
+            <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
               <div className="flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />
+                <Calendar className="h-3 w-3" />
                 {formatDate(lesson.scheduledDate)}
               </div>
               <div className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
+                <Clock className="h-3 w-3" />
                 {lesson.scheduledTime}
               </div>
               <span>{lesson.duration}</span>
             </div>
           </div>
-          <Button size="sm" variant="outline" className="shrink-0">
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="shrink-0 rounded-lg h-9 px-4 border-border hover:bg-foreground hover:text-background hover:border-foreground transition-colors"
+          >
             {lesson.type === "Live" ? "Join" : "Start"}
           </Button>
         </div>

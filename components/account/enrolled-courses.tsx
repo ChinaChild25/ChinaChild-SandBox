@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { BookOpen, Clock, User, ArrowRight } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { mockCourses } from "@/lib/mock-data"
@@ -11,24 +10,22 @@ import { mockCourses } from "@/lib/mock-data"
 export function EnrolledCourses() {
   const enrolledCourses = mockCourses.filter((c) => c.enrolled)
 
-  const levelColors = {
-    Beginner: "bg-green-100 text-green-700",
-    Elementary: "bg-blue-100 text-blue-700",
-    Intermediate: "bg-amber-100 text-amber-700",
-    Advanced: "bg-red-100 text-red-700"
-  }
-
   return (
-    <Card>
+    <Card className="border-0 bg-muted/30 shadow-none">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>Enrolled Courses</CardTitle>
+            <CardTitle className="text-base font-semibold">Enrolled Courses</CardTitle>
             <CardDescription>
               Your active courses and learning progress
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm" asChild>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            asChild 
+            className="rounded-lg border-border hover:bg-foreground hover:text-background hover:border-foreground"
+          >
             <Link href="/dashboard/courses">
               Browse More
               <ArrowRight className="h-4 w-4 ml-1" />
@@ -37,60 +34,61 @@ export function EnrolledCourses() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="space-y-3">
           {enrolledCourses.map((course) => (
             <div
               key={course.id}
-              className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+              className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-xl bg-background border border-border hover:border-muted-foreground/20 transition-colors"
             >
-              <div className="h-16 w-16 sm:h-20 sm:w-20 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center">
-                <BookOpen className="h-8 w-8 text-primary" />
+              <div className="h-14 w-14 sm:h-16 sm:w-16 shrink-0 rounded-xl bg-muted border border-border flex items-center justify-center">
+                <BookOpen className="h-6 w-6 text-muted-foreground" />
               </div>
               
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <Badge
-                    variant="secondary"
-                    className={`text-xs ${levelColors[course.level]}`}
-                  >
+                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2 py-0.5 rounded-md bg-muted">
                     {course.level}
-                  </Badge>
-                  <Badge variant="outline" className="text-xs">
+                  </span>
+                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
                     {course.category}
-                  </Badge>
+                  </span>
                   {course.progress === 100 && (
-                    <Badge className="bg-green-500 text-white text-xs">
+                    <span className="text-[10px] font-medium text-background uppercase tracking-wider px-2 py-0.5 rounded-md bg-foreground">
                       Completed
-                    </Badge>
+                    </span>
                   )}
                 </div>
                 
-                <h3 className="font-semibold">{course.title}</h3>
-                <p className="text-sm text-primary">{course.titleChinese}</p>
+                <h3 className="font-medium">{course.title}</h3>
+                <p className="text-sm text-muted-foreground">{course.titleChinese}</p>
                 
-                <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
-                    <User className="h-3.5 w-3.5" />
+                    <User className="h-3 w-3" />
                     {course.instructor}
                   </div>
                   <div className="flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" />
+                    <Clock className="h-3 w-3" />
                     {course.completedLessons}/{course.totalLessons} lessons
                   </div>
                 </div>
                 
                 <div className="mt-3">
-                  <div className="flex items-center justify-between text-sm mb-1">
+                  <div className="flex items-center justify-between text-xs mb-1.5">
                     <span className="text-muted-foreground">Progress</span>
                     <span className="font-medium">{course.progress}%</span>
                   </div>
-                  <Progress value={course.progress} className="h-2" />
+                  <Progress value={course.progress} className="h-1" />
                 </div>
               </div>
               
               <Button
+                className={`shrink-0 w-full sm:w-auto rounded-xl h-10 ${
+                  course.progress === 100 
+                    ? "bg-transparent border border-border text-foreground hover:bg-foreground hover:text-background hover:border-foreground" 
+                    : "bg-foreground text-background hover:bg-foreground/90"
+                }`}
                 variant={course.progress === 100 ? "outline" : "default"}
-                className="shrink-0 w-full sm:w-auto"
               >
                 {course.progress === 100 ? "Review" : "Continue"}
               </Button>
@@ -101,26 +99,25 @@ export function EnrolledCourses() {
         {/* Summary Stats */}
         <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-border">
           <div className="text-center">
-            <p className="text-2xl font-bold text-primary">
+            <p className="text-2xl font-semibold">
               {enrolledCourses.length}
             </p>
-            <p className="text-sm text-muted-foreground">Active Courses</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Active Courses</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-primary">
+            <p className="text-2xl font-semibold">
               {enrolledCourses.filter((c) => c.progress === 100).length}
             </p>
-            <p className="text-sm text-muted-foreground">Completed</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Completed</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-primary">
+            <p className="text-2xl font-semibold">
               {Math.round(
                 enrolledCourses.reduce((acc, c) => acc + c.progress, 0) /
                   enrolledCourses.length
-              )}
-              %
+              )}%
             </p>
-            <p className="text-sm text-muted-foreground">Avg. Progress</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Avg. Progress</p>
           </div>
         </div>
       </CardContent>

@@ -25,20 +25,20 @@ export function StatsCard({
   className
 }: StatsCardProps) {
   return (
-    <Card className={cn("", className)}>
-      <CardContent className="p-6">
+    <Card className={cn("border-0 bg-muted/30 shadow-none", className)}>
+      <CardContent className="p-5">
         <div className="flex items-start justify-between">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <p className="text-3xl font-bold mt-1">{value}</p>
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
+            <p className="text-3xl font-semibold tracking-tight">{value}</p>
             {subtitle && (
-              <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
+              <p className="text-xs text-muted-foreground">{subtitle}</p>
             )}
             {trend && (
               <p
                 className={cn(
-                  "text-sm mt-2",
-                  trend.value >= 0 ? "text-green-600" : "text-red-600"
+                  "text-xs font-medium mt-1",
+                  trend.value >= 0 ? "text-foreground" : "text-muted-foreground"
                 )}
               >
                 {trend.value >= 0 ? "+" : ""}
@@ -46,8 +46,8 @@ export function StatsCard({
               </p>
             )}
           </div>
-          <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Icon className="h-6 w-6 text-primary" />
+          <div className="h-10 w-10 rounded-xl bg-background flex items-center justify-center border border-border">
+            <Icon className="h-5 w-5 text-muted-foreground" />
           </div>
         </div>
       </CardContent>

@@ -4,7 +4,6 @@ import { useState } from "react"
 import { User, BookOpen, Trophy, FolderOpen, Settings } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/lib/auth-context"
 import { ProfileForm } from "@/components/account/profile-form"
 import { EnrolledCourses } from "@/components/account/enrolled-courses"
@@ -23,18 +22,23 @@ export default function AccountPage() {
     : "N/A"
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6">
+    <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">My Account</h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-1">
+            Account Settings
+          </p>
+          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight">
+            My Account
+          </h1>
+          <p className="text-muted-foreground mt-2">
             Manage your profile, courses, and learning preferences
           </p>
         </div>
-        <Card className="md:w-auto">
+        <Card className="md:w-auto border-0 bg-muted/30 shadow-none">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center text-xl font-bold text-primary">
+            <div className="h-12 w-12 rounded-xl bg-foreground text-background flex items-center justify-center text-lg font-semibold">
               {user?.name
                 ?.split(" ")
                 .map((n) => n[0])
@@ -44,9 +48,11 @@ export default function AccountPage() {
             <div>
               <p className="font-semibold">{user?.name}</p>
               <div className="flex items-center gap-2 text-sm">
-                <Badge variant="secondary">{user?.level}</Badge>
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 py-0.5 rounded-md bg-background border border-border">
+                  {user?.level}
+                </span>
                 <span className="text-muted-foreground">
-                  Member since {memberSince}
+                  Since {memberSince}
                 </span>
               </div>
             </div>
@@ -56,54 +62,54 @@ export default function AccountPage() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
+        <Card className="border-0 bg-muted/30 shadow-none">
           <CardContent className="p-4 text-center">
-            <p className="text-3xl font-bold text-primary">
+            <p className="text-3xl font-semibold">
               {user?.learningStreak || 0}
             </p>
-            <p className="text-sm text-muted-foreground">Day Streak</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Day Streak</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-0 bg-muted/30 shadow-none">
           <CardContent className="p-4 text-center">
-            <p className="text-3xl font-bold text-primary">
+            <p className="text-3xl font-semibold">
               {user?.totalLessonsCompleted || 0}
             </p>
-            <p className="text-sm text-muted-foreground">Lessons Done</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Lessons Done</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-0 bg-muted/30 shadow-none">
           <CardContent className="p-4 text-center">
-            <p className="text-3xl font-bold text-primary">
+            <p className="text-3xl font-semibold">
               {user?.totalStudyHours || 0}h
             </p>
-            <p className="text-sm text-muted-foreground">Study Time</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Study Time</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-0 bg-muted/30 shadow-none">
           <CardContent className="p-4 text-center">
-            <p className="text-3xl font-bold text-primary">5</p>
-            <p className="text-sm text-muted-foreground">Achievements</p>
+            <p className="text-3xl font-semibold">5</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Achievements</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:w-auto lg:inline-grid">
-          <TabsTrigger value="profile" className="gap-2">
+        <TabsList className="h-auto p-1 bg-muted/50 rounded-xl grid w-full grid-cols-2 md:grid-cols-4 lg:w-auto lg:inline-grid gap-1">
+          <TabsTrigger value="profile" className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
             <User className="h-4 w-4" />
             <span className="hidden sm:inline">Profile</span>
           </TabsTrigger>
-          <TabsTrigger value="courses" className="gap-2">
+          <TabsTrigger value="courses" className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
             <BookOpen className="h-4 w-4" />
             <span className="hidden sm:inline">Courses</span>
           </TabsTrigger>
-          <TabsTrigger value="resources" className="gap-2">
+          <TabsTrigger value="resources" className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
             <FolderOpen className="h-4 w-4" />
             <span className="hidden sm:inline">Resources</span>
           </TabsTrigger>
-          <TabsTrigger value="achievements" className="gap-2">
+          <TabsTrigger value="achievements" className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
             <Trophy className="h-4 w-4" />
             <span className="hidden sm:inline">Achievements</span>
           </TabsTrigger>
@@ -113,43 +119,49 @@ export default function AccountPage() {
           <ProfileForm />
           
           {/* Account Settings */}
-          <Card>
+          <Card className="border-0 bg-muted/30 shadow-none">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-2 text-base font-semibold">
+                <Settings className="h-4 w-4 text-muted-foreground" />
                 Account Settings
               </CardTitle>
               <CardDescription>
                 Manage your account preferences and security
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-lg border border-border">
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between p-4 rounded-xl bg-background border border-border">
                 <div>
-                  <p className="font-medium">Email Notifications</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="font-medium text-sm">Email Notifications</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     Receive lesson reminders and updates
                   </p>
                 </div>
-                <Badge>Enabled</Badge>
+                <span className="text-xs font-medium px-2 py-1 rounded-lg bg-foreground text-background">
+                  Enabled
+                </span>
               </div>
-              <div className="flex items-center justify-between p-4 rounded-lg border border-border">
+              <div className="flex items-center justify-between p-4 rounded-xl bg-background border border-border">
                 <div>
-                  <p className="font-medium">Two-Factor Authentication</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="font-medium text-sm">Two-Factor Authentication</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     Add an extra layer of security
                   </p>
                 </div>
-                <Badge variant="outline">Disabled</Badge>
+                <span className="text-xs font-medium px-2 py-1 rounded-lg bg-muted text-muted-foreground">
+                  Disabled
+                </span>
               </div>
-              <div className="flex items-center justify-between p-4 rounded-lg border border-border">
+              <div className="flex items-center justify-between p-4 rounded-xl bg-background border border-border">
                 <div>
-                  <p className="font-medium">Language Preference</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="font-medium text-sm">Language Preference</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     Interface and content language
                   </p>
                 </div>
-                <Badge variant="secondary">English</Badge>
+                <span className="text-xs font-medium px-2 py-1 rounded-lg bg-muted text-foreground">
+                  English
+                </span>
               </div>
             </CardContent>
           </Card>

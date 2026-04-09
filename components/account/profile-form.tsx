@@ -53,9 +53,9 @@ export function ProfileForm() {
   }
 
   return (
-    <Card>
+    <Card className="border-0 bg-muted/30 shadow-none">
       <CardHeader>
-        <CardTitle>Profile Information</CardTitle>
+        <CardTitle className="text-base font-semibold">Profile Information</CardTitle>
         <CardDescription>
           Update your personal details and learning preferences
         </CardDescription>
@@ -65,14 +65,14 @@ export function ProfileForm() {
           {/* Avatar Section */}
           <div className="flex items-center gap-6">
             <div className="relative">
-              <Avatar className="h-24 w-24">
-                <AvatarFallback className="bg-primary/10 text-primary text-2xl">
+              <Avatar className="h-20 w-20 rounded-2xl">
+                <AvatarFallback className="bg-foreground text-background text-xl font-semibold rounded-2xl">
                   {getInitials(formData.name || "U")}
                 </AvatarFallback>
               </Avatar>
               <button
                 type="button"
-                className="absolute bottom-0 right-0 h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors"
+                className="absolute -bottom-1 -right-1 h-8 w-8 rounded-xl bg-background border border-border text-foreground flex items-center justify-center hover:bg-muted transition-colors"
               >
                 <Camera className="h-4 w-4" />
               </button>
@@ -80,15 +80,15 @@ export function ProfileForm() {
             <div>
               <h3 className="font-semibold">{formData.name || "Your Name"}</h3>
               <p className="text-sm text-muted-foreground">{formData.email}</p>
-              <p className="text-sm text-primary mt-1">
-                {user?.level} Level Student
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-1">
+                {user?.level} Level
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="name" className="text-sm font-medium">Full Name</Label>
               <Input
                 id="name"
                 value={formData.name}
@@ -96,11 +96,12 @@ export function ProfileForm() {
                   setFormData({ ...formData, name: e.target.value })
                 }
                 disabled={isLoading}
+                className="h-11 rounded-xl bg-background border-border"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
+              <Label htmlFor="email" className="text-sm font-medium">Email Address</Label>
               <Input
                 id="email"
                 type="email"
@@ -109,12 +110,13 @@ export function ProfileForm() {
                   setFormData({ ...formData, email: e.target.value })
                 }
                 disabled={isLoading}
+                className="h-11 rounded-xl bg-background border-border"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="bio">Bio</Label>
+            <Label htmlFor="bio" className="text-sm font-medium">Bio</Label>
             <Textarea
               id="bio"
               placeholder="Tell us a bit about yourself and why you're learning Chinese..."
@@ -122,12 +124,13 @@ export function ProfileForm() {
               onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
               disabled={isLoading}
               rows={3}
+              className="rounded-xl bg-background border-border resize-none"
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="goal">Learning Goal</Label>
+              <Label htmlFor="goal" className="text-sm font-medium">Learning Goal</Label>
               <Select
                 value={formData.learningGoal}
                 onValueChange={(value) =>
@@ -135,10 +138,10 @@ export function ProfileForm() {
                 }
                 disabled={isLoading}
               >
-                <SelectTrigger id="goal">
+                <SelectTrigger id="goal" className="h-11 rounded-xl bg-background border-border">
                   <SelectValue placeholder="Select your goal" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-xl">
                   <SelectItem value="conversational">
                     Conversational fluency
                   </SelectItem>
@@ -151,7 +154,7 @@ export function ProfileForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="hours">Weekly Study Hours</Label>
+              <Label htmlFor="hours" className="text-sm font-medium">Weekly Study Hours</Label>
               <Select
                 value={formData.studyHoursPerWeek}
                 onValueChange={(value) =>
@@ -159,10 +162,10 @@ export function ProfileForm() {
                 }
                 disabled={isLoading}
               >
-                <SelectTrigger id="hours">
+                <SelectTrigger id="hours" className="h-11 rounded-xl bg-background border-border">
                   <SelectValue placeholder="Select study hours" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-xl">
                   <SelectItem value="1-5">1-5 hours</SelectItem>
                   <SelectItem value="5-10">5-10 hours</SelectItem>
                   <SelectItem value="10-15">10-15 hours</SelectItem>
@@ -173,7 +176,11 @@ export function ProfileForm() {
           </div>
 
           <div className="flex items-center gap-4">
-            <Button type="submit" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              disabled={isLoading}
+              className="rounded-xl h-11 px-6 bg-foreground text-background hover:bg-foreground/90"
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -184,8 +191,8 @@ export function ProfileForm() {
               )}
             </Button>
             {saved && (
-              <span className="text-sm text-green-600">
-                Changes saved successfully!
+              <span className="text-sm text-muted-foreground">
+                Changes saved successfully
               </span>
             )}
           </div>

@@ -42,24 +42,24 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email" className="text-sm font-medium">Email</Label>
         <Input
           id="email"
           type="email"
-          placeholder="your@email.com"
+          placeholder="name@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={isLoading}
-          className="h-11"
+          className="h-12 rounded-xl bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-foreground/20"
         />
       </div>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password" className="text-sm font-medium">Password</Label>
           <button
             type="button"
-            className="text-sm text-primary hover:underline"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             Forgot password?
           </button>
@@ -72,12 +72,12 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={isLoading}
-            className="h-11 pr-10"
+            className="h-12 rounded-xl bg-muted/50 border-0 pr-12 focus-visible:ring-1 focus-visible:ring-foreground/20"
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
           >
             {showPassword ? (
               <EyeOff className="h-4 w-4" />
@@ -93,19 +93,24 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
           id="remember"
           checked={rememberMe}
           onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+          className="rounded-md"
         />
-        <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">
+        <Label htmlFor="remember" className="text-sm font-normal cursor-pointer text-muted-foreground">
           Remember me for 30 days
         </Label>
       </div>
 
       {error && (
-        <p className="text-sm text-destructive bg-destructive/10 p-3 rounded-lg">
+        <p className="text-sm text-destructive bg-destructive/10 p-3 rounded-xl">
           {error}
         </p>
       )}
 
-      <Button type="submit" className="w-full h-11" disabled={isLoading}>
+      <Button 
+        type="submit" 
+        className="w-full h-12 rounded-xl bg-foreground text-background hover:bg-foreground/90 font-medium" 
+        disabled={isLoading}
+      >
         {isLoading ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -121,14 +126,18 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
           <div className="w-full border-t border-border" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-card px-2 text-muted-foreground">
-            Or continue with
+          <span className="bg-card px-3 text-muted-foreground">
+            or continue with
           </span>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Button type="button" variant="outline" className="h-11">
+        <Button 
+          type="button" 
+          variant="outline" 
+          className="h-12 rounded-xl border-border hover:bg-muted/50 hover:border-muted-foreground/20"
+        >
           <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
             <path
               fill="currentColor"
@@ -149,20 +158,24 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
           </svg>
           Google
         </Button>
-        <Button type="button" variant="outline" className="h-11">
+        <Button 
+          type="button" 
+          variant="outline" 
+          className="h-12 rounded-xl border-border hover:bg-muted/50 hover:border-muted-foreground/20"
+        >
           <svg className="mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+            <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
           </svg>
-          WeChat
+          GitHub
         </Button>
       </div>
 
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="text-center text-sm text-muted-foreground pt-2">
         {"Don't have an account? "}
         <button
           type="button"
           onClick={onSwitchToRegister}
-          className="text-primary hover:underline font-medium"
+          className="text-foreground hover:underline font-medium"
         >
           Sign up
         </button>

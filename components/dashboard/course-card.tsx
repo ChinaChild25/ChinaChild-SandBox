@@ -2,7 +2,6 @@
 
 import { BookOpen, Clock, User } from "lucide-react"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import type { Course } from "@/lib/types"
@@ -13,51 +12,33 @@ interface CourseCardProps {
 }
 
 export function CourseCard({ course, variant = "default" }: CourseCardProps) {
-  const levelColors = {
-    Beginner: "bg-green-100 text-green-700",
-    Elementary: "bg-blue-100 text-blue-700",
-    Intermediate: "bg-amber-100 text-amber-700",
-    Advanced: "bg-red-100 text-red-700"
-  }
-
-  const categoryIcons = {
-    Speaking: "speaking",
-    Reading: "reading",
-    Writing: "writing",
-    Grammar: "grammar",
-    Culture: "culture"
-  }
-
   if (variant === "compact") {
     return (
-      <Card className="group hover:shadow-md transition-shadow">
+      <Card className="group border-0 bg-muted/30 shadow-none hover:bg-muted/50 transition-colors">
         <CardContent className="p-4">
           <div className="flex items-start gap-4">
-            <div className="h-16 w-16 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center">
-              <BookOpen className="h-8 w-8 text-primary" />
+            <div className="h-14 w-14 shrink-0 rounded-xl bg-background border border-border flex items-center justify-center">
+              <BookOpen className="h-6 w-6 text-muted-foreground" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <Badge
-                  variant="secondary"
-                  className={`text-xs ${levelColors[course.level]}`}
-                >
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2 py-0.5 rounded-md bg-background border border-border">
                   {course.level}
-                </Badge>
-                <Badge variant="outline" className="text-xs">
+                </span>
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
                   {course.category}
-                </Badge>
+                </span>
               </div>
-              <h3 className="font-semibold truncate">{course.title}</h3>
+              <h3 className="font-medium truncate">{course.title}</h3>
               <p className="text-sm text-muted-foreground">{course.titleChinese}</p>
-              <div className="mt-2">
-                <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+              <div className="mt-3">
+                <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
                   <span>
                     {course.completedLessons} / {course.totalLessons} lessons
                   </span>
-                  <span>{course.progress}%</span>
+                  <span className="font-medium text-foreground">{course.progress}%</span>
                 </div>
-                <Progress value={course.progress} className="h-1.5" />
+                <Progress value={course.progress} className="h-1" />
               </div>
             </div>
           </div>
@@ -67,58 +48,64 @@ export function CourseCard({ course, variant = "default" }: CourseCardProps) {
   }
 
   return (
-    <Card className="group overflow-hidden hover:shadow-lg transition-all">
+    <Card className="group overflow-hidden border-0 bg-muted/30 shadow-none hover:bg-muted/50 transition-colors">
       <CardHeader className="p-0">
-        <div className="h-32 bg-gradient-to-br from-primary/20 to-primary/5 relative flex items-center justify-center">
-          <BookOpen className="h-16 w-16 text-primary/40" />
+        <div className="h-32 bg-gradient-to-br from-muted to-background relative flex items-center justify-center border-b border-border">
+          <BookOpen className="h-12 w-12 text-muted-foreground/30" />
           <div className="absolute top-3 left-3 flex gap-2">
-            <Badge
-              variant="secondary"
-              className={`${levelColors[course.level]}`}
-            >
+            <span className="text-[10px] font-medium text-foreground uppercase tracking-wider px-2.5 py-1 rounded-lg bg-background border border-border">
               {course.level}
-            </Badge>
+            </span>
           </div>
           {course.progress === 100 && (
             <div className="absolute top-3 right-3">
-              <Badge className="bg-green-500 text-white">Completed</Badge>
+              <span className="text-[10px] font-medium text-background uppercase tracking-wider px-2.5 py-1 rounded-lg bg-foreground">
+                Completed
+              </span>
             </div>
           )}
         </div>
       </CardHeader>
       <CardContent className="p-4">
-        <Badge variant="outline" className="mb-2 text-xs">
+        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
           {course.category}
-        </Badge>
-        <h3 className="font-semibold text-lg leading-snug">{course.title}</h3>
-        <p className="text-primary font-medium">{course.titleChinese}</p>
+        </span>
+        <h3 className="font-medium text-base mt-1 leading-snug">{course.title}</h3>
+        <p className="text-sm text-muted-foreground">{course.titleChinese}</p>
         <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
           {course.description}
         </p>
 
-        <div className="flex items-center gap-4 mt-4 text-sm text-muted-foreground">
+        <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
-            <User className="h-4 w-4" />
+            <User className="h-3.5 w-3.5" />
             {course.instructor}
           </div>
           <div className="flex items-center gap-1">
-            <Clock className="h-4 w-4" />
+            <Clock className="h-3.5 w-3.5" />
             {course.totalLessons} lessons
           </div>
         </div>
 
         {course.enrolled && (
           <div className="mt-4">
-            <div className="flex items-center justify-between text-sm mb-1">
+            <div className="flex items-center justify-between text-xs mb-1.5">
               <span className="text-muted-foreground">Progress</span>
               <span className="font-medium">{course.progress}%</span>
             </div>
-            <Progress value={course.progress} className="h-2" />
+            <Progress value={course.progress} className="h-1" />
           </div>
         )}
       </CardContent>
       <CardFooter className="p-4 pt-0">
-        <Button className="w-full" variant={course.enrolled ? "default" : "outline"}>
+        <Button 
+          className={`w-full rounded-xl h-10 font-medium ${
+            course.enrolled 
+              ? "bg-foreground text-background hover:bg-foreground/90" 
+              : "bg-transparent border border-border text-foreground hover:bg-foreground hover:text-background hover:border-foreground"
+          }`}
+          variant={course.enrolled ? "default" : "outline"}
+        >
           {course.enrolled
             ? course.progress === 100
               ? "Review Course"
