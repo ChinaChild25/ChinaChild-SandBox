@@ -1,0 +1,117 @@
+"use client"
+
+import { FileText, Headphones, Video, Layers, Download, ExternalLink } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { mockResources } from "@/lib/mock-data"
+
+export function LearningResources() {
+  const typeConfig = {
+    PDF: { icon: FileText, color: "bg-red-100 text-red-600" },
+    Audio: { icon: Headphones, color: "bg-blue-100 text-blue-600" },
+    Video: { icon: Video, color: "bg-purple-100 text-purple-600" },
+    Flashcards: { icon: Layers, color: "bg-green-100 text-green-600" }
+  }
+
+  const groupedResources = mockResources.reduce(
+    (acc, resource) => {
+      if (!acc[resource.category]) {
+        acc[resource.category] = []
+      }
+      acc[resource.category].push(resource)
+      return acc
+    },
+    {} as Record<string, typeof mockResources>
+  )
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Learning Resources</CardTitle>
+        <CardDescription>
+          Downloadable materials and study aids for your courses
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-6">
+          {Object.entries(groupedResources).map(([category, resources]) => (
+            <div key={category}>
+              <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider mb-3">
+                {category}
+              </h3>
+              <div className="space-y-2">
+                {resources.map((resource) => {
+                  const config = typeConfig[resource.type]
+                  const Icon = config.icon
+
+                  return (
+                    <div
+                      key={resource.id}
+                      className="flex items-center gap-4 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+                    >
+                      <div
+                        className={`h-10 w-10 rounded-lg ${config.color} flex items-center justify-center shrink-0`}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-sm truncate">
+                          {resource.title}
+                        </h4>
+                        <p className="text-sm text-primary truncate">
+                          {resource.titleChinese}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="shrink-0 text-xs">
+                        {resource.type}
+                      </Badge>
+                      <Button variant="ghost" size="icon" className="shrink-0">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Quick Links */}
+        <div className="mt-6 pt-6 border-t border-border">
+          <h3 className="font-semibold mb-3">External Resources</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <a
+              href="#"
+              className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+            >
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <ExternalLink className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">Chinese Dictionary</p>
+                <p className="text-xs text-muted-foreground">
+                  MDBG Online Dictionary
+                </p>
+              </div>
+            </a>
+            <a
+              href="#"
+              className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+            >
+              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <ExternalLink className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">Character Writing</p>
+                <p className="text-xs text-muted-foreground">
+                  Stroke Order Practice
+                </p>
+              </div>
+            </a>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
