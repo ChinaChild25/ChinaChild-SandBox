@@ -3,6 +3,14 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@font-face {
+  font-family: 'Lab Grotesque';
+  src: local('Lab Grotesque'), local('LabGrotesque');
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+}
+
 :root {
   --background: oklch(0.947 0 0);
   --foreground: oklch(0.17 0.01 286);
@@ -127,6 +135,38 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Lab Grotesque';
+    font-feature-settings: "liga" 1, "kern" 1;
+  }
+}
+
+@layer components {
+  .ek-app-shell {
+    @apply min-h-screen bg-background text-foreground;
+  }
+
+  .ek-surface {
+    @apply rounded-[1.5rem] border border-black/5 bg-card shadow-[0_1px_0_rgba(0,0,0,0.03)];
+  }
+
+  .ek-soft-panel {
+    @apply rounded-[1.5rem] border border-black/5 bg-[#efefef];
+  }
+
+  .ek-nav-item {
+    @apply flex items-center gap-3 rounded-full px-4 py-2.5 text-[1.02rem] leading-none font-medium text-black/70 transition-colors hover:bg-black/5 hover:text-black;
+  }
+
+  .ek-nav-item-active {
+    @apply bg-[#13151f] text-white hover:bg-[#13151f] hover:text-white;
+  }
+
+  .ek-auth-input {
+    @apply h-12 rounded-2xl border border-black/10 bg-[#f4f4f4] px-4 text-[0.98rem] shadow-none placeholder:text-black/35 focus-visible:ring-2 focus-visible:ring-black/15;
+  }
+
+  .ek-auth-title {
+    @apply text-[2rem] leading-none font-semibold tracking-[-0.03em] text-[#11131c];
   }
 }
 
