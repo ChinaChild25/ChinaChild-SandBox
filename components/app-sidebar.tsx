@@ -100,9 +100,12 @@ export function AppSidebar() {
               <div className="space-y-1 px-1">
                 <Link
                   href="/courses"
-                  className={cn("ek-nav-item", pathname === "/courses" && "ek-nav-item-active")}
+                  className={cn(
+                    "cc-glass-nav-item",
+                    pathname === "/courses" && "cc-glass-nav-item--active"
+                  )}
                 >
-                  <MousePointerClick className="h-[18px] w-[18px]" />
+                  <MousePointerClick className="h-[18px] w-[18px] shrink-0" />
                   Мои курсы
                 </Link>
                 {courseLinks.map((course) => {
@@ -112,11 +115,11 @@ export function AppSidebar() {
                       key={course.name}
                       href={course.href}
                       className={cn(
-                        "ml-8 flex items-center gap-2 rounded-full px-3 py-2 text-[0.92rem] text-black/60 transition-colors hover:bg-black/5 hover:text-black",
-                        isActive && "text-black"
+                        "cc-glass-nav-item cc-glass-nav-item--compact ml-6 gap-2",
+                        isActive && "cc-glass-nav-item--active"
                       )}
                     >
-                      <ChevronRight className="h-3.5 w-3.5" />
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-70" />
                       {course.name}
                     </Link>
                   )
@@ -145,12 +148,15 @@ export function AppSidebar() {
                       {item.href ? (
                         <Link
                           href={item.href}
-                          className={cn("ek-nav-item", isActive && "ek-nav-item-active")}
+                          className={cn(
+                            "cc-glass-nav-item",
+                            isActive && "cc-glass-nav-item--active"
+                          )}
                         >
                           {content}
                         </Link>
                       ) : (
-                        <div className="ek-nav-item cursor-default opacity-95">{content}</div>
+                        <div className="cc-glass-nav-item cursor-default opacity-95">{content}</div>
                       )}
                     </div>
                   )
@@ -163,11 +169,11 @@ export function AppSidebar() {
 
       <div className="px-2">
         <Button
-          variant="ghost"
+          variant="chinaSecondary"
           onClick={logout}
-          className="h-11 w-full justify-start rounded-full px-3 text-base text-black/60 hover:bg-black/5 hover:text-black"
+          className="!h-auto !min-h-12 w-full justify-start rounded-[var(--play-button-radius)] px-4 text-base font-semibold"
         >
-          <LogOut className="mr-2 h-4 w-4" />
+          <LogOut className="mr-2 h-4 w-4 shrink-0" />
           Выйти
         </Button>
       </div>

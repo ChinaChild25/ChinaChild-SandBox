@@ -63,9 +63,9 @@ export default function AuthPage() {
               {features.map((feature) => (
                 <div
                   key={feature.title}
-                  className="ek-soft-panel flex items-start gap-4 px-5 py-4"
+                  className="cc-glass-panel !flex !flex-row !items-start !gap-4 !rounded-[var(--play-card-radius)] !p-5"
                 >
-                  <div className="mt-0.5 grid h-10 w-10 place-content-center rounded-full bg-[#d8ea95] text-[#141821]">
+                  <div className="cc-icon-pulse mt-0.5 grid h-10 w-10 shrink-0 place-content-center rounded-full bg-[#d8ea95] text-[#141821]">
                     <feature.icon className="h-5 w-5" />
                   </div>
                   <div>
@@ -99,14 +99,14 @@ export default function AuthPage() {
 
         <div className="border-t border-black/8 bg-[#efefef] p-5 md:p-8 lg:border-l lg:border-t-0 lg:p-12">
           <div className="mx-auto w-full max-w-[34rem]">
-            <div className="mb-5 inline-flex rounded-full bg-black/5 p-1.5">
+            <div className="cc-glass-bar mb-5 !inline-flex !w-auto !rounded-full !p-1.5">
               <button
                 type="button"
                 onClick={() => setIsLogin(true)}
                 className={cn(
-                  "rounded-full px-5 py-2.5 text-sm font-semibold transition-colors",
+                  "rounded-full px-5 py-2.5 text-sm font-bold tracking-tight transition-[transform,background,color] duration-[var(--cc-speed-base)] ease-[var(--cc-ease-standard)]",
                   isLogin
-                    ? "bg-[#141720] text-white"
+                    ? "bg-[#1d1d1f] text-white shadow-sm"
                     : "text-black/65 hover:text-black"
                 )}
               >
@@ -116,9 +116,9 @@ export default function AuthPage() {
                 type="button"
                 onClick={() => setIsLogin(false)}
                 className={cn(
-                  "rounded-full px-5 py-2.5 text-sm font-semibold transition-colors",
+                  "rounded-full px-5 py-2.5 text-sm font-bold tracking-tight transition-[transform,background,color] duration-[var(--cc-speed-base)] ease-[var(--cc-ease-standard)]",
                   !isLogin
-                    ? "bg-[#141720] text-white"
+                    ? "bg-[#1d1d1f] text-white shadow-sm"
                     : "text-black/65 hover:text-black"
                 )}
               >
@@ -126,7 +126,7 @@ export default function AuthPage() {
               </button>
             </div>
 
-            <section className="ek-surface rounded-[1.75rem] bg-white px-6 py-8 md:px-8">
+            <section className="cc-glass-panel !rounded-[var(--play-panel-radius)] !px-6 !py-8 md:!px-8">
               <h2 className="ek-auth-title">
                 {isLogin ? "С возвращением" : "Добро пожаловать в ChinaChild"}
               </h2>
@@ -145,9 +145,9 @@ export default function AuthPage() {
               </div>
             </section>
 
-            <p className="mt-5 inline-flex items-center gap-2 text-sm text-black/55">
+            <p className="group mt-5 inline-flex cursor-default items-center gap-2 text-sm text-black/55">
               Доступ к урокам, заданиям и сообщениям преподавателей
-              <ArrowRight className="h-4 w-4" />
+              <ArrowRight className="h-4 w-4 transition-transform duration-[var(--cc-speed-base)] ease-[var(--cc-ease-emphasized)] group-hover:translate-x-1" />
             </p>
           </div>
         </div>

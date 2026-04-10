@@ -2,12 +2,9 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Menu } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { AppHeader } from "@/components/app-header"
 import { AppSidebar } from "@/components/app-sidebar"
-import { BrandLogo } from "@/components/brand-logo"
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
 export default function AppLayout({
   children
@@ -34,33 +31,15 @@ export default function AppLayout({
   return (
     <div className="ek-app-shell">
       <div className="flex min-h-screen">
-        <aside className="hidden w-[18.75rem] shrink-0 border-r border-black/5 bg-sidebar lg:block">
+        <aside className="hidden w-[18.75rem] shrink-0 border-r border-white/25 bg-sidebar/85 backdrop-blur-xl lg:block">
           <div className="sticky top-0 h-screen overflow-y-auto">
             <AppSidebar />
           </div>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex h-16 items-center justify-between border-b border-black/5 bg-background px-4 lg:hidden">
-            <BrandLogo />
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-full border border-black/10 bg-white"
-                >
-                  <Menu className="h-5 w-5" />
-                  <span className="sr-only">Открыть меню</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="w-[18.75rem] bg-sidebar p-0">
-                <AppSidebar />
-              </SheetContent>
-            </Sheet>
-          </header>
-
-          <main className="flex-1 min-w-0">{children}</main>
+          <AppHeader />
+          <main className="min-w-0 flex-1 px-1 pb-4 pt-0 md:px-2">{children}</main>
         </div>
       </div>
     </div>
