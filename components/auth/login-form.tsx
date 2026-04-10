@@ -42,11 +42,11 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2.5">
-        <Label htmlFor="email" className="text-sm font-semibold text-[#161922]">Почта</Label>
+        <Label htmlFor="email" className="text-sm font-semibold text-[#161922]">Email</Label>
         <Input
           id="email"
           type="email"
-          placeholder="yana@chinachild.ru"
+          placeholder="yana@easykorean.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={isLoading}
@@ -56,10 +56,10 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
 
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
-            <Label htmlFor="password" className="text-sm font-semibold text-[#161922]">Пароль</Label>
+          <Label htmlFor="password" className="text-sm font-semibold text-[#161922]">Password</Label>
           <button
             type="button"
-            className="text-xs font-medium text-black/55 transition-colors hover:text-black"
+            className="text-xs font-medium text-black/55 hover:text-black transition-colors"
           >
             Забыли пароль?
           </button>
@@ -127,7 +127,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
         </div>
         <div className="relative flex justify-center text-xs uppercase">
           <span className="bg-[#f3f3f4] px-3 tracking-[0.12em] text-black/45">
-            или продолжить через
+            or continue with
           </span>
         </div>
       </div>
@@ -171,7 +171,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
       </div>
 
       <p className="pt-2 text-center text-sm text-black/58">
-        {"Нет аккаунта? "}
+        {"Don't have an account? "}
         <button
           type="button"
           onClick={onSwitchToRegister}

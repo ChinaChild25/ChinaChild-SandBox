@@ -42,7 +42,7 @@ export default function AppLayout({
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="flex h-16 items-center justify-between border-b border-black/5 bg-background px-4 lg:hidden">
             <div className="text-2xl font-extrabold tracking-[-0.05em]">
-              ChinaChild
+              Easy Kor/ean
             </div>
             <Sheet>
               <SheetTrigger asChild>
@@ -52,7 +52,7 @@ export default function AppLayout({
                   className="rounded-full border border-black/10 bg-white"
                 >
                   <Menu className="h-5 w-5" />
-                  <span className="sr-only">Открыть меню</span>
+                  <span className="sr-only">Open menu</span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-[18.75rem] bg-sidebar p-0">
