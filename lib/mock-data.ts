@@ -22,84 +22,84 @@ export const mockUser: User = {
 export const mockCourses: Course[] = [
   {
     id: "course-1",
-    title: "Mandarin Fundamentals",
+    title: "Основы китайского языка",
     titleChinese: "汉语基础",
-    description: "Master the basics of Mandarin Chinese including tones, pinyin, and essential vocabulary.",
+    description: "Освойте основы: тоны, пиньинь и базовую лексику.",
     level: "Beginner",
     totalLessons: 24,
     completedLessons: 24,
     progress: 100,
-    instructor: "Li Wei",
+    instructor: "Ли Вэй",
     thumbnail: "/courses/fundamentals.jpg",
     category: "Speaking",
     enrolled: true
   },
   {
     id: "course-2",
-    title: "Business Chinese",
+    title: "Деловой китайский",
     titleChinese: "商务汉语",
-    description: "Professional Chinese for business meetings, negotiations, and formal correspondence.",
+    description: "Китайский для переговоров, рабочих встреч и деловой переписки.",
     level: "Intermediate",
     totalLessons: 20,
     completedLessons: 12,
     progress: 60,
-    instructor: "Zhang Ming",
+    instructor: "Чжан Мин",
     thumbnail: "/courses/business.jpg",
     category: "Speaking",
     enrolled: true
   },
   {
     id: "course-3",
-    title: "Chinese Characters Mastery",
+    title: "Иероглифика: продвинутый блок",
     titleChinese: "汉字精通",
-    description: "Learn to read and write 500 essential Chinese characters with stroke order and etymology.",
+    description: "Чтение и письмо ключевых иероглифов, порядок черт и практика.",
     level: "Elementary",
     totalLessons: 30,
     completedLessons: 18,
     progress: 60,
-    instructor: "Wang Fang",
+    instructor: "Ван Фан",
     thumbnail: "/courses/characters.jpg",
     category: "Writing",
     enrolled: true
   },
   {
     id: "course-4",
-    title: "Chinese Culture & Traditions",
+    title: "Культура и традиции Китая",
     titleChinese: "中国文化与传统",
-    description: "Explore Chinese festivals, customs, and cultural practices through language.",
+    description: "Изучение традиций, праздников и культурных контекстов через язык.",
     level: "Intermediate",
     totalLessons: 16,
     completedLessons: 4,
     progress: 25,
-    instructor: "Chen Mei",
+    instructor: "Чэнь Мэй",
     thumbnail: "/courses/culture.jpg",
     category: "Culture",
     enrolled: true
   },
   {
     id: "course-5",
-    title: "HSK 4 Preparation",
+    title: "Подготовка к HSK 4",
     titleChinese: "HSK四级备考",
-    description: "Comprehensive preparation for the HSK Level 4 standardized test.",
+    description: "Комплексная подготовка к международному экзамену HSK 4.",
     level: "Intermediate",
     totalLessons: 40,
     completedLessons: 0,
     progress: 0,
-    instructor: "Liu Hua",
+    instructor: "Лю Хуа",
     thumbnail: "/courses/hsk.jpg",
     category: "Grammar",
     enrolled: false
   },
   {
     id: "course-6",
-    title: "Advanced Reading Comprehension",
+    title: "Продвинутое чтение",
     titleChinese: "高级阅读理解",
-    description: "Tackle complex texts including news articles, literature, and academic papers.",
+    description: "Работа со сложными текстами: новости, статьи и учебные материалы.",
     level: "Advanced",
     totalLessons: 25,
     completedLessons: 0,
     progress: 0,
-    instructor: "Zhao Jing",
+    instructor: "Чжао Цзин",
     thumbnail: "/courses/reading.jpg",
     category: "Reading",
     enrolled: false
@@ -167,32 +167,32 @@ export const mockLessons: Lesson[] = [
 export const mockNotifications: Notification[] = [
   {
     id: "notif-1",
-    title: "Live Lesson Starting Soon",
-    message: "Your Business Meeting Vocabulary lesson starts in 1 hour.",
+    title: "Скоро начнётся занятие",
+    message: "Ваш урок «Китайские числительные» начнётся через 1 час.",
     type: "lesson",
     read: false,
     createdAt: "2026-04-10T09:00:00"
   },
   {
     id: "notif-2",
-    title: "Achievement Unlocked!",
-    message: "Congratulations! You've earned the 'Week Warrior' badge for 7-day streak.",
+    title: "Новое достижение!",
+    message: "Вы получили значок «Недельный ритм» за серию из 7 дней.",
     type: "achievement",
     read: false,
     createdAt: "2026-04-09T18:00:00"
   },
   {
     id: "notif-3",
-    title: "New Course Available",
-    message: "Check out our new HSK 5 Preparation course launching next week.",
+    title: "Доступен новый курс",
+    message: "Открылся курс подготовки к HSK 5 — старт на следующей неделе.",
     type: "system",
     read: true,
     createdAt: "2026-04-08T10:00:00"
   },
   {
     id: "notif-4",
-    title: "Practice Reminder",
-    message: "You haven't practiced speaking today. Keep your streak alive!",
+    title: "Напоминание о практике",
+    message: "Сегодня вы ещё не делали разговорную практику. Поддержите серию!",
     type: "reminder",
     read: true,
     createdAt: "2026-04-07T20:00:00"
@@ -202,43 +202,43 @@ export const mockNotifications: Notification[] = [
 export const mockAchievements: Achievement[] = [
   {
     id: "achieve-1",
-    title: "First Steps",
-    description: "Complete your first lesson",
+    title: "Первые шаги",
+    description: "Завершите первый урок",
     icon: "footprints",
     unlockedAt: "2025-09-16"
   },
   {
     id: "achieve-2",
-    title: "Week Warrior",
-    description: "Maintain a 7-day learning streak",
+    title: "Недельный ритм",
+    description: "Поддерживайте серию занятий 7 дней подряд",
     icon: "flame",
     unlockedAt: "2025-09-22"
   },
   {
     id: "achieve-3",
-    title: "Character Champion",
-    description: "Learn 100 Chinese characters",
+    title: "Чемпион иероглифов",
+    description: "Выучите 100 китайских иероглифов",
     icon: "pen-tool",
     unlockedAt: "2025-11-10"
   },
   {
     id: "achieve-4",
-    title: "Tone Master",
-    description: "Perfect score on tone quiz",
+    title: "Мастер тонов",
+    description: "Получите максимальный балл в тесте на тоны",
     icon: "music",
     unlockedAt: "2025-10-05"
   },
   {
     id: "achieve-5",
-    title: "Century Club",
-    description: "Study for 100+ hours",
+    title: "Клуб 100+",
+    description: "Наберите более 100 часов обучения",
     icon: "clock",
     unlockedAt: "2026-03-15"
   },
   {
     id: "achieve-6",
-    title: "Polyglot Path",
-    description: "Reach Advanced level",
+    title: "Путь полиглота",
+    description: "Достигните продвинутого уровня",
     icon: "trophy",
     progress: 75
   }
@@ -247,50 +247,50 @@ export const mockAchievements: Achievement[] = [
 export const mockResources: LearningResource[] = [
   {
     id: "resource-1",
-    title: "Pinyin Reference Guide",
+    title: "Справочник по пиньиню",
     titleChinese: "拼音参考指南",
     type: "PDF",
-    category: "Pronunciation",
+    category: "Произношение",
     downloadUrl: "/resources/pinyin-guide.pdf"
   },
   {
     id: "resource-2",
-    title: "Tone Practice Audio",
+    title: "Аудио для тренировки тонов",
     titleChinese: "声调练习音频",
     type: "Audio",
-    category: "Pronunciation",
+    category: "Произношение",
     downloadUrl: "/resources/tones.mp3"
   },
   {
     id: "resource-3",
-    title: "HSK 4 Vocabulary Flashcards",
+    title: "Карточки лексики HSK 4",
     titleChinese: "HSK四级词汇卡",
     type: "Flashcards",
-    category: "Vocabulary",
+    category: "Лексика",
     downloadUrl: "/resources/hsk4-vocab.json"
   },
   {
     id: "resource-4",
-    title: "Stroke Order Animation",
+    title: "Анимация порядка черт",
     titleChinese: "笔画顺序动画",
     type: "Video",
-    category: "Writing",
+    category: "Письмо",
     downloadUrl: "/resources/strokes.mp4"
   },
   {
     id: "resource-5",
-    title: "Common Radicals Chart",
+    title: "Таблица распространённых ключей",
     titleChinese: "常用部首表",
     type: "PDF",
-    category: "Writing",
+    category: "Письмо",
     downloadUrl: "/resources/radicals.pdf"
   },
   {
     id: "resource-6",
-    title: "Business Phrases Audio",
+    title: "Аудио деловых фраз",
     titleChinese: "商务短语音频",
     type: "Audio",
-    category: "Business",
+    category: "Деловой китайский",
     downloadUrl: "/resources/business-audio.mp3"
   }
 ]

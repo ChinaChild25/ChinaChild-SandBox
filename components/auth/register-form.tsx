@@ -66,12 +66,12 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="name" className="text-[13px] font-medium text-black/70">
-          Full Name
+          Имя и фамилия
         </Label>
         <Input
           id="name"
           type="text"
-          placeholder="Your full name"
+          placeholder="Введите имя и фамилию"
           value={name}
           onChange={(e) => setName(e.target.value)}
           disabled={isLoading}
@@ -81,7 +81,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="reg-email" className="text-[13px] font-medium text-black/70">
-          Email
+          Почта
         </Label>
         <Input
           id="reg-email"
@@ -96,7 +96,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="reg-password" className="text-[13px] font-medium text-black/70">
-          Password
+          Пароль
         </Label>
         <div className="relative">
           <Input
@@ -143,7 +143,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="confirm-password" className="text-[13px] font-medium text-black/70">
-          Confirm Password
+          Подтвердите пароль
         </Label>
         <Input
           id="confirm-password"
@@ -173,13 +173,13 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           htmlFor="terms"
           className="cursor-pointer text-[13px] leading-snug font-normal text-black/55"
         >
-          I agree to the{" "}
+          Я принимаю{" "}
           <a href="#" className="text-black hover:underline">
-            Terms of Service
+            условия сервиса
           </a>{" "}
-          and{" "}
+          и{" "}
           <a href="#" className="text-black hover:underline">
-            Privacy Policy
+            политику конфиденциальности
           </a>
         </Label>
       </div>
@@ -206,7 +206,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
       </Button>
 
       <p className="pt-1 text-center text-sm text-black/55">
-        Already have an account?{" "}
+        Уже есть аккаунт?{" "}
         <button
           type="button"
           onClick={onSwitchToLogin}

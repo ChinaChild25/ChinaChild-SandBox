@@ -42,11 +42,11 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2.5">
-        <Label htmlFor="email" className="text-sm font-semibold text-[#161922]">Email</Label>
+        <Label htmlFor="email" className="text-sm font-semibold text-[#161922]">Почта</Label>
         <Input
           id="email"
           type="email"
-          placeholder="yana@easykorean.com"
+          placeholder="yana@chinachild.ru"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={isLoading}
@@ -56,7 +56,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
 
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
-          <Label htmlFor="password" className="text-sm font-semibold text-[#161922]">Password</Label>
+          <Label htmlFor="password" className="text-sm font-semibold text-[#161922]">Пароль</Label>
           <button
             type="button"
             className="text-xs font-medium text-black/55 hover:text-black transition-colors"
@@ -96,7 +96,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
           className="rounded-md border-black/20 data-[state=checked]:border-[#161922] data-[state=checked]:bg-[#161922]"
         />
         <Label htmlFor="remember" className="cursor-pointer text-sm font-normal text-black/60">
-          Remember me for 30 days
+          Запомнить меня на 30 дней
         </Label>
       </div>
 
@@ -127,7 +127,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
         </div>
         <div className="relative flex justify-center text-xs uppercase">
           <span className="bg-[#f3f3f4] px-3 tracking-[0.12em] text-black/45">
-            or continue with
+            или продолжить через
           </span>
         </div>
       </div>
@@ -171,7 +171,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
       </div>
 
       <p className="pt-2 text-center text-sm text-black/58">
-        {"Don't have an account? "}
+        {"Нет аккаунта? "}
         <button
           type="button"
           onClick={onSwitchToRegister}

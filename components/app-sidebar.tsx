@@ -3,7 +3,9 @@
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useState } from "react"
 import {
+  ChevronRight,
   Gauge,
   Calendar,
   MessagesSquare,
@@ -16,6 +18,9 @@ import {
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { placeholderImages } from "@/lib/placeholders"
+import { BrandLogo } from "@/components/brand-logo"
 
 type SidebarItem = {
   name: string
@@ -24,17 +29,25 @@ type SidebarItem = {
 }
 
 const navigation: SidebarItem[] = [
-  { name: "Dashboard", href: "/dashboard", icon: Gauge },
-  { name: "Classes", icon: MousePointerClick },
-  { name: "My grades", href: "/account", icon: ShieldCheck },
-  { name: "Schedule", icon: Calendar },
-  { name: "Messages", icon: MessagesSquare },
-  { name: "Settings", href: "/account", icon: Settings }
+  { name: "Дашборд", href: "/dashboard", icon: Gauge },
+  { name: "Прогресс", href: "/progress", icon: ShieldCheck },
+  { name: "Расписание", href: "/schedule", icon: Calendar },
+  { name: "Сообщения", href: "/messages", icon: MessagesSquare },
+  { name: "Настройки", href: "/settings", icon: Settings }
+]
+
+const courseLinks = [
+  { name: "HSK 1", href: "/courses/hsk1" },
+  { name: "HSK 2", href: "/courses/hsk2" }
 ]
 
 export function AppSidebar() {
   const pathname = usePathname()
   const { user, logout } = useAuth()
+  const [openedSections, setOpenedSections] = useState({
+    courses: true,
+    workspace: true
+  })
 
   const levelNumber = {
     Beginner: 1,
@@ -43,54 +56,110 @@ export function AppSidebar() {
     Advanced: 4
   }[user?.level ?? "Beginner"]
 
-  const firstName = user?.name?.split(" ")[0] ?? "Yana"
-  const avatarText = firstName.slice(0, 2).toUpperCase()
+  const firstName = user?.name?.split(" ")[0] ?? "Яна"
 
   return (
     <div className="flex h-full flex-col bg-sidebar px-5 pb-6 pt-7 text-[#1c1f27]">
       <div className="px-2">
-        <p className="text-[2rem] font-extrabold leading-7 tracking-[-0.05em]">
-          <span className="block">Easy</span>
-          <span className="block">Kor/ean</span>
-        </p>
+        <BrandLogo />
       </div>
 
       <div className="mt-12 flex flex-col items-start px-2">
-        <div className="mb-4 flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm">
-          <span className="text-lg font-bold tracking-[-0.03em]">{avatarText}</span>
+        <div className="mb-4 h-16 w-16 overflow-hidden rounded-full bg-white shadow-sm">
+          <Image
+            src={placeholderImages.studentAvatar}
+            alt="Аватар ученика"
+            width={64}
+            height={64}
+            className="h-full w-full object-cover"
+          />
         </div>
-        <h2 className="text-[3rem] leading-[1] font-semibold tracking-[-0.04em]">
+        <h2 className="text-[3rem] leading-[0.96] font-semibold tracking-[-0.045em]">
           {firstName}
         </h2>
-        <p className="mt-1 text-lg text-black/65">{`student ${levelNumber} degree`}</p>
+        <p className="mt-1 text-lg text-black/65">{`студент ${levelNumber} уровня`}</p>
       </div>
 
-      <nav className="mt-8 flex-1 space-y-1.5">
-        {navigation.map((item) => {
-          const isActive = item.href ? pathname === item.href : false
-          const content = (
-            <>
-              <item.icon className="h-[18px] w-[18px]" />
-              {item.name}
-            </>
-          )
-
-          return (
-            <div key={item.name} className="px-1">
-              {item.href ? (
+      <div className="mt-8 flex-1 overflow-y-auto pr-1">
+        <Accordion
+          type="multiple"
+          value={Object.entries(openedSections).filter(([, open]) => open).map(([key]) => key)}
+          onValueChange={(values) =>
+            setOpenedSections({
+              courses: values.includes("courses"),
+              workspace: values.includes("workspace")
+            })
+          }
+          className="space-y-1"
+        >
+          <AccordionItem value="courses" className="border-0">
+            <AccordionTrigger className="px-3 py-2 text-left text-[0.94rem] font-semibold tracking-[0.06em] text-black/55 uppercase hover:no-underline">
+              <span>Курсы</span>
+            </AccordionTrigger>
+            <AccordionContent className="pb-1">
+              <div className="space-y-1 px-1">
                 <Link
-                  href={item.href}
-                  className={cn("ek-nav-item", isActive && "ek-nav-item-active")}
+                  href="/courses"
+                  className={cn("ek-nav-item", pathname === "/courses" && "ek-nav-item-active")}
                 >
-                  {content}
+                  <MousePointerClick className="h-[18px] w-[18px]" />
+                  Мои курсы
                 </Link>
-              ) : (
-                <div className="ek-nav-item cursor-default opacity-95">{content}</div>
-              )}
-            </div>
-          )
-        })}
-      </nav>
+                {courseLinks.map((course) => {
+                  const isActive = pathname === course.href
+                  return (
+                    <Link
+                      key={course.name}
+                      href={course.href}
+                      className={cn(
+                        "ml-8 flex items-center gap-2 rounded-full px-3 py-2 text-[0.92rem] text-black/60 transition-colors hover:bg-black/5 hover:text-black",
+                        isActive && "text-black"
+                      )}
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                      {course.name}
+                    </Link>
+                  )
+                })}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="workspace" className="border-0">
+            <AccordionTrigger className="px-3 py-2 text-left text-[0.94rem] font-semibold tracking-[0.06em] text-black/55 uppercase hover:no-underline">
+              <span>Разделы</span>
+            </AccordionTrigger>
+            <AccordionContent className="pb-1">
+              <nav className="space-y-1 px-1">
+                {navigation.map((item) => {
+                  const isActive = item.href ? pathname === item.href : false
+                  const content = (
+                    <>
+                      <item.icon className="h-[18px] w-[18px]" />
+                      {item.name}
+                    </>
+                  )
+
+                  return (
+                    <div key={item.name}>
+                      {item.href ? (
+                        <Link
+                          href={item.href}
+                          className={cn("ek-nav-item", isActive && "ek-nav-item-active")}
+                        >
+                          {content}
+                        </Link>
+                      ) : (
+                        <div className="ek-nav-item cursor-default opacity-95">{content}</div>
+                      )}
+                    </div>
+                  )
+                })}
+              </nav>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </div>
 
       <div className="px-2">
         <Button
@@ -99,7 +168,7 @@ export function AppSidebar() {
           className="h-11 w-full justify-start rounded-full px-3 text-base text-black/60 hover:bg-black/5 hover:text-black"
         >
           <LogOut className="mr-2 h-4 w-4" />
-          Log out
+          Выйти
         </Button>
       </div>
     </div>
