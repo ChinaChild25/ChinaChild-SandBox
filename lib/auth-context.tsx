@@ -47,6 +47,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         id: `user-${Date.now()}`,
         name,
         email,
+        dashboardStats: {
+          attendedLessons: 0,
+          lessonGoal: 48,
+          completedHomework: 0,
+          homeworkGoal: 48,
+          averageScore: 0
+        },
         joinDate: new Date().toISOString().split("T")[0],
         learningStreak: 0,
         totalLessonsCompleted: 0,

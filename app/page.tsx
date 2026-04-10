@@ -2,32 +2,27 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { BookOpen, Headphones, PenTool, MessageSquare } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ArrowRight, ChartNoAxesCombined, MessageSquareMore, Sparkles } from "lucide-react"
 import { LoginForm } from "@/components/auth/login-form"
 import { RegisterForm } from "@/components/auth/register-form"
 import { useAuth } from "@/lib/auth-context"
+import { cn } from "@/lib/utils"
 
 const features = [
   {
-    icon: BookOpen,
-    title: "Structured Learning",
-    description: "HSK-aligned curriculum from beginner to advanced"
+    icon: ChartNoAxesCombined,
+    title: "Insightful progress",
+    description: "Track classes, homework and test performance in one dashboard."
   },
   {
-    icon: Headphones,
-    title: "Audio Training",
-    description: "Native speaker recordings and pronunciation practice"
+    icon: MessageSquareMore,
+    title: "Teacher communication",
+    description: "Stay connected with your curator and lesson mentors."
   },
   {
-    icon: PenTool,
-    title: "Character Writing",
-    description: "Interactive stroke order and handwriting exercises"
-  },
-  {
-    icon: MessageSquare,
-    title: "Speaking Practice",
-    description: "AI-powered conversation and feedback system"
+    icon: Sparkles,
+    title: "Smart learning flow",
+    description: "Plan each week with a timeline that keeps you consistent."
   }
 ]
 
@@ -43,105 +38,120 @@ export default function AuthPage() {
   }, [isAuthenticated, router])
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
-      {/* Left side - Branding */}
-      <div className="relative flex-1 p-8 lg:p-12 xl:p-16 flex flex-col">
-        {/* Logo */}
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-foreground text-background text-lg font-semibold">
-            L
+    <div className="min-h-screen bg-background px-4 py-5 md:px-8 md:py-7">
+      <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-[95rem] overflow-hidden rounded-[2rem] border border-black/5 bg-[#e9e9e9] shadow-[0_1px_0_rgba(0,0,0,0.03)] lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="flex flex-col p-7 md:p-10 lg:p-14">
+          <div className="text-[2.15rem] font-extrabold leading-7 tracking-[-0.05em] text-[#181b24]">
+            <p>Easy</p>
+            <p>Kor/ean</p>
           </div>
-          <span className="text-xl font-semibold tracking-tight">Lingua</span>
+
+          <div className="my-auto max-w-xl">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-black/45">
+              Student platform
+            </p>
+            <h1 className="mt-4 text-5xl leading-[0.98] font-semibold tracking-[-0.05em] text-[#13161f] lg:text-[4.35rem]">
+              Learn smarter
+              <br />
+              with your daily
+              <br />
+              dashboard
+            </h1>
+            <p className="mt-7 max-w-[32rem] text-xl leading-[1.3] text-black/60">
+              Structured classes, clear progress metrics, and curated mentorship in
+              one clean interface.
+            </p>
+
+            <div className="mt-10 space-y-3">
+              {features.map((feature) => (
+                <div
+                  key={feature.title}
+                  className="ek-soft-panel flex items-start gap-4 px-5 py-4"
+                >
+                  <div className="mt-0.5 grid h-10 w-10 place-content-center rounded-full bg-[#d8ea95] text-[#141821]">
+                    <feature.icon className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold tracking-[-0.02em] text-[#13161f]">
+                      {feature.title}
+                    </h3>
+                    <p className="mt-1 text-[1.02rem] text-black/55">
+                      {feature.description}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-8 flex items-center gap-8 border-t border-black/8 pt-6 text-[#171a22]">
+            <div>
+              <p className="text-4xl font-semibold tracking-[-0.03em]">48</p>
+              <p className="text-sm text-black/55">Total lessons</p>
+            </div>
+            <div>
+              <p className="text-4xl font-semibold tracking-[-0.03em]">12</p>
+              <p className="text-sm text-black/55">Expert teachers</p>
+            </div>
+            <div>
+              <p className="text-4xl font-semibold tracking-[-0.03em]">93%</p>
+              <p className="text-sm text-black/55">Average score</p>
+            </div>
+          </div>
         </div>
 
-        {/* Hero content */}
-        <div className="flex-1 flex flex-col justify-center max-w-xl py-12 lg:py-16">
-          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">
-            Chinese Language Platform
-          </p>
-          <h1 className="text-4xl lg:text-5xl xl:text-6xl font-semibold leading-[1.1] tracking-tight text-balance">
-            Learn Chinese the modern way
-          </h1>
-          <p className="mt-6 text-lg text-muted-foreground leading-relaxed max-w-md">
-            A structured approach to mastering Mandarin. From vocabulary to conversation, 
-            build your skills with proven learning methods.
-          </p>
-
-          {/* Features */}
-          <div className="grid grid-cols-2 gap-4 mt-12">
-            {features.map((feature, index) => (
-              <div
-                key={index}
-                className="flex items-start gap-3 p-4 rounded-2xl bg-muted/50"
+        <div className="border-t border-black/8 bg-[#efefef] p-5 md:p-8 lg:border-l lg:border-t-0 lg:p-12">
+          <div className="mx-auto w-full max-w-[34rem]">
+            <div className="mb-5 inline-flex rounded-full bg-black/5 p-1.5">
+              <button
+                type="button"
+                onClick={() => setIsLogin(true)}
+                className={cn(
+                  "rounded-full px-5 py-2.5 text-sm font-semibold transition-colors",
+                  isLogin
+                    ? "bg-[#141720] text-white"
+                    : "text-black/65 hover:text-black"
+                )}
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-background border border-border">
-                  <feature.icon className="h-5 w-5 text-foreground" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-sm">{feature.title}</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                    {feature.description}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+                Sign in
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsLogin(false)}
+                className={cn(
+                  "rounded-full px-5 py-2.5 text-sm font-semibold transition-colors",
+                  !isLogin
+                    ? "bg-[#141720] text-white"
+                    : "text-black/65 hover:text-black"
+                )}
+              >
+                Create account
+              </button>
+            </div>
 
-        {/* Stats */}
-        <div className="hidden lg:flex items-center gap-12 pt-6 border-t border-border">
-          <div>
-            <p className="text-3xl font-semibold">50K+</p>
-            <p className="text-sm text-muted-foreground mt-1">Active learners</p>
-          </div>
-          <div>
-            <p className="text-3xl font-semibold">200+</p>
-            <p className="text-sm text-muted-foreground mt-1">Lessons available</p>
-          </div>
-          <div>
-            <p className="text-3xl font-semibold">4.9</p>
-            <p className="text-sm text-muted-foreground mt-1">User rating</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Right side - Auth forms */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 bg-muted/30">
-        <div className="w-full max-w-[420px]">
-          <Card className="border-0 shadow-2xl shadow-black/5 bg-card">
-            <CardHeader className="text-center pb-2 pt-8">
-              <CardTitle className="text-2xl font-semibold tracking-tight">
-                {isLogin ? "Welcome back" : "Create account"}
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
+            <section className="ek-surface rounded-[1.75rem] bg-white px-6 py-8 md:px-8">
+              <h2 className="ek-auth-title">
+                {isLogin ? "Welcome back" : "Join Easy Korean"}
+              </h2>
+              <p className="mt-2 text-[1rem] text-black/55">
                 {isLogin
-                  ? "Sign in to continue learning"
-                  : "Start your learning journey"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6 pb-8 px-8">
-              {isLogin ? (
-                <LoginForm onSwitchToRegister={() => setIsLogin(false)} />
-              ) : (
-                <RegisterForm onSwitchToLogin={() => setIsLogin(true)} />
-              )}
-            </CardContent>
-          </Card>
+                  ? "Sign in to open your personalized student dashboard."
+                  : "Create your profile and start your guided learning plan."}
+              </p>
 
-          {/* Mobile Stats */}
-          <div className="flex lg:hidden items-center justify-center gap-8 mt-8 text-center">
-            <div>
-              <p className="text-xl font-semibold">50K+</p>
-              <p className="text-xs text-muted-foreground">Learners</p>
-            </div>
-            <div>
-              <p className="text-xl font-semibold">200+</p>
-              <p className="text-xs text-muted-foreground">Lessons</p>
-            </div>
-            <div>
-              <p className="text-xl font-semibold">4.9</p>
-              <p className="text-xs text-muted-foreground">Rating</p>
-            </div>
+              <div className="mt-7">
+                {isLogin ? (
+                  <LoginForm onSwitchToRegister={() => setIsLogin(false)} />
+                ) : (
+                  <RegisterForm onSwitchToLogin={() => setIsLogin(true)} />
+                )}
+              </div>
+            </section>
+
+            <p className="mt-5 inline-flex items-center gap-2 text-sm text-black/55">
+              Access lessons, assignments, and teacher messages
+              <ArrowRight className="h-4 w-4" />
+            </p>
           </div>
         </div>
       </div>

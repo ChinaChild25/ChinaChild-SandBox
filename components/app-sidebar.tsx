@@ -3,146 +3,103 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  BookOpen,
+  Gauge,
   Calendar,
-  GraduationCap,
-  Home,
-  Library,
+  MessagesSquare,
+  MousePointerClick,
   Settings,
-  Trophy,
-  User,
-  Headphones,
-  PenTool
+  ShieldCheck,
+  LogOut,
+  type LucideIcon
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
-import { Progress } from "@/components/ui/progress"
+import { Button } from "@/components/ui/button"
 
-const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: Home },
-  { name: "My Courses", href: "/dashboard/courses", icon: BookOpen },
-  { name: "Vocabulary", href: "/dashboard/vocabulary", icon: PenTool },
-  { name: "Listening", href: "/dashboard/listening", icon: Headphones },
-  { name: "Schedule", href: "/dashboard/schedule", icon: Calendar },
-  { name: "Resources", href: "/dashboard/resources", icon: Library }
-]
+type SidebarItem = {
+  name: string
+  icon: LucideIcon
+  href?: string
+}
 
-const accountNav = [
-  { name: "My Account", href: "/account", icon: User },
-  { name: "Settings", href: "/account/settings", icon: Settings }
+const navigation: SidebarItem[] = [
+  { name: "Dashboard", href: "/dashboard", icon: Gauge },
+  { name: "Classes", icon: MousePointerClick },
+  { name: "My grades", href: "/account", icon: ShieldCheck },
+  { name: "Schedule", icon: Calendar },
+  { name: "Messages", icon: MessagesSquare },
+  { name: "Settings", href: "/account", icon: Settings }
 ]
 
 export function AppSidebar() {
   const pathname = usePathname()
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
 
-  const levelProgress = {
-    Beginner: 25,
-    Elementary: 50,
-    Intermediate: 75,
-    Advanced: 100
-  }
+  const levelNumber = {
+    Beginner: 1,
+    Elementary: 2,
+    Intermediate: 3,
+    Advanced: 4
+  }[user?.level ?? "Beginner"]
+
+  const firstName = user?.name?.split(" ")[0] ?? "Yana"
+  const avatarText = firstName.slice(0, 2).toUpperCase()
 
   return (
-    <div className="flex h-full flex-col bg-background">
-      {/* Logo for mobile */}
-      <div className="flex h-16 items-center gap-2.5 border-b border-border px-4 md:hidden">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-foreground text-background font-semibold text-sm">
-          L
-        </div>
-        <span className="font-semibold tracking-tight">Lingua</span>
-      </div>
-
-      {/* User Level Card */}
-      <div className="p-4 border-b border-border">
-        <div className="rounded-2xl bg-muted/50 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <GraduationCap className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Current Level</span>
-          </div>
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-lg font-semibold">{user?.level || "Beginner"}</span>
-            <span className="text-xs font-medium text-muted-foreground px-2 py-1 rounded-lg bg-background">
-              {user?.learningStreak || 0} day streak
-            </span>
-          </div>
-          <Progress
-            value={levelProgress[user?.level || "Beginner"]}
-            className="h-1.5"
-          />
-          <p className="text-xs text-muted-foreground mt-2">
-            {user?.level === "Advanced"
-              ? "Maximum level reached"
-              : `Progress to ${user?.level === "Beginner" ? "Elementary" : user?.level === "Elementary" ? "Intermediate" : "Advanced"}`}
-          </p>
-        </div>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 space-y-1 p-4 overflow-y-auto">
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-3">
-          Learning
+    <div className="flex h-full flex-col bg-sidebar px-5 pb-6 pt-7 text-[#1c1f27]">
+      <div className="px-2">
+        <p className="text-[2rem] font-extrabold leading-7 tracking-[-0.05em]">
+          <span className="block">Easy</span>
+          <span className="block">Kor/ean</span>
         </p>
+      </div>
+
+      <div className="mt-12 flex flex-col items-start px-2">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm">
+          <span className="text-lg font-bold tracking-[-0.03em]">{avatarText}</span>
+        </div>
+        <h2 className="text-[3rem] leading-[1] font-semibold tracking-[-0.04em]">
+          {firstName}
+        </h2>
+        <p className="mt-1 text-lg text-black/65">{`student ${levelNumber} degree`}</p>
+      </div>
+
+      <nav className="mt-8 flex-1 space-y-1.5">
         {navigation.map((item) => {
-          const isActive = pathname === item.href
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              <item.icon className="h-4 w-4" />
+          const isActive = item.href ? pathname === item.href : false
+          const content = (
+            <>
+              <item.icon className="h-[18px] w-[18px]" />
               {item.name}
-            </Link>
+            </>
           )
-        })}
 
-        <div className="my-4 border-t border-border" />
-
-        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-3">
-          Account
-        </p>
-        {accountNav.map((item) => {
-          const isActive = pathname === item.href
           return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-foreground text-background"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            <div key={item.name} className="px-1">
+              {item.href ? (
+                <Link
+                  href={item.href}
+                  className={cn("ek-nav-item", isActive && "ek-nav-item-active")}
+                >
+                  {content}
+                </Link>
+              ) : (
+                <div className="ek-nav-item cursor-default opacity-95">{content}</div>
               )}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.name}
-            </Link>
+            </div>
           )
         })}
       </nav>
 
-      {/* Footer stats */}
-      <div className="border-t border-border p-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl bg-muted/50 p-3 text-center">
-            <p className="text-lg font-semibold">
-              {user?.totalLessonsCompleted || 0}
-            </p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Lessons</p>
-          </div>
-          <div className="rounded-xl bg-muted/50 p-3 text-center">
-            <p className="text-lg font-semibold">
-              {user?.totalStudyHours || 0}h
-            </p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Study Time</p>
-          </div>
-        </div>
+      <div className="px-2">
+        <Button
+          variant="ghost"
+          onClick={logout}
+          className="h-11 w-full justify-start rounded-full px-3 text-base text-black/60 hover:bg-black/5 hover:text-black"
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Log out
+        </Button>
       </div>
     </div>
   )

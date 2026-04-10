@@ -5,6 +5,13 @@ export const mockUser: User = {
   email: "student@example.com",
   name: "Alex Chen",
   avatar: undefined,
+  dashboardStats: {
+    attendedLessons: 9,
+    lessonGoal: 48,
+    completedHomework: 8,
+    homeworkGoal: 48,
+    averageScore: 93
+  },
   level: "Intermediate",
   joinDate: "2025-09-15",
   learningStreak: 12,

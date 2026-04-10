@@ -3,6 +3,13 @@ export interface User {
   email: string
   name: string
   avatar?: string
+  dashboardStats?: {
+    attendedLessons: number
+    lessonGoal: number
+    completedHomework: number
+    homeworkGoal: number
+    averageScore: number
+  }
   level: "Beginner" | "Elementary" | "Intermediate" | "Advanced"
   joinDate: string
   learningStreak: number
