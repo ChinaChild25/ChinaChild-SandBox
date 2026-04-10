@@ -1,14 +1,14 @@
 import type { Metadata, Viewport } from "next"
-import { Manrope } from "next/font/google"
+import { DM_Sans } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { AuthProvider } from "@/lib/auth-context"
 import "./globals.css"
 
-const manrope = Manrope({
+const dmSans = DM_Sans({
   subsets: ["latin", "cyrillic"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
   display: "swap",
-  variable: "--font-manrope",
+  variable: "--font-dm-sans",
 })
 
 export const metadata: Metadata = {
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: "#f4f6fb",
+  themeColor: "#f5f5f5",
   width: "device-width",
   initialScale: 1,
 }
@@ -29,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ru" className={manrope.variable}>
+    <html lang="ru" className={dmSans.variable}>
       <body className="font-sans antialiased">
         <AuthProvider>
           {children}

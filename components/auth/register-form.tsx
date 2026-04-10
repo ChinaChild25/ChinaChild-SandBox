@@ -190,7 +190,11 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         </p>
       )}
 
-      <Button type="submit" variant="china" className="mt-2 w-full" disabled={isLoading}>
+      <Button
+        type="submit"
+        disabled={isLoading}
+        className="mt-2 h-12 w-full rounded-2xl bg-[#1a1a1a] text-[15px] font-medium text-white shadow-none hover:bg-[#2a2a2a]"
+      >
         {isLoading ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

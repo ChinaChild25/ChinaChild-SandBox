@@ -19,12 +19,6 @@ const buttonVariants = cva(
         ghost:
           'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
         link: 'text-primary underline-offset-4 hover:underline',
-        china:
-          'cc-play-cta cc-play-cta--primary !h-auto !min-h-[var(--play-button-height)] !rounded-[var(--play-button-radius)] !px-[var(--play-button-inline)] !text-[length:var(--play-button-font-size)] !font-bold !shadow-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-        chinaSecondary:
-          'cc-play-cta cc-play-cta--secondary !h-auto !min-h-[var(--play-button-height)] !rounded-[var(--play-button-radius)] !px-[var(--play-button-inline)] !text-[length:var(--play-button-font-size)] !font-bold !shadow-none text-foreground focus-visible:ring-2 focus-visible:ring-foreground/25 focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-        chinaGlass:
-          'cc-glass-action !flex !h-11 !w-11 !min-h-0 !min-w-0 shrink-0 !rounded-[var(--play-button-radius)] !p-0 !shadow-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
       },
       size: {
         default: 'h-9 px-4 py-2 has-[>svg]:px-3',

@@ -13,6 +13,9 @@ interface LoginFormProps {
   onSwitchToRegister: () => void
 }
 
+const inputClass =
+  "h-12 rounded-2xl border border-black/10 bg-white px-4 text-[15px] shadow-none placeholder:text-black/35 focus-visible:border-black/20 focus-visible:ring-2 focus-visible:ring-[#1a1a1a]/15"
+
 export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
   const router = useRouter()
   const { login, isLoading } = useAuth()
@@ -40,9 +43,11 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-2.5">
-        <Label htmlFor="email" className="text-sm font-semibold text-[#161922]">Почта</Label>
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div className="space-y-2">
+        <Label htmlFor="email" className="text-[13px] font-medium text-[#1a1a1a]">
+          Почта
+        </Label>
         <Input
           id="email"
           type="email"
@@ -50,16 +55,18 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={isLoading}
-          className="h-12 rounded-2xl border border-black/10 bg-white px-4 text-[15px] shadow-[0_2px_6px_rgba(16,19,28,0.05)] focus-visible:ring-2 focus-visible:ring-[#d8e98a]"
+          className={inputClass}
         />
       </div>
 
-      <div className="space-y-2.5">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="password" className="text-sm font-semibold text-[#161922]">Пароль</Label>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <Label htmlFor="password" className="text-[13px] font-medium text-[#1a1a1a]">
+            Пароль
+          </Label>
           <button
             type="button"
-            className="text-xs font-medium text-black/55 hover:text-black transition-colors"
+            className="text-[12px] font-medium text-[#555] transition-colors hover:text-[#1a1a1a]"
           >
             Забыли пароль?
           </button>
@@ -72,42 +79,42 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={isLoading}
-            className="h-12 rounded-2xl border border-black/10 bg-white px-4 pr-12 text-[15px] shadow-[0_2px_6px_rgba(16,19,28,0.05)] focus-visible:ring-2 focus-visible:ring-[#d8e98a]"
+            className={`${inputClass} pr-12`}
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="cc-glass-action absolute right-2 top-1/2 !h-9 !w-9 -translate-y-1/2 text-foreground"
+            className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-[#555] transition-colors hover:bg-black/[0.06] hover:text-[#1a1a1a]"
             aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
           >
-            {showPassword ? (
-              <EyeOff className="h-4 w-4" />
-            ) : (
-              <Eye className="h-4 w-4" />
-            )}
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
       </div>
 
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center gap-2">
         <Checkbox
           id="remember"
           checked={rememberMe}
           onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-          className="rounded-md border-black/20 data-[state=checked]:border-[#161922] data-[state=checked]:bg-[#161922]"
+          className="rounded-md border-black/20 data-[state=checked]:border-[#1a1a1a] data-[state=checked]:bg-[#1a1a1a]"
         />
-        <Label htmlFor="remember" className="cursor-pointer text-sm font-normal text-black/60">
+        <Label htmlFor="remember" className="cursor-pointer text-[13px] font-normal text-[#555]">
           Запомнить меня на 30 дней
         </Label>
       </div>
 
       {error && (
-        <p className="rounded-2xl bg-[#fce5e5] p-3 text-sm text-[#9e2f2f]">
+        <p className="rounded-2xl border border-red-200/80 bg-red-50 px-3 py-2.5 text-[13px] text-red-700">
           {error}
         </p>
       )}
 
-      <Button type="submit" variant="china" className="w-full" disabled={isLoading}>
+      <Button
+        type="submit"
+        disabled={isLoading}
+        className="h-12 w-full rounded-2xl bg-[#1a1a1a] text-[15px] font-medium text-white shadow-none hover:bg-[#2a2a2a]"
+      >
         {isLoading ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -118,19 +125,21 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
         )}
       </Button>
 
-      <div className="relative my-6">
+      <div className="relative my-5">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-black/10" />
         </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-[#f3f3f4] px-3 tracking-[0.12em] text-black/45">
-            или продолжить через
-          </span>
+        <div className="relative flex justify-center text-[11px] font-semibold uppercase tracking-[0.12em] text-[#555]">
+          <span className="bg-[#fafafa] px-3">или продолжить через</span>
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Button type="button" variant="chinaSecondary" className="w-full !min-h-11">
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 rounded-2xl border-black/10 bg-white text-[14px] font-medium text-[#1a1a1a] hover:bg-[#f3f3f5]"
+        >
           <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
             <path
               fill="currentColor"
@@ -151,7 +160,11 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
           </svg>
           Гугл
         </Button>
-        <Button type="button" variant="chinaSecondary" className="w-full !min-h-11">
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 rounded-2xl border-black/10 bg-white text-[14px] font-medium text-[#1a1a1a] hover:bg-[#f3f3f5]"
+        >
           <svg className="mr-2 h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.604-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.463-1.11-1.463-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z" />
           </svg>
@@ -159,12 +172,12 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
         </Button>
       </div>
 
-      <p className="pt-2 text-center text-sm text-black/58">
-        {"Нет аккаунта? "}
+      <p className="pt-1 text-center text-[13px] text-[#555]">
+        Нет аккаунта?{" "}
         <button
           type="button"
           onClick={onSwitchToRegister}
-          className="font-semibold text-[#161922] hover:underline"
+          className="font-semibold text-[#1a1a1a] underline-offset-2 hover:underline"
         >
           Зарегистрироваться
         </button>

@@ -39,75 +39,73 @@ export default function AuthPage() {
   }, [isAuthenticated, router])
 
   return (
-    <div className="min-h-screen bg-background px-4 py-5 md:px-8 md:py-7">
-      <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-[95rem] overflow-hidden rounded-[2rem] border border-black/5 bg-[#e9e9e9] shadow-[0_1px_0_rgba(0,0,0,0.03)] lg:grid-cols-[1.05fr_0.95fr]">
-        <div className="flex flex-col p-7 md:p-10 lg:p-14">
-          <BrandLogo className="text-[2.15rem] leading-7" />
+    <div className="min-h-[100dvh] w-full bg-[#f5f5f5]">
+      <div className="grid min-h-[100dvh] w-full lg:grid-cols-[1fr_1fr]">
+        {/* Левая колонка — как сайдбар в Figma (#e8e8e8) */}
+        <div className="flex flex-col justify-between bg-[#e8e8e8] px-6 py-8 md:px-10 md:py-12 lg:px-14 lg:py-14">
+          <BrandLogo className="text-[28px] font-bold leading-none text-[#1a1a1a]" />
 
-          <div className="my-auto max-w-xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-black/45">
+          <div className="my-10 max-w-xl lg:my-0 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:justify-center">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[#1a1a1a]/55">
               образовательная платформа
             </p>
-            <h1 className="mt-4 text-5xl leading-[0.98] font-semibold tracking-[-0.05em] text-[#13161f] lg:text-[4.35rem]">
+            <h1 className="mt-3 text-[clamp(2rem,4vw,3.5rem)] font-normal leading-[1.05] tracking-[-0.03em] text-[#1a1a1a]">
               Учитесь эффективнее
               <br />
               с персональным
               <br />
               учебным кабинетом
             </h1>
-            <p className="mt-7 max-w-[32rem] text-xl leading-[1.3] text-black/60">
+            <p className="mt-6 max-w-[28rem] text-[15px] leading-[1.5] text-[#555]">
               Структурированные уроки, понятные метрики прогресса и поддержка наставников в едином интерфейсе.
             </p>
 
-            <div className="mt-10 space-y-3">
+            <div className="mt-8 space-y-3">
               {features.map((feature) => (
                 <div
                   key={feature.title}
-                  className="cc-glass-panel !flex !flex-row !items-start !gap-4 !rounded-[var(--play-card-radius)] !p-5"
+                  className="flex items-start gap-4 rounded-[28px] bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
                 >
-                  <div className="cc-icon-pulse mt-0.5 grid h-10 w-10 shrink-0 place-content-center rounded-full bg-[#d8ea95] text-[#141821]">
+                  <div className="mt-0.5 grid h-10 w-10 shrink-0 place-content-center rounded-full bg-[#d4e7b0] text-[#1a1a1a]">
                     <feature.icon className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold tracking-[-0.02em] text-[#13161f]">
+                    <h3 className="text-[17px] font-medium leading-tight tracking-[-0.02em] text-[#1a1a1a]">
                       {feature.title}
                     </h3>
-                    <p className="mt-1 text-[1.02rem] text-black/55">
-                      {feature.description}
-                    </p>
+                    <p className="mt-1 text-[14px] leading-snug text-[#555]">{feature.description}</p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="mt-8 flex items-center gap-8 border-t border-black/8 pt-6 text-[#171a22]">
+          <div className="mt-10 flex flex-wrap items-center gap-8 border-t border-black/10 pt-8 text-[#1a1a1a] lg:mt-0">
             <div>
-              <p className="text-4xl font-semibold tracking-[-0.03em]">48</p>
-              <p className="text-sm text-black/55">Всего уроков</p>
+              <p className="text-[36px] font-normal leading-none tracking-[-0.02em]">48</p>
+              <p className="mt-1 text-[14px] text-[#555]">Всего уроков</p>
             </div>
             <div>
-              <p className="text-4xl font-semibold tracking-[-0.03em]">12</p>
-              <p className="text-sm text-black/55">Преподавателей</p>
+              <p className="text-[36px] font-normal leading-none tracking-[-0.02em]">12</p>
+              <p className="mt-1 text-[14px] text-[#555]">Преподавателей</p>
             </div>
             <div>
-              <p className="text-4xl font-semibold tracking-[-0.03em]">93%</p>
-              <p className="text-sm text-black/55">Средний балл</p>
+              <p className="text-[36px] font-normal leading-none tracking-[-0.02em]">93%</p>
+              <p className="mt-1 text-[14px] text-[#555]">Средний балл</p>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-black/8 bg-[#efefef] p-5 md:p-8 lg:border-l lg:border-t-0 lg:p-12">
-          <div className="mx-auto w-full max-w-[34rem]">
-            <div className="cc-glass-bar mb-5 !inline-flex !w-auto !rounded-full !p-1.5">
+        {/* Правая колонка — форма на белом, как основная зона Figma */}
+        <div className="flex flex-col bg-white px-6 py-8 md:px-10 md:py-12 lg:px-14 lg:py-14">
+          <div className="mx-auto flex w-full max-w-[26rem] flex-1 flex-col justify-center">
+            <div className="mb-6 inline-flex w-fit rounded-full bg-[#ececf0] p-1.5">
               <button
                 type="button"
                 onClick={() => setIsLogin(true)}
                 className={cn(
-                  "rounded-full px-5 py-2.5 text-sm font-bold tracking-tight transition-[transform,background,color] duration-[var(--cc-speed-base)] ease-[var(--cc-ease-standard)]",
-                  isLogin
-                    ? "bg-[#1d1d1f] text-white shadow-sm"
-                    : "text-black/65 hover:text-black"
+                  "rounded-full px-5 py-2.5 text-[14px] font-medium transition-colors",
+                  isLogin ? "bg-[#1a1a1a] text-white" : "text-[#555] hover:text-[#1a1a1a]"
                 )}
               >
                 Вход
@@ -116,38 +114,36 @@ export default function AuthPage() {
                 type="button"
                 onClick={() => setIsLogin(false)}
                 className={cn(
-                  "rounded-full px-5 py-2.5 text-sm font-bold tracking-tight transition-[transform,background,color] duration-[var(--cc-speed-base)] ease-[var(--cc-ease-standard)]",
-                  !isLogin
-                    ? "bg-[#1d1d1f] text-white shadow-sm"
-                    : "text-black/65 hover:text-black"
+                  "rounded-full px-5 py-2.5 text-[14px] font-medium transition-colors",
+                  !isLogin ? "bg-[#1a1a1a] text-white" : "text-[#555] hover:text-[#1a1a1a]"
                 )}
               >
                 Регистрация
               </button>
             </div>
 
-            <section className="cc-glass-panel !rounded-[var(--play-panel-radius)] !px-6 !py-8 md:!px-8">
-              <h2 className="ek-auth-title">
+            <div className="rounded-[28px] border border-black/[0.06] bg-[#fafafa] p-6 md:p-8">
+              <h2 className="text-[28px] font-normal leading-tight tracking-[-0.03em] text-[#1a1a1a]">
                 {isLogin ? "С возвращением" : "Добро пожаловать в ChinaChild"}
               </h2>
-              <p className="mt-2 text-[1rem] text-black/55">
+              <p className="mt-2 text-[14px] leading-relaxed text-[#555]">
                 {isLogin
                   ? "Войдите, чтобы открыть персональный учебный кабинет."
                   : "Создайте профиль и начните обучение по структурированной программе."}
               </p>
 
-              <div className="mt-7">
+              <div className="mt-6">
                 {isLogin ? (
                   <LoginForm onSwitchToRegister={() => setIsLogin(false)} />
                 ) : (
                   <RegisterForm onSwitchToLogin={() => setIsLogin(true)} />
                 )}
               </div>
-            </section>
+            </div>
 
-            <p className="group mt-5 inline-flex cursor-default items-center gap-2 text-sm text-black/55">
+            <p className="group mt-6 inline-flex items-center gap-2 text-[13px] text-[#555]">
               Доступ к урокам, заданиям и сообщениям преподавателей
-              <ArrowRight className="h-4 w-4 transition-transform duration-[var(--cc-speed-base)] ease-[var(--cc-ease-emphasized)] group-hover:translate-x-1" />
+              <ArrowRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
             </p>
           </div>
         </div>
