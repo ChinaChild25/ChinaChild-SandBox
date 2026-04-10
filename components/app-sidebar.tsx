@@ -1,20 +1,22 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   Gauge,
+  BookOpenCheck,
   Calendar,
   MessagesSquare,
-  MousePointerClick,
+  LineChart,
   Settings,
-  ShieldCheck,
   LogOut,
   type LucideIcon
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
+import { placeholderImages } from "@/lib/placeholders"
 
 type SidebarItem = {
   name: string
@@ -23,12 +25,12 @@ type SidebarItem = {
 }
 
 const navigation: SidebarItem[] = [
-  { name: "Dashboard", href: "/dashboard", icon: Gauge },
-  { name: "Classes", icon: MousePointerClick },
-  { name: "My grades", href: "/account", icon: ShieldCheck },
-  { name: "Schedule", icon: Calendar },
-  { name: "Messages", icon: MessagesSquare },
-  { name: "Settings", href: "/account", icon: Settings }
+  { name: "Дашборд", href: "/dashboard", icon: Gauge },
+  { name: "Мои курсы", href: "/courses", icon: BookOpenCheck },
+  { name: "Прогресс", href: "/progress", icon: LineChart },
+  { name: "Расписание", href: "/schedule", icon: Calendar },
+  { name: "Сообщения", href: "/messages", icon: MessagesSquare },
+  { name: "Настройки", href: "/settings", icon: Settings }
 ]
 
 export function AppSidebar() {
@@ -42,26 +44,31 @@ export function AppSidebar() {
     Advanced: 4
   }[user?.level ?? "Beginner"]
 
-  const firstName = user?.name?.split(" ")[0] ?? "Yana"
-  const avatarText = firstName.slice(0, 2).toUpperCase()
+  const firstName = user?.name?.split(" ")[0] ?? "Яна"
 
   return (
     <div className="flex h-full flex-col bg-sidebar px-5 pb-6 pt-7 text-[#1c1f27]">
       <div className="px-2">
-        <p className="text-[2rem] font-extrabold leading-7 tracking-[-0.05em]">
-          <span className="block">Easy</span>
-          <span className="block">Kor/ean</span>
+        <p className="text-[2rem] font-extrabold leading-7 tracking-[-0.055em]">
+          <span className="block">China</span>
+          <span className="block">Child</span>
         </p>
       </div>
 
       <div className="mt-12 flex flex-col items-start px-2">
-        <div className="mb-4 flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm">
-          <span className="text-lg font-bold tracking-[-0.03em]">{avatarText}</span>
+        <div className="mb-4 h-16 w-16 overflow-hidden rounded-full bg-white shadow-sm">
+          <Image
+            src={placeholderImages.studentAvatar}
+            alt="Аватар ученика"
+            width={64}
+            height={64}
+            className="h-full w-full object-cover"
+          />
         </div>
-        <h2 className="text-[3rem] leading-[1] font-semibold tracking-[-0.04em]">
+        <h2 className="text-[3rem] leading-[0.96] font-semibold tracking-[-0.045em]">
           {firstName}
         </h2>
-        <p className="mt-1 text-lg text-black/65">{`student ${levelNumber} degree`}</p>
+        <p className="mt-1 text-lg text-black/65">{`студент ${levelNumber} уровня`}</p>
       </div>
 
       <nav className="mt-8 flex-1 space-y-1.5">
@@ -98,7 +105,7 @@ export function AppSidebar() {
           className="h-11 w-full justify-start rounded-full px-3 text-base text-black/60 hover:bg-black/5 hover:text-black"
         >
           <LogOut className="mr-2 h-4 w-4" />
-          Log out
+          Выйти
         </Button>
       </div>
     </div>

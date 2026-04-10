@@ -11,18 +11,18 @@ import { cn } from "@/lib/utils"
 const features = [
   {
     icon: ChartNoAxesCombined,
-    title: "Insightful progress",
-    description: "Track classes, homework and test performance in one dashboard."
+    title: "Прозрачный прогресс",
+    description: "Отслеживайте занятия, домашние задания и результаты тестов в одном окне."
   },
   {
     icon: MessageSquareMore,
-    title: "Teacher communication",
-    description: "Stay connected with your curator and lesson mentors."
+    title: "Связь с преподавателями",
+    description: "Оставайтесь на связи с куратором группы и преподавателями."
   },
   {
     icon: Sparkles,
-    title: "Smart learning flow",
-    description: "Plan each week with a timeline that keeps you consistent."
+    title: "Умный учебный ритм",
+    description: "Планируйте неделю по урокам и удерживайте стабильный темп."
   }
 ]
 
@@ -42,24 +42,24 @@ export default function AuthPage() {
       <div className="mx-auto grid min-h-[calc(100vh-2rem)] max-w-[95rem] overflow-hidden rounded-[2rem] border border-black/5 bg-[#e9e9e9] shadow-[0_1px_0_rgba(0,0,0,0.03)] lg:grid-cols-[1.05fr_0.95fr]">
         <div className="flex flex-col p-7 md:p-10 lg:p-14">
           <div className="text-[2.15rem] font-extrabold leading-7 tracking-[-0.05em] text-[#181b24]">
-            <p>Easy</p>
-            <p>Kor/ean</p>
+            <p>China</p>
+            <p>Child</p>
           </div>
 
           <div className="my-auto max-w-xl">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-black/45">
-              Student platform
+              ОБРАЗОВАТЕЛЬНАЯ ПЛАТФОРМА
             </p>
             <h1 className="mt-4 text-5xl leading-[0.98] font-semibold tracking-[-0.05em] text-[#13161f] lg:text-[4.35rem]">
-              Learn smarter
+              Учитесь эффективнее
               <br />
-              with your daily
+              с персональным
               <br />
-              dashboard
+              кабинетом
             </h1>
             <p className="mt-7 max-w-[32rem] text-xl leading-[1.3] text-black/60">
-              Structured classes, clear progress metrics, and curated mentorship in
-              one clean interface.
+              Чёткая структура уроков, понятные метрики и поддержка наставников
+              в едином аккуратном интерфейсе.
             </p>
 
             <div className="mt-10 space-y-3">
@@ -87,15 +87,15 @@ export default function AuthPage() {
           <div className="mt-8 flex items-center gap-8 border-t border-black/8 pt-6 text-[#171a22]">
             <div>
               <p className="text-4xl font-semibold tracking-[-0.03em]">48</p>
-              <p className="text-sm text-black/55">Total lessons</p>
+              <p className="text-sm text-black/55">Всего уроков</p>
             </div>
             <div>
               <p className="text-4xl font-semibold tracking-[-0.03em]">12</p>
-              <p className="text-sm text-black/55">Expert teachers</p>
+              <p className="text-sm text-black/55">Преподавателей</p>
             </div>
             <div>
               <p className="text-4xl font-semibold tracking-[-0.03em]">93%</p>
-              <p className="text-sm text-black/55">Average score</p>
+              <p className="text-sm text-black/55">Средний балл</p>
             </div>
           </div>
         </div>
@@ -113,7 +113,7 @@ export default function AuthPage() {
                     : "text-black/65 hover:text-black"
                 )}
               >
-                Sign in
+                Войти
               </button>
               <button
                 type="button"
@@ -125,18 +125,18 @@ export default function AuthPage() {
                     : "text-black/65 hover:text-black"
                 )}
               >
-                Create account
+                Регистрация
               </button>
             </div>
 
             <section className="ek-surface rounded-[1.75rem] bg-white px-6 py-8 md:px-8">
               <h2 className="ek-auth-title">
-                {isLogin ? "Welcome back" : "Join Easy Korean"}
+                {isLogin ? "С возвращением" : "Создайте аккаунт"}
               </h2>
               <p className="mt-2 text-[1rem] text-black/55">
                 {isLogin
-                  ? "Sign in to open your personalized student dashboard."
-                  : "Create your profile and start your guided learning plan."}
+                  ? "Войдите, чтобы открыть ваш персональный кабинет ученика."
+                  : "Заполните профиль и начните обучение по персональному плану."}
               </p>
 
               <div className="mt-7">
@@ -149,7 +149,7 @@ export default function AuthPage() {
             </section>
 
             <p className="mt-5 inline-flex items-center gap-2 text-sm text-black/55">
-              Access lessons, assignments, and teacher messages
+              Доступ к урокам, домашним заданиям и сообщениям преподавателей
               <ArrowRight className="h-4 w-4" />
             </p>
           </div>

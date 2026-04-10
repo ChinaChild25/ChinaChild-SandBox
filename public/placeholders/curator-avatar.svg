@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160" fill="none">
+  <rect width="160" height="160" rx="80" fill="#E9D7CC"/>
+  <circle cx="80" cy="64" r="25" fill="#D2BBAA"/>
+  <path d="M35 136C42 108 58 93 80 93C102 93 118 108 125 136H35Z" fill="#D2BBAA"/>
+  <text x="80" y="152" text-anchor="middle" fill="#8E7567" font-family="Lab Grotesque" font-size="12">REPLACE</text>
+</svg>

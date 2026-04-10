@@ -27,7 +27,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
     setError("")
 
     if (!email || !password) {
-      setError("Please fill in all fields")
+      setError("Заполните все поля")
       return
     }
 
@@ -35,18 +35,18 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
     if (success) {
       router.push("/dashboard")
     } else {
-      setError("Invalid credentials. Password must be at least 6 characters.")
+      setError("Неверные данные. Пароль должен содержать минимум 6 символов.")
     }
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2.5">
-        <Label htmlFor="email" className="text-sm font-semibold text-[#161922]">Email</Label>
+        <Label htmlFor="email" className="text-sm font-semibold text-[#161922]">Почта</Label>
         <Input
           id="email"
           type="email"
-          placeholder="yana@easykorean.com"
+          placeholder="yana@chinachild.ru"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={isLoading}
@@ -56,19 +56,19 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
 
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
-          <Label htmlFor="password" className="text-sm font-semibold text-[#161922]">Password</Label>
+            <Label htmlFor="password" className="text-sm font-semibold text-[#161922]">Пароль</Label>
           <button
             type="button"
-            className="text-xs font-medium text-black/55 hover:text-black transition-colors"
+            className="text-xs font-medium text-black/55 transition-colors hover:text-black"
           >
-            Forgot password?
+            Забыли пароль?
           </button>
         </div>
         <div className="relative">
           <Input
             id="password"
             type={showPassword ? "text" : "password"}
-            placeholder="Enter your password"
+            placeholder="Введите пароль"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={isLoading}
@@ -114,10 +114,10 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
         {isLoading ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Signing in...
+            Вход...
           </>
         ) : (
-          "Sign in"
+          "Войти"
         )}
       </Button>
 
@@ -127,7 +127,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
         </div>
         <div className="relative flex justify-center text-xs uppercase">
           <span className="bg-[#f3f3f4] px-3 tracking-[0.12em] text-black/45">
-            or continue with
+            или продолжить через
           </span>
         </div>
       </div>
@@ -171,13 +171,13 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
       </div>
 
       <p className="pt-2 text-center text-sm text-black/58">
-        {"Don't have an account? "}
+        {"Нет аккаунта? "}
         <button
           type="button"
           onClick={onSwitchToRegister}
           className="font-semibold text-[#161922] hover:underline"
         >
-          Sign up
+          Зарегистрироваться
         </button>
       </p>
     </form>

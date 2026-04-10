@@ -25,9 +25,9 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   const [error, setError] = useState("")
 
   const passwordRequirements = [
-    { label: "At least 6 characters", met: password.length >= 6 },
-    { label: "Contains a number", met: /\d/.test(password) },
-    { label: "Contains uppercase letter", met: /[A-Z]/.test(password) }
+    { label: "Минимум 6 символов", met: password.length >= 6 },
+    { label: "Содержит цифру", met: /\d/.test(password) },
+    { label: "Содержит заглавную букву", met: /[A-ZА-ЯЁ]/.test(password) }
   ]
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -35,22 +35,22 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
     setError("")
 
     if (!name || !email || !password || !confirmPassword) {
-      setError("Please fill in all fields")
+      setError("Заполните все поля")
       return
     }
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match")
+      setError("Пароли не совпадают")
       return
     }
 
     if (!passwordRequirements.every((req) => req.met)) {
-      setError("Please meet all password requirements")
+      setError("Пароль должен соответствовать всем условиям")
       return
     }
 
     if (!acceptTerms) {
-      setError("Please accept the terms and conditions")
+      setError("Подтвердите согласие с условиями")
       return
     }
 
@@ -58,7 +58,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
     if (success) {
       router.push("/dashboard")
     } else {
-      setError("Registration failed. Please try again.")
+      setError("Не удалось зарегистрироваться. Повторите попытку.")
     }
   }
 
@@ -66,12 +66,12 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="name" className="text-[13px] font-medium text-black/70">
-          Full Name
+          Имя и фамилия
         </Label>
         <Input
           id="name"
           type="text"
-          placeholder="Your full name"
+          placeholder="Ваше имя"
           value={name}
           onChange={(e) => setName(e.target.value)}
           disabled={isLoading}
@@ -81,12 +81,12 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="reg-email" className="text-[13px] font-medium text-black/70">
-          Email
+          Почта
         </Label>
         <Input
           id="reg-email"
           type="email"
-          placeholder="name@example.com"
+          placeholder="name@chinachild.ru"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={isLoading}
@@ -96,13 +96,13 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="reg-password" className="text-[13px] font-medium text-black/70">
-          Password
+          Пароль
         </Label>
         <div className="relative">
           <Input
             id="reg-password"
             type={showPassword ? "text" : "password"}
-            placeholder="Create a password"
+            placeholder="Создайте пароль"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={isLoading}
@@ -143,12 +143,12 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="confirm-password" className="text-[13px] font-medium text-black/70">
-          Confirm Password
+          Подтвердите пароль
         </Label>
         <Input
           id="confirm-password"
           type="password"
-          placeholder="Confirm your password"
+          placeholder="Повторите пароль"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           disabled={isLoading}
@@ -157,7 +157,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         {confirmPassword && password !== confirmPassword && (
           <p className="mt-2 flex items-center gap-1.5 text-xs text-red-600">
             <X className="h-3.5 w-3.5" />
-            Passwords do not match
+            Пароли не совпадают
           </p>
         )}
       </div>
@@ -173,13 +173,13 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           htmlFor="terms"
           className="cursor-pointer text-[13px] leading-snug font-normal text-black/55"
         >
-          I agree to the{" "}
+          Я принимаю{" "}
           <a href="#" className="text-black hover:underline">
-            Terms of Service
+            условия сервиса
           </a>{" "}
-          and{" "}
+          и{" "}
           <a href="#" className="text-black hover:underline">
-            Privacy Policy
+            политику конфиденциальности
           </a>
         </Label>
       </div>
@@ -198,21 +198,21 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         {isLoading ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Creating account...
+            Создание аккаунта...
           </>
         ) : (
-          "Create account"
+          "Создать аккаунт"
         )}
       </Button>
 
       <p className="pt-1 text-center text-sm text-black/55">
-        Already have an account?{" "}
+        Уже есть аккаунт?{" "}
         <button
           type="button"
           onClick={onSwitchToLogin}
           className="font-medium text-black hover:underline"
         >
-          Sign in
+          Войти
         </button>
       </p>
     </form>
