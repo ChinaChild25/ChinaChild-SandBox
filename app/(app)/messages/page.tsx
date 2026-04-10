@@ -4,8 +4,8 @@ import { SendHorizontal } from "lucide-react"
 import { useState } from "react"
 
 const dialogs = [
-  { id: "1", name: "Ео Ми-ран", last: "Проверьте домашнее задание к четвергу", unread: true },
-  { id: "2", name: "Ким Джи-хун", last: "Отлично поработали на разговорном клубе", unread: false }
+  { id: "1", name: "Ли Мэй", last: "Проверьте домашнее задание к четвергу", unread: true },
+  { id: "2", name: "Ван Цзюнь", last: "Отлично поработали на разговорном клубе", unread: false }
 ]
 
 export default function MessagesPage() {
@@ -40,7 +40,7 @@ export default function MessagesPage() {
 
           <section className="ek-surface bg-[#ebebeb] px-6 py-5">
             <div className="rounded-2xl bg-white p-4">
-              <p className="text-sm text-black/55">Ео Ми-ран</p>
+              <p className="text-sm text-black/55">Ли Мэй</p>
               <p className="mt-2 rounded-2xl bg-[#f2f2f2] px-3 py-2 text-sm text-[#171a23]">
                 Добрый день! Напоминаю, что в пятницу будет мини-тест по теме «Время».
               </p>

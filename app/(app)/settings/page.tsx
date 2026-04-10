@@ -5,7 +5,7 @@ import { useState } from "react"
 export default function SettingsPage() {
   const [emailNotifications, setEmailNotifications] = useState(true)
   const [weekGoal, setWeekGoal] = useState("5 уроков")
-  const [timezone, setTimezone] = useState("Asia/Shanghai")
+  const [timezone, setTimezone] = useState("UTC+8 (Пекин)")
 
   return (
     <div className="px-4 py-4 md:px-5 md:py-5 lg:px-6 lg:py-6">

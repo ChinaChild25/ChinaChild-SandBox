@@ -39,12 +39,12 @@ const monthRows: Array<Array<number | null>> = [
 
 const mentors = [
   {
-    name: "Ео Ми-ран",
+    name: "Ли Мэй",
     role: "куратор группы",
     image: placeholderImages.curatorAvatar
   },
   {
-    name: "Ким Джи-хун",
+    name: "Ван Цзюнь",
     role: "преподаватель",
     image: placeholderImages.teacherAvatar
   }
