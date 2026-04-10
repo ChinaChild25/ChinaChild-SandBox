@@ -65,20 +65,24 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="name" className="text-sm font-medium">Full Name</Label>
+        <Label htmlFor="name" className="text-[13px] font-medium text-black/70">
+          Full Name
+        </Label>
         <Input
           id="name"
           type="text"
-          placeholder="Your name"
+          placeholder="Your full name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           disabled={isLoading}
-          className="h-12 rounded-xl bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-foreground/20"
+          className="h-11 rounded-2xl border border-black/10 bg-white px-4 text-[15px] shadow-none placeholder:text-black/35 focus-visible:border-black/25 focus-visible:ring-black/10"
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="reg-email" className="text-sm font-medium">Email</Label>
+        <Label htmlFor="reg-email" className="text-[13px] font-medium text-black/70">
+          Email
+        </Label>
         <Input
           id="reg-email"
           type="email"
@@ -86,12 +90,14 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={isLoading}
-          className="h-12 rounded-xl bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-foreground/20"
+          className="h-11 rounded-2xl border border-black/10 bg-white px-4 text-[15px] shadow-none placeholder:text-black/35 focus-visible:border-black/25 focus-visible:ring-black/10"
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="reg-password" className="text-sm font-medium">Password</Label>
+        <Label htmlFor="reg-password" className="text-[13px] font-medium text-black/70">
+          Password
+        </Label>
         <div className="relative">
           <Input
             id="reg-password"
@@ -100,12 +106,12 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={isLoading}
-            className="h-12 rounded-xl bg-muted/50 border-0 pr-12 focus-visible:ring-1 focus-visible:ring-foreground/20"
+            className="h-11 rounded-2xl border border-black/10 bg-white px-4 pr-11 text-[15px] shadow-none placeholder:text-black/35 focus-visible:border-black/25 focus-visible:ring-black/10"
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-black/45 transition-colors hover:text-black"
           >
             {showPassword ? (
               <EyeOff className="h-4 w-4" />
@@ -115,12 +121,12 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           </button>
         </div>
         {password && (
-          <div className="space-y-1.5 mt-3 p-3 rounded-xl bg-muted/30">
+          <div className="mt-3 space-y-1.5 rounded-2xl border border-black/8 bg-black/[0.03] p-3">
             {passwordRequirements.map((req, idx) => (
               <div
                 key={idx}
                 className={`flex items-center gap-2 text-xs ${
-                  req.met ? "text-foreground" : "text-muted-foreground"
+                  req.met ? "text-black/85" : "text-black/45"
                 }`}
               >
                 {req.met ? (
@@ -136,7 +142,9 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="confirm-password" className="text-sm font-medium">Confirm Password</Label>
+        <Label htmlFor="confirm-password" className="text-[13px] font-medium text-black/70">
+          Confirm Password
+        </Label>
         <Input
           id="confirm-password"
           type="password"
@@ -144,10 +152,10 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           disabled={isLoading}
-          className="h-12 rounded-xl bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-foreground/20"
+          className="h-11 rounded-2xl border border-black/10 bg-white px-4 text-[15px] shadow-none placeholder:text-black/35 focus-visible:border-black/25 focus-visible:ring-black/10"
         />
         {confirmPassword && password !== confirmPassword && (
-          <p className="text-xs text-destructive flex items-center gap-1.5 mt-2">
+          <p className="mt-2 flex items-center gap-1.5 text-xs text-red-600">
             <X className="h-3.5 w-3.5" />
             Passwords do not match
           </p>
@@ -159,29 +167,32 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           id="terms"
           checked={acceptTerms}
           onCheckedChange={(checked) => setAcceptTerms(checked as boolean)}
-          className="mt-0.5 rounded-md"
+          className="mt-0.5 rounded-[6px] border-black/25 data-[state=checked]:border-black data-[state=checked]:bg-black data-[state=checked]:text-white"
         />
-        <Label htmlFor="terms" className="text-sm font-normal cursor-pointer leading-snug text-muted-foreground">
+        <Label
+          htmlFor="terms"
+          className="cursor-pointer text-[13px] leading-snug font-normal text-black/55"
+        >
           I agree to the{" "}
-          <a href="#" className="text-foreground hover:underline">
+          <a href="#" className="text-black hover:underline">
             Terms of Service
           </a>{" "}
           and{" "}
-          <a href="#" className="text-foreground hover:underline">
+          <a href="#" className="text-black hover:underline">
             Privacy Policy
           </a>
         </Label>
       </div>
 
       {error && (
-        <p className="text-sm text-destructive bg-destructive/10 p-3 rounded-xl">
+        <p className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
           {error}
         </p>
       )}
 
       <Button 
         type="submit" 
-        className="w-full h-12 rounded-xl bg-foreground text-background hover:bg-foreground/90 font-medium mt-2" 
+        className="mt-2 h-11 w-full rounded-2xl bg-[#111320] text-[15px] font-medium text-white hover:bg-[#202336]" 
         disabled={isLoading}
       >
         {isLoading ? (
@@ -194,12 +205,12 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         )}
       </Button>
 
-      <p className="text-center text-sm text-muted-foreground pt-2">
+      <p className="pt-1 text-center text-sm text-black/55">
         Already have an account?{" "}
         <button
           type="button"
           onClick={onSwitchToLogin}
-          className="text-foreground hover:underline font-medium"
+          className="font-medium text-black hover:underline"
         >
           Sign in
         </button>

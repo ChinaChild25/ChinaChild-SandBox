@@ -1,10 +1,10 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, JetBrains_Mono } from 'next/font/google'
+import { JetBrains_Mono, Nunito } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { AuthProvider } from '@/lib/auth-context'
 import './globals.css'
 
-const inter = Inter({ 
+const nunito = Nunito({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap"
@@ -17,13 +17,13 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Lingua - Chinese Language Platform',
-  description: 'Master Mandarin Chinese with structured lessons, vocabulary training, and interactive exercises. A modern approach to language learning.',
-  keywords: ['Chinese', 'Mandarin', 'language learning', 'HSK', 'online courses'],
+  title: 'Easy Korean - Student Dashboard',
+  description: 'Student dashboard, lessons, schedule and progress tracking.',
+  keywords: ['Korean', 'student dashboard', 'learning platform'],
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0a0a0a',
+  themeColor: '#ececec',
   width: 'device-width',
   initialScale: 1,
 }
@@ -34,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="en" className={`${nunito.variable} ${jetbrainsMono.variable}`}>
       <body className="font-sans antialiased">
         <AuthProvider>
           {children}
