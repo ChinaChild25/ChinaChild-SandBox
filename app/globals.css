@@ -83,8 +83,8 @@
 }
 
 @theme inline {
-  --font-sans: 'Nunito', 'Nunito Fallback', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Geist Mono', monospace;
+  --font-sans: 'Lab Grotesque';
+  --font-mono: 'Lab Grotesque';
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -146,36 +146,6 @@
   }
 
   .ek-surface {
-    @apply rounded-[1.5rem] border border-black/5 bg-card shadow-[0_1px_0_rgba(0,0,0,0.03)];
-  }
-
-  .ek-soft-panel {
-    @apply rounded-[1.5rem] border border-black/5 bg-[#efefef];
-  }
-
-  .ek-nav-item {
-    @apply flex items-center gap-3 rounded-full px-4 py-2.5 text-[1.02rem] leading-none font-medium text-black/70 transition-colors hover:bg-black/5 hover:text-black;
-  }
-
-  .ek-nav-item-active {
-    @apply bg-[#13151f] text-white hover:bg-[#13151f] hover:text-white;
-  }
-
-  .ek-auth-input {
-    @apply h-12 rounded-2xl border border-black/10 bg-[#f4f4f4] px-4 text-[0.98rem] shadow-none placeholder:text-black/35 focus-visible:ring-2 focus-visible:ring-black/15;
-  }
-
-  .ek-auth-title {
-    @apply text-[2rem] leading-none font-semibold tracking-[-0.03em] text-[#11131c];
-  }
-}
-
-@layer components {
-  .ek-app-shell {
-    @apply min-h-screen bg-background text-foreground;
-  }
-
-  .ek-surface {
     @apply rounded-[1.75rem] border border-black/5 bg-card shadow-[0_1px_0_rgba(0,0,0,0.03)];
   }
 
@@ -196,6 +166,18 @@
   }
 
   .ek-auth-title {
-    @apply text-[2rem] font-semibold tracking-[-0.03em] text-[#11131c];
+    @apply text-[2rem] leading-none font-semibold tracking-[-0.03em] text-[#11131c];
+  }
+
+  .ek-brand-logo {
+    @apply text-[2.14rem] font-extrabold leading-7 tracking-[-0.055em] text-[#181b24];
+  }
+
+  .ek-brand-logo span {
+    @apply block;
+  }
+
+  .ek-sidebar-section-title {
+    @apply px-3 pb-1 pt-4 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-black/45;
   }
 }

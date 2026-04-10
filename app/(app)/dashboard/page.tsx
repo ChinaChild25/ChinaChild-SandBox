@@ -37,14 +37,14 @@ const monthRows: Array<Array<number | null>> = [
 
 const mentors = [
   {
-    name: "Yeo Mi-ran",
-    role: "curator of the group",
-    initials: "YM"
+    name: "Ео Ми-ран",
+    role: "куратор группы",
+    initials: "ЕМ"
   },
   {
-    name: "Kim Ji-hoon",
-    role: "teacher",
-    initials: "KJ"
+    name: "Ким Джи-хун",
+    role: "преподаватель",
+    initials: "КД"
   }
 ]
 
@@ -70,14 +70,14 @@ export default function DashboardPage() {
               {dashboardStats.attendedLessons}
               <span className="pl-1 text-[3rem] text-black/75">/{dashboardStats.lessonGoal}</span>
             </p>
-            <p className="mt-5 text-[1.85rem] leading-[1.1] text-black/70">Attended lessons</p>
+            <p className="mt-5 text-[1.85rem] leading-[1.1] text-black/70">Посещено занятий</p>
           </section>
           <section className="ek-surface rounded-[1.35rem] bg-[#13151f] p-6 text-white">
             <p className="text-[4.1rem] leading-[0.9] font-medium tracking-[-0.05em]">
               {dashboardStats.completedHomework}
               <span className="pl-1 text-[3rem] text-white/80">/{dashboardStats.homeworkGoal}</span>
             </p>
-            <p className="mt-5 text-[1.85rem] leading-[1.1] text-white/75">Completed homework</p>
+            <p className="mt-5 text-[1.85rem] leading-[1.1] text-white/75">Выполнено домашних заданий</p>
           </section>
           <section className="ek-surface rounded-[1.35rem] bg-[#d8ea95] p-6">
             <p className="text-[4.1rem] leading-[0.9] font-medium tracking-[-0.05em] text-[#12141d]">
@@ -85,9 +85,9 @@ export default function DashboardPage() {
               <span className="pl-1 text-[3rem] text-black/75">/100</span>
             </p>
             <p className="mt-5 text-[1.85rem] leading-[1.1] text-black/70">
-              The average score
+              Средний балл
               <br />
-              of the test
+              по тестам
             </p>
           </section>
         </div>
@@ -125,7 +125,7 @@ export default function DashboardPage() {
               })}
             </ul>
             <button className="mt-2 ml-[6.15rem] text-[2rem] tracking-[-0.04em] text-[#b4cb62] transition-opacity hover:opacity-80">
-              see next
+              смотреть дальше
             </button>
           </section>
 
@@ -133,11 +133,11 @@ export default function DashboardPage() {
             <section className="ek-surface rounded-[1.35rem] bg-[#ebebeb] px-6 py-5">
               <div className="flex items-end justify-between">
                 <h2 className="text-[2.7rem] leading-none font-semibold tracking-[-0.05em] text-[#141720]">
-                  april <span className="text-[2rem] font-medium text-black/80">2025</span>
+                  апрель <span className="text-[2rem] font-medium text-black/80">2025</span>
                 </h2>
               </div>
               <div className="mt-4 grid grid-cols-7 gap-y-2 text-center">
-                {["sun", "mon", "tue", "wed", "thu", "fri", "sat"].map((day) => (
+                {["вс", "пн", "вт", "ср", "чт", "пт", "сб"].map((day) => (
                   <div
                     key={day}
                     className="text-[1.45rem] font-medium lowercase tracking-[-0.02em] text-black/86"
