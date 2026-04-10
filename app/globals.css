@@ -1,90 +1,83 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import './chinachild-tokens.css';
 
 @custom-variant dark (&:is(.dark *));
 
-@font-face {
-  font-family: 'Lab Grotesque';
-  src: local('Lab Grotesque'), local('LabGrotesque');
-  font-style: normal;
-  font-weight: 300 800;
-  font-display: swap;
-}
-
 :root {
-  --background: oklch(0.947 0 0);
-  --foreground: oklch(0.17 0.01 286);
-  --card: oklch(0.965 0 0);
-  --card-foreground: oklch(0.17 0.01 286);
-  --popover: oklch(0.985 0 0);
-  --popover-foreground: oklch(0.17 0.01 286);
-  --primary: oklch(0.205 0.01 286);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.91 0 0);
-  --secondary-foreground: oklch(0.32 0.01 286);
-  --muted: oklch(0.91 0 0);
-  --muted-foreground: oklch(0.48 0.01 286);
-  --accent: oklch(0.91 0 0);
-  --accent-foreground: oklch(0.17 0.01 286);
-  --destructive: oklch(0.60 0.20 29);
-  --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.87 0 0);
-  --input: oklch(0.87 0 0);
-  --ring: oklch(0.45 0.01 286);
-  --chart-1: oklch(0.205 0.01 286);
-  --chart-2: oklch(0.42 0.03 286);
-  --chart-3: oklch(0.58 0.03 286);
-  --chart-4: oklch(0.73 0.02 286);
-  --chart-5: oklch(0.86 0.01 286);
-  --radius: 1.25rem;
-  --sidebar: oklch(0.88 0 0);
-  --sidebar-foreground: oklch(0.17 0.01 286);
-  --sidebar-primary: oklch(0.205 0.01 286);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.93 0 0);
-  --sidebar-accent-foreground: oklch(0.17 0.01 286);
-  --sidebar-border: oklch(0.85 0 0);
-  --sidebar-ring: oklch(0.45 0.01 286);
+  --background: var(--md-sys-color-surface);
+  --foreground: var(--md-sys-color-on-surface);
+  --card: var(--md-sys-color-surface-container-lowest);
+  --card-foreground: var(--md-sys-color-on-surface);
+  --popover: var(--md-sys-color-surface-container-lowest);
+  --popover-foreground: var(--md-sys-color-on-surface);
+  --primary: var(--md-sys-color-primary);
+  --primary-foreground: var(--md-sys-color-on-primary);
+  --secondary: var(--md-sys-color-secondary-container);
+  --secondary-foreground: var(--md-sys-color-on-secondary-container);
+  --muted: var(--md-sys-color-surface-container);
+  --muted-foreground: var(--md-sys-color-on-surface-variant);
+  --accent: var(--md-sys-color-tertiary-container);
+  --accent-foreground: var(--md-sys-color-on-tertiary-container);
+  --destructive: var(--md-sys-color-error);
+  --destructive-foreground: var(--md-sys-color-on-error);
+  --border: var(--md-sys-color-outline-variant);
+  --input: var(--md-sys-color-outline-variant);
+  --ring: var(--md-sys-color-outline);
+  --chart-1: #1e2b37;
+  --chart-2: #536372;
+  --chart-3: #70594b;
+  --chart-4: #aab3bd;
+  --chart-5: #dde7f2;
+  --radius: 1.125rem;
+  --sidebar: var(--md-sys-color-surface-container-high);
+  --sidebar-foreground: var(--md-sys-color-on-surface);
+  --sidebar-primary: var(--md-sys-color-primary);
+  --sidebar-primary-foreground: var(--md-sys-color-on-primary);
+  --sidebar-accent: var(--md-sys-color-surface-container);
+  --sidebar-accent-foreground: var(--md-sys-color-on-surface);
+  --sidebar-border: var(--md-sys-color-outline-variant);
+  --sidebar-ring: var(--md-sys-color-outline);
 }
 
 .dark {
-  --background: oklch(0.12 0 0);
-  --foreground: oklch(0.96 0 0);
-  --card: oklch(0.16 0 0);
-  --card-foreground: oklch(0.96 0 0);
-  --popover: oklch(0.16 0 0);
-  --popover-foreground: oklch(0.96 0 0);
-  --primary: oklch(0.96 0 0);
-  --primary-foreground: oklch(0.12 0 0);
-  --secondary: oklch(0.22 0 0);
-  --secondary-foreground: oklch(0.90 0 0);
-  --muted: oklch(0.22 0 0);
-  --muted-foreground: oklch(0.60 0 0);
-  --accent: oklch(0.22 0 0);
-  --accent-foreground: oklch(0.96 0 0);
-  --destructive: oklch(0.50 0.20 27);
-  --destructive-foreground: oklch(0.65 0.20 27);
-  --border: oklch(0.25 0 0);
-  --input: oklch(0.25 0 0);
-  --ring: oklch(0.60 0 0);
-  --chart-1: oklch(0.90 0 0);
-  --chart-2: oklch(0.75 0 0);
-  --chart-3: oklch(0.60 0 0);
-  --chart-4: oklch(0.45 0 0);
-  --chart-5: oklch(0.30 0 0);
-  --sidebar: oklch(0.14 0 0);
-  --sidebar-foreground: oklch(0.96 0 0);
-  --sidebar-primary: oklch(0.96 0 0);
-  --sidebar-primary-foreground: oklch(0.12 0 0);
-  --sidebar-accent: oklch(0.22 0 0);
-  --sidebar-accent-foreground: oklch(0.90 0 0);
-  --sidebar-border: oklch(0.25 0 0);
-  --sidebar-ring: oklch(0.60 0 0);
+  --background: #1b2129;
+  --foreground: var(--md-sys-color-inverse-on-surface);
+  --card: #222933;
+  --card-foreground: var(--md-sys-color-inverse-on-surface);
+  --popover: #222933;
+  --popover-foreground: var(--md-sys-color-inverse-on-surface);
+  --primary: var(--md-sys-color-primary-container);
+  --primary-foreground: var(--md-sys-color-on-primary-container);
+  --secondary: #2e3844;
+  --secondary-foreground: #e8edf3;
+  --muted: #2a323c;
+  --muted-foreground: #aab3bd;
+  --accent: #3d342e;
+  --accent-foreground: #f4e8db;
+  --destructive: #ffb4ab;
+  --destructive-foreground: #690005;
+  --border: #3d4654;
+  --input: #3d4654;
+  --ring: #8b97a8;
+  --chart-1: #dde7f2;
+  --chart-2: #aab3bd;
+  --chart-3: #f4e8db;
+  --chart-4: #536372;
+  --chart-5: #70594b;
+  --sidebar: #222933;
+  --sidebar-foreground: var(--md-sys-color-inverse-on-surface);
+  --sidebar-primary: var(--md-sys-color-primary-container);
+  --sidebar-primary-foreground: var(--md-sys-color-on-primary-container);
+  --sidebar-accent: #2a323c;
+  --sidebar-accent-foreground: var(--md-sys-color-inverse-on-surface);
+  --sidebar-border: #3d4654;
+  --sidebar-ring: #8b97a8;
 }
 
 @theme inline {
-  --font-sans: 'Lab Grotesque';
-  --font-mono: 'Lab Grotesque';
+  --font-sans: var(--cc-font-sans);
+  --font-mono: var(--cc-font-sans);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -128,49 +121,74 @@
     @apply border-border outline-ring/50;
   }
 
+  html {
+    scroll-behavior: smooth;
+  }
+
   html,
   body {
     height: 100%;
+    margin: 0;
   }
 
   body {
-    @apply bg-background text-foreground;
-    font-family: 'Lab Grotesque';
+    @apply text-foreground antialiased;
+    font-family: var(--cc-font-sans);
     font-feature-settings: "liga" 1, "kern" 1;
+    text-rendering: optimizeLegibility;
+    background-color: var(--md-sys-color-surface);
+    background-image:
+      radial-gradient(circle at top left, rgba(255, 255, 255, 0.92), transparent 28%),
+      radial-gradient(circle at right 12% top 0%, rgba(219, 230, 245, 0.72), transparent 20%),
+      radial-gradient(circle at left 18% bottom 0%, rgba(244, 232, 219, 0.46), transparent 24%),
+      linear-gradient(180deg, #f9fbff 0%, var(--md-sys-color-surface) 100%);
+  }
+
+  .dark body {
+    background-color: var(--background);
+    background-image: none;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
   }
 }
 
 @layer components {
   .ek-app-shell {
-    @apply min-h-screen bg-background text-foreground;
+    @apply min-h-screen text-foreground;
+    background: transparent;
   }
 
   .ek-surface {
-    @apply rounded-[1.75rem] border border-black/5 bg-card shadow-[0_1px_0_rgba(0,0,0,0.03)];
+    @apply rounded-[var(--play-card-radius)] border border-border/80 bg-card shadow-[var(--play-surface-shadow-1)];
   }
 
   .ek-soft-panel {
-    @apply rounded-[1.5rem] border border-black/5 bg-[#efefef];
+    @apply rounded-[var(--play-panel-radius)] border border-border/60 bg-muted;
   }
 
   .ek-nav-item {
-    @apply flex items-center gap-3 rounded-full px-4 py-2.5 text-[1.03rem] font-medium text-black/70 transition-colors hover:bg-black/5 hover:text-black;
+    @apply flex items-center gap-3 rounded-full px-4 py-2.5 text-[1.03rem] font-medium text-muted-foreground transition-[color,background-color] duration-[var(--cc-speed-base)] ease-[var(--cc-ease-standard)] hover:bg-black/[0.06] hover:text-foreground;
   }
 
   .ek-nav-item-active {
-    @apply bg-[#13151f] text-white hover:bg-[#13151f] hover:text-white;
+    @apply bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground;
   }
 
   .ek-auth-input {
-    @apply h-12 rounded-2xl border border-black/10 bg-[#f4f4f4] px-4 text-[0.98rem] shadow-none placeholder:text-black/35 focus-visible:ring-2 focus-visible:ring-black/15;
+    @apply h-12 rounded-[var(--play-button-radius)] border border-border bg-muted px-4 text-[0.98rem] shadow-none placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-ring/40;
   }
 
   .ek-auth-title {
-    @apply text-[2rem] leading-none font-semibold tracking-[-0.03em] text-[#11131c];
+    @apply text-[2rem] font-semibold leading-none tracking-[-0.03em] text-foreground;
   }
 
   .ek-brand-logo {
-    @apply text-[2.14rem] font-extrabold leading-7 tracking-[-0.055em] text-[#181b24];
+    @apply text-[2.14rem] font-extrabold leading-7 tracking-[-0.055em] text-foreground;
   }
 
   .ek-brand-logo span {
@@ -178,6 +196,6 @@
   }
 
   .ek-sidebar-section-title {
-    @apply px-3 pb-1 pt-4 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-black/45;
+    @apply px-3 pb-1 pt-4 text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground;
   }
 }

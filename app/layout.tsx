@@ -1,7 +1,15 @@
 import type { Metadata, Viewport } from "next"
+import { Manrope } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { AuthProvider } from "@/lib/auth-context"
 import "./globals.css"
+
+const manrope = Manrope({
+  subsets: ["latin", "cyrillic"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+  variable: "--font-manrope",
+})
 
 export const metadata: Metadata = {
   title: "ChinaChild — кабинет ученика",
@@ -10,7 +18,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: "#ececec",
+  themeColor: "#f4f6fb",
   width: "device-width",
   initialScale: 1,
 }
@@ -21,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ru">
+    <html lang="ru" className={manrope.variable}>
       <body className="font-sans antialiased">
         <AuthProvider>
           {children}
