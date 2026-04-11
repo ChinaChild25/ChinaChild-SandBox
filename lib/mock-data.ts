@@ -116,7 +116,8 @@ export const mockLessons: Lesson[] = [
     scheduledDate: "2026-04-10",
     scheduledTime: "10:00 AM",
     type: "Live",
-    status: "upcoming"
+    status: "upcoming",
+    slug: "hsk1-tema10"
   },
   {
     id: "lesson-2",
@@ -127,7 +128,8 @@ export const mockLessons: Lesson[] = [
     scheduledDate: "2026-04-10",
     scheduledTime: "2:00 PM",
     type: "Video",
-    status: "upcoming"
+    status: "upcoming",
+    slug: "hsk1-tema11"
   },
   {
     id: "lesson-3",
@@ -138,7 +140,8 @@ export const mockLessons: Lesson[] = [
     scheduledDate: "2026-04-11",
     scheduledTime: "11:00 AM",
     type: "Video",
-    status: "upcoming"
+    status: "upcoming",
+    slug: "hsk-1"
   },
   {
     id: "lesson-4",
@@ -149,7 +152,8 @@ export const mockLessons: Lesson[] = [
     scheduledDate: "2026-04-12",
     scheduledTime: "9:30 AM",
     type: "Practice",
-    status: "upcoming"
+    status: "upcoming",
+    slug: "hsk1-tema12"
   },
   {
     id: "lesson-5",
@@ -160,7 +164,8 @@ export const mockLessons: Lesson[] = [
     scheduledDate: "2026-04-13",
     scheduledTime: "3:00 PM",
     type: "Quiz",
-    status: "upcoming"
+    status: "upcoming",
+    slug: "hsk1-tema13"
   }
 ]
 

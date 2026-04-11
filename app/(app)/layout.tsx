@@ -42,7 +42,7 @@ export default function AppLayout({
           </aside>
 
           <div className="ds-main flex min-h-0 min-w-0 flex-1 flex-col">
-            <header className="flex items-center justify-between gap-3 border-b border-black/10 bg-ds-sidebar px-4 py-3 lg:hidden">
+            <header className="flex items-center justify-between gap-3 border-b border-black/10 bg-ds-sidebar px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 lg:hidden">
               <BrandLogo className="text-[22px]" />
               <Sheet>
                 <SheetTrigger asChild>
@@ -57,7 +57,7 @@ export default function AppLayout({
                 </SheetTrigger>
                 <SheetContent
                   side="left"
-                  className="w-[280px] border-r border-black/10 bg-ds-sidebar p-6"
+                  className="h-full w-[280px] max-w-[280px] overflow-hidden rounded-r-[var(--ds-sidebar-radius-right)] border-r border-black/10 bg-ds-sidebar p-6 sm:max-w-[280px]"
                 >
                   <AppSidebar />
                 </SheetContent>

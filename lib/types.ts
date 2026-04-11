@@ -42,6 +42,8 @@ export interface Lesson {
   scheduledTime: string
   type: "Video" | "Live" | "Practice" | "Quiz"
   status: "upcoming" | "completed" | "missed"
+  /** Slug for app route /[lessonSlug] */
+  slug?: string
 }
 
 export interface Notification {

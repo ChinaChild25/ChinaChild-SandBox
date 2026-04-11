@@ -5,7 +5,6 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   LayoutGrid,
-  GraduationCap,
   Award,
   CalendarDays,
   Mail,
@@ -28,9 +27,8 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Главная", icon: LayoutGrid },
-  { href: "/courses", label: "Занятия", icon: GraduationCap },
-  { href: "/progress", label: "Мои оценки", icon: Award },
   { href: "/schedule", label: "Расписание", icon: CalendarDays },
+  { href: "/progress", label: "Мои оценки", icon: Award },
   { href: "/messages", label: "Сообщения", icon: Mail },
   { href: "/courses", label: "Мои курсы", icon: BookOpen },
   { href: "/settings", label: "Настройки", icon: Settings }
@@ -51,20 +49,26 @@ export function AppSidebar() {
 
   const isActive = (href: string, label: string) => {
     if (href === "/dashboard") return pathname === "/dashboard"
-    if (label === "Мои курсы" && href === "/courses") {
-      return pathname.startsWith("/courses") && pathname !== "/dashboard"
-    }
+    if (label === "Мои курсы") return pathname.startsWith("/courses")
     return pathname === href || pathname.startsWith(`${href}/`)
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col text-[#1a1a1a]">
+    <div className="flex h-full min-h-0 flex-col text-ds-ink">
       <div className="mb-10">
-        <BrandLogo className="text-[28px] font-bold leading-none" />
+        <Link
+          href="/dashboard"
+          className="inline-block rounded-lg outline-offset-2 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ds-ink/20"
+        >
+          <BrandLogo className="text-[28px] font-bold leading-none" />
+        </Link>
       </div>
 
-      <div className="mb-8 flex flex-col items-center">
-        <div className="mb-3 h-[110px] w-[110px] overflow-hidden rounded-full bg-white">
+      <Link
+        href="/profile"
+        className="mb-8 flex flex-col items-center rounded-2xl py-1 no-underline outline-offset-2 transition-colors hover:bg-black/[0.04] focus-visible:outline focus-visible:ring-2 focus-visible:ring-ds-ink/20"
+      >
+        <div className="mb-3 h-[110px] w-[110px] overflow-hidden rounded-full bg-white ring-1 ring-black/8">
           <Image
             src={placeholderImages.studentAvatar}
             alt="Аватар ученика"
@@ -73,11 +77,11 @@ export function AppSidebar() {
             className="h-full w-full object-cover"
           />
         </div>
-        <div className="mb-1 text-[36px] font-normal leading-none">{firstName}</div>
-        <div className="text-[14px] text-[#555]">студентка {levelLabel}</div>
-      </div>
+        <div className="mb-1 text-[36px] font-normal leading-none text-ds-ink">{firstName}</div>
+        <div className="text-[14px] text-ds-text-muted">студентка {levelLabel}</div>
+      </Link>
 
-      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
+      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto" aria-label="Основное меню">
         {navItems.map((item) => {
           const active = isActive(item.href, item.label)
           return (
@@ -86,7 +90,7 @@ export function AppSidebar() {
               href={item.href}
               className={cn("figma-nav-link", active && "figma-nav-link--active")}
             >
-              <item.icon size={20} strokeWidth={2} />
+              <item.icon size={20} strokeWidth={2} aria-hidden />
               <span>{item.label}</span>
             </Link>
           )
@@ -97,9 +101,9 @@ export function AppSidebar() {
         <Button
           variant="outline"
           onClick={logout}
-          className="w-full justify-start rounded-2xl border-black/15 bg-white/80 py-6 text-[15px] font-medium text-[#1a1a1a] hover:bg-white"
+          className="w-full justify-start rounded-2xl border-black/15 bg-white/80 py-6 text-[15px] font-medium text-ds-ink hover:bg-white"
         >
-          <LogOut className="mr-2 h-4 w-4" />
+          <LogOut className="mr-2 h-4 w-4" aria-hidden />
           Выйти
         </Button>
       </div>

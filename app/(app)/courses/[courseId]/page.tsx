@@ -74,16 +74,22 @@ export default function CourseDetailsPage() {
           </ul>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <button
-              type="button"
-              className="flex items-center justify-center gap-2 rounded-2xl bg-ds-ink px-4 py-3 text-sm font-medium text-white hover:opacity-90"
+            <Link
+              href={`/${course.lessons[0]?.slug ?? "hsk1-tema1"}`}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ds-ink px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
             >
-              <GraduationCap className="h-4 w-4" />
+              <GraduationCap className="h-4 w-4" aria-hidden />
               Начать курс {course.name}
-            </button>
+            </Link>
+            <Link
+              href="/progress"
+              className="rounded-2xl border border-black/12 bg-white px-4 py-3 text-center text-sm font-medium text-ds-ink hover:bg-black/[0.03]"
+            >
+              Материалы и отчёты (PDF)
+            </Link>
             <Link
               href="/courses"
-              className="rounded-2xl border border-black/12 bg-white px-4 py-3 text-center text-sm font-medium text-ds-ink hover:bg-black/[0.03]"
+              className="sm:col-span-2 rounded-2xl border border-black/12 bg-white px-4 py-3 text-center text-sm font-medium text-ds-ink hover:bg-black/[0.03]"
             >
               Вернуться ко всем курсам
             </Link>
