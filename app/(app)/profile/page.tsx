@@ -12,7 +12,7 @@ export default function ProfilePage() {
   const [goal, setGoal] = useState("Разговорная практика")
 
   return (
-    <div className="ds-page">
+    <div className="ds-figma-page">
       <div className="mx-auto flex w-full max-w-[var(--ds-shell-max-width)] flex-col gap-4">
         <section className="ek-surface bg-ds-panel-muted px-7 py-6">
           <p className="text-sm uppercase tracking-[0.18em] text-black/45">Личный кабинет</p>

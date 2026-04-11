@@ -16,7 +16,7 @@ export default async function MentorPage({ params }: Props) {
   if (!mentor) notFound()
 
   return (
-    <div className="ds-page">
+    <div className="ds-figma-page">
       <div className="mx-auto flex w-full max-w-[var(--ds-shell-max-width)] flex-col gap-4">
         <Link
           href="/dashboard"

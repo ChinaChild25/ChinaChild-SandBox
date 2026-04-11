@@ -38,8 +38,8 @@ export default function ProgressPage() {
   const passed = gradesData.filter((g) => g.score >= 75).length
 
   return (
-    <div className="ds-page">
-      <div className="mx-auto w-full max-w-[var(--ds-shell-max-width)] px-4 py-8 md:px-8">
+    <div className="ds-figma-page">
+      <div className="mx-auto w-full max-w-[var(--ds-shell-max-width)]">
         <div className="mb-7">
           <h1 className="text-[36px] font-bold leading-none text-ds-ink">Мои оценки</h1>
           <p className="mt-1 text-[15px] text-[var(--ds-text-secondary)]">

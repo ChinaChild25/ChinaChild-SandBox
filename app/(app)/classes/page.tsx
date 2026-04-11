@@ -25,10 +25,10 @@ export default function ClassesPage() {
   const completed = filtered.filter((c) => c.status === "completed")
 
   return (
-    <div className="ds-page">
+    <div className="ds-figma-page">
       <div className="mx-auto w-full max-w-[var(--ds-shell-max-width)]">
         <header className="mb-6 md:mb-7">
-          <h1 className="text-[clamp(1.75rem,5vw,2.25rem)] font-bold leading-none text-ds-ink">Занятия</h1>
+          <h1 className="text-[36px] font-bold leading-none text-ds-ink">Занятия</h1>
           <p className="mt-1 text-[15px] text-[var(--ds-text-secondary)]">Все ваши занятия в одном месте</p>
         </header>
 

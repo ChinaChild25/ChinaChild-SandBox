@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect } from "react"
+import { useTheme } from "next-themes"
 
 import { ThemeProvider } from "@/components/theme-provider"
 
 const UI_ACCENT_KEY = "chinachild-ui-accent"
-const THEME_STORAGE_KEY = "chinachild-theme"
+export const THEME_STORAGE_KEY = "chinachild-theme"
 
 export function readStoredUiAccent(): "default" | "sage" | "pink" | null {
   if (typeof window === "undefined") return null
@@ -25,24 +26,32 @@ export function applyUiAccentToDocument(accent: "default" | "sage" | "pink") {
   else root.setAttribute("data-ui-accent", accent)
 }
 
-/** Только светлая тема: сбрасываем тёмный класс и старые сохранения. */
-function LightThemeLock() {
+/** Акценты фона только для светлой темы; в тёмной отключаем. */
+function ThemeAccentSync() {
+  const { resolvedTheme } = useTheme()
+
   useEffect(() => {
-    document.documentElement.classList.remove("dark")
-    try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, "light")
-    } catch {
-      /* ignore */
+    if (!resolvedTheme) return
+    if (resolvedTheme === "dark") {
+      document.documentElement.removeAttribute("data-ui-accent")
+      return
     }
-  }, [])
+    const accent = readStoredUiAccent()
+    if (!accent || accent === "default") {
+      document.documentElement.removeAttribute("data-ui-accent")
+    } else {
+      applyUiAccentToDocument(accent)
+    }
+  }, [resolvedTheme])
+
   return null
 }
 
 function UiAccentHydration() {
   useEffect(() => {
+    if (document.documentElement.classList.contains("dark")) return
     const accent = readStoredUiAccent()
-    if (!accent || accent === "default") return
-    applyUiAccentToDocument(accent)
+    if (accent && accent !== "default") applyUiAccentToDocument(accent)
   }, [])
   return null
 }
@@ -52,12 +61,11 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     <ThemeProvider
       attribute="class"
       defaultTheme="light"
-      forcedTheme="light"
       enableSystem={false}
       storageKey={THEME_STORAGE_KEY}
     >
-      <LightThemeLock />
       <UiAccentHydration />
+      <ThemeAccentSync />
       {children}
     </ThemeProvider>
   )

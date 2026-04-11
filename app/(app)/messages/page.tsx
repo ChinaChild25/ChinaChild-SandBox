@@ -142,7 +142,7 @@ function MessagesPageInner() {
   const showChat = wide || mobilePanel === "chat"
 
   return (
-    <div className="ds-page">
+    <div className="ds-figma-page">
       <div className="mx-auto flex w-full max-w-[var(--ds-shell-max-width)] flex-col gap-4 md:gap-5">
         <section className="ek-surface bg-ds-panel-muted px-5 py-5 sm:px-7 sm:py-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ds-text-tertiary">
@@ -305,7 +305,7 @@ export default function MessagesPage() {
   return (
     <Suspense
       fallback={
-        <div className="ds-page">
+        <div className="ds-figma-page">
           <div className="mx-auto max-w-[var(--ds-shell-max-width)] px-4 py-10 text-ds-text-tertiary">
             Загрузка…
           </div>

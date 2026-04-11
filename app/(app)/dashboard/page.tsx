@@ -34,7 +34,7 @@ export default function DashboardPage() {
   })
 
   return (
-    <div className="ds-page">
+    <div className="ds-figma-page">
       <div className="mx-auto flex w-full max-w-[var(--ds-shell-max-width)] flex-col gap-ds-gutter">
         {/* Статистика — как chinachild.figma.site: без иконок, со стрелками в подписи */}
         <div className="ds-stat-grid">

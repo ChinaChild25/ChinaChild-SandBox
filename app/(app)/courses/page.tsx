@@ -52,7 +52,7 @@ const recentActivity = [
 
 export default function CoursesPage() {
   return (
-    <div className="ds-page">
+    <div className="ds-figma-page">
       <div className="mx-auto w-full max-w-[var(--ds-shell-max-width)]">
         <header className="mb-8">
           <h1 className="text-[length:var(--ds-text-8xl)] font-bold leading-none text-ds-text-primary">
@@ -109,12 +109,12 @@ export default function CoursesPage() {
 
                 <div className="mb-4">
                   <div className="mb-1.5 flex justify-between">
-                    <span className="text-ds-sm-plus text-ds-text-muted">Прогресс</span>
-                    <span className="text-ds-sm-plus font-semibold text-ds-ink">{ui.progress}%</span>
+                    <span className="text-[13px] text-[#555555] dark:text-ds-text-tertiary">Прогресс</span>
+                    <span className="text-[13px] font-semibold text-ds-ink">{ui.progress}%</span>
                   </div>
-                  <div className="ds-progress-track">
+                  <div className="h-2 overflow-hidden rounded-full bg-white/60">
                     <div
-                      className="ds-progress-fill"
+                      className="h-full rounded-full transition-all"
                       style={{
                         width: `${ui.progress}%`,
                         backgroundColor: `var(${ui.accentVar})`
@@ -133,20 +133,24 @@ export default function CoursesPage() {
         </div>
 
         <section className="mt-2">
-          <h2 className="mb-4 text-[length:var(--ds-text-xl)] font-semibold text-ds-ink">Последняя активность</h2>
+          <h2 className="mb-4 text-[20px] font-semibold text-ds-ink">Последняя активность</h2>
           <div className="flex flex-col gap-3">
             {recentActivity.map((row) => (
-              <Link key={row.slug} href={`/${row.slug}`} className="ds-activity-row">
+              <Link
+                key={row.slug}
+                href={`/${row.slug}`}
+                className="flex items-center gap-4 rounded-2xl bg-[#f8f8f8] p-4 no-underline transition-colors hover:bg-[#f0f0f0] dark:bg-ds-surface-muted dark:hover:bg-ds-surface-hover"
+              >
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ds-sage">
                   <CheckCircle className="h-[18px] w-[18px] text-ds-sage-strong" aria-hidden />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-ds-body text-ds-text-primary">{row.topic}</p>
-                  <p className="text-ds-sm-plus text-ds-text-tertiary">
+                  <p className="text-[15px] text-ds-ink">{row.topic}</p>
+                  <p className="text-[13px] text-ds-text-tertiary">
                     {row.course} · {row.date}
                   </p>
                 </div>
-                <p className="text-[length:var(--ds-text-lg)] font-bold text-ds-sage-strong">{row.score}</p>
+                <p className="text-[18px] font-bold text-ds-sage-strong">{row.score}</p>
               </Link>
             ))}
           </div>

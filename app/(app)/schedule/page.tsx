@@ -73,6 +73,14 @@ const MONTHS_GEN = [
   "декабря"
 ] as const
 
+/** Подписи недели как в Figmadasboard Schedule.tsx */
+function figmaDemoWeekLabel(offset: number) {
+  if (offset === 0) return "7 — 13 апреля 2025"
+  if (offset === 1) return "14 — 20 апреля 2025"
+  if (offset === -1) return "31 мар — 6 апреля 2025"
+  return null
+}
+
 function formatWeekLabel(monday: Date) {
   const sunday = addDays(monday, 6)
   const y = sunday.getFullYear()
@@ -106,9 +114,11 @@ export default function SchedulePage() {
     return t
   }, [])
 
+  const weekTitle = figmaDemoWeekLabel(weekOffset) ?? formatWeekLabel(monday)
+
   return (
-    <div className="ds-page">
-      <div className="mx-auto w-full max-w-[var(--ds-shell-max-width)] px-4 py-8 md:px-8">
+    <div className="ds-figma-page">
+      <div className="mx-auto w-full max-w-[var(--ds-shell-max-width)]">
         <div className="mb-7">
           <h1 className="text-[36px] font-bold leading-none text-ds-ink">Расписание</h1>
           <p className="mt-1 text-[15px] text-[var(--ds-text-secondary)]">
@@ -125,9 +135,7 @@ export default function SchedulePage() {
           >
             <ChevronLeft size={18} aria-hidden />
           </button>
-          <div className="min-w-0 text-center text-[16px] font-semibold text-ds-ink">
-            {formatWeekLabel(monday)}
-          </div>
+          <div className="min-w-0 text-center text-[16px] font-semibold text-ds-ink">{weekTitle}</div>
           <button
             type="button"
             onClick={() => setWeekOffset((w) => w + 1)}
@@ -176,7 +184,7 @@ export default function SchedulePage() {
           })}
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-4 border-t border-ds-sidebar pt-6">
+        <div className="mt-6 flex flex-wrap gap-4 border-t border-[#e8e8e8] pt-6 dark:border-white/10">
           {Object.entries(typeLabels).map(([key, label]) => (
             <div key={key} className="flex items-center gap-2">
               <div

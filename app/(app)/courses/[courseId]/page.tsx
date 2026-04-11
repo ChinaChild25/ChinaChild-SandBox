@@ -48,7 +48,7 @@ export default function CourseDetailsPage() {
 
   if (!course || (course.id !== "hsk1" && course.id !== "hsk2")) {
     return (
-      <div className="ds-page">
+      <div className="ds-figma-page">
         <div className="mx-auto max-w-[var(--ds-shell-max-width)]">
           <section className="rounded-[var(--ds-radius-xl)] bg-ds-panel-muted px-7 py-6">
             <h1 className="text-[length:var(--ds-text-4xl)] font-semibold tracking-[-0.03em] text-ds-ink">
@@ -78,7 +78,7 @@ export default function CourseDetailsPage() {
   const progress = Math.round((completedCount / course.lessons.length) * 100)
 
   return (
-    <div className="ds-page">
+    <div className="ds-figma-page">
       <div className="mx-auto w-full max-w-[var(--ds-shell-max-width)]">
         <Link
           href="/courses"
