@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import '../styles/ds-figma-tokens.css';
 @import './figma-theme.css';
 @import '../styles/cc-design-system.css';
 
@@ -9,7 +10,7 @@
   }
 
   .ek-brand-logo {
-    @apply font-bold leading-none tracking-tight text-[#1a1a1a];
+    @apply font-bold leading-none tracking-tight text-ds-ink;
   }
 
   .ek-brand-logo span,
@@ -17,19 +18,31 @@
     @apply block;
   }
 
+  /** Dashboard / list panels — radius + motion aligned with Figma course cards */
+  .ek-surface {
+    border-radius: var(--ds-radius-xl);
+    transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease,
+      background-color 0.15s ease;
+  }
+
   .figma-nav-link {
-    @apply flex items-center gap-3 rounded-2xl px-4 py-3 text-[15px] font-medium text-[#1a1a1a] no-underline transition-colors;
+    @apply flex items-center gap-3 px-4 py-3 text-ds-body font-medium text-ds-ink no-underline transition-colors;
+    border-radius: var(--ds-radius-md);
   }
 
   .figma-nav-link:hover {
-    background-color: var(--figma-nav-hover);
+    background-color: var(--ds-sidebar-hover);
   }
 
   .figma-nav-link--active {
-    @apply bg-[#1a1a1a] text-white;
+    background-color: var(--ds-ink);
+    @apply text-white;
   }
 
   .figma-nav-link--active:hover {
-    @apply bg-[#1a1a1a] text-white;
+    background-color: var(--ds-ink);
+    @apply text-white;
   }
 }

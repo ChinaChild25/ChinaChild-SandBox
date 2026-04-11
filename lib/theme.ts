@@ -6,23 +6,24 @@
 
 export const theme = {
   colors: {
-    primary: "#1e2b37",
+    /** Aligned with ds-figma-tokens / dashboard shell */
+    primary: "#1a1a1a",
     onPrimary: "#ffffff",
-    primaryContainer: "#dde7f2",
-    onPrimaryContainer: "#13222f",
-    surface: "#f4f6fb",
-    surfaceBright: "#fbfcff",
-    onSurface: "#171c23",
-    onSurfaceVariant: "#56606d",
-    outline: "#aab3bd",
-    outlineVariant: "#d5dbe3",
+    primaryContainer: "#e8e8e8",
+    onPrimaryContainer: "#1a1a1a",
+    surface: "#f5f5f5",
+    surfaceBright: "#ffffff",
+    onSurface: "#1a1a1a",
+    onSurfaceVariant: "#666666",
+    outline: "rgba(0,0,0,0.12)",
+    outlineVariant: "rgba(0,0,0,0.08)",
     error: "#ba1a1a",
     onError: "#ffffff",
     /** HSK lesson module (block-01-core) */
     hskAccent: "#1a1a1a",
-    hskMuted: "rgba(23,23,23,0.62)",
+    hskMuted: "rgba(26,26,26,0.62)",
     hskCard: "rgba(255,255,255,0.98)",
-    hskBg: "#f5f6f8",
+    hskBg: "#f5f5f5",
     hskOrange: "#ff7a45",
     hskGreen: "#5db87c",
     hskBlue: "#3e7bfa",
@@ -50,8 +51,8 @@ export const theme = {
     pill: 999
   },
   typography: {
-    fontDisplay: '"Lab Grotesque", "LabGrotesque", var(--font-inter), system-ui, sans-serif',
-    fontBody: '"Lab Grotesque", "LabGrotesque", var(--font-inter), system-ui, sans-serif',
+    fontDisplay: 'var(--font-inter), ui-sans-serif, system-ui, sans-serif',
+    fontBody: 'var(--font-inter), ui-sans-serif, system-ui, sans-serif',
     /** px at 16px root */
     eyebrow: 12,
     body: 16,

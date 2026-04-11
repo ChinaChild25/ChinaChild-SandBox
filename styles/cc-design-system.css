@@ -1,8 +1,7 @@
 /* Maps lib/theme.ts to CSS variables + approved-ui-kit Material 3 surfaces */
 
 :root {
-  --cc-font-display: "Lab Grotesque", "LabGrotesque", var(--font-inter), ui-sans-serif, system-ui,
-    sans-serif;
+  --cc-font-display: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
   --cc-color-primary: #1e2b37;
   --cc-color-on-primary: #ffffff;
@@ -15,15 +14,15 @@
   --cc-hsk-text: #171717;
   --cc-hsk-muted: rgba(23, 23, 23, 0.62);
   --cc-hsk-card: rgba(255, 255, 255, 0.98);
-  --cc-hsk-bg: #f5f6f8;
+  --cc-hsk-bg: #f5f5f5;
   --cc-hsk-accent: #1a1a1a;
   --cc-hsk-line: rgba(23, 23, 23, 0.08);
   --cc-hsk-green: #5db87c;
   --cc-hsk-yellow: #f0b542;
 
-  --cc-radius-xl: 34px;
+  --cc-radius-xl: 28px;
   --cc-radius-lg: 24px;
-  --cc-radius-md: 18px;
+  --cc-radius-md: 16px;
   --cc-radius-pill: 999px;
 
   --cc-shadow-card: 0 20px 56px rgba(22, 26, 36, 0.08);
@@ -198,8 +197,8 @@
 }
 
 .cc-lesson-tab[aria-selected="true"] {
-  background: #dfe8ff;
-  color: #2f63d3;
+  background: var(--ds-sage);
+  color: var(--ds-ink);
 }
 
 .cc-lesson-grid-2 {

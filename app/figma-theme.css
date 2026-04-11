@@ -1,129 +1,14 @@
-/* Design tokens from ChinaChild25/Figmadasboard (Figma export) */
-
-@font-face {
-  font-family: "Lab Grotesque";
-  src: url("/fonts/lab-grotesque/LabGrotesque-Regular.ttf") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Lab Grotesque";
-  src: url("/fonts/lab-grotesque/LabGrotesque-Medium.ttf") format("truetype");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Lab Grotesque";
-  src: url("/fonts/lab-grotesque/LabGrotesque-Bold.ttf") format("truetype");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Lab Grotesque";
-  src: url("/fonts/lab-grotesque/LabGrotesque-Black.ttf") format("truetype");
-  font-weight: 800;
-  font-style: normal;
-  font-display: swap;
-}
-
 @custom-variant dark (&:is(.dark *));
 
-:root {
-  --font-size: 16px;
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
-  --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.0058 264.53);
-  --secondary-foreground: #030213;
-  --muted: #ececf0;
-  --muted-foreground: #717182;
-  --accent: #e9ebef;
-  --accent-foreground: #030213;
-  --destructive: #d4183d;
-  --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
-  --input: transparent;
-  --input-background: #f3f3f5;
-  --switch-background: #cbced4;
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #030213;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-
-  /* Figma shell (Layout.tsx) */
-  --figma-canvas: #f5f5f5;
-  --figma-frame-border: #1a1a1a;
-  --figma-sidebar-bg: #e8e8e8;
-  --figma-ink: #1a1a1a;
-  --figma-muted-text: #555;
-  --figma-nav-hover: #d8d8d8;
-  --figma-stat-gray: #e8e8e8;
-  --figma-stat-mint: #d4e7b0;
-  --figma-link: #8ab84a;
-  --figma-link-hover: #6d9838;
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
-}
+/**
+ * Tailwind theme bridge + base styles.
+ * Token values live in styles/ds-figma-tokens.css (Figma dashboard reference).
+ * Global UI font: Inter via Next.js --font-inter.
+ */
 
 @theme inline {
-  --font-sans: "Lab Grotesque", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -150,10 +35,12 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -162,11 +49,59 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-ds-canvas: var(--ds-canvas);
+  --color-ds-surface: var(--ds-surface);
+  --color-ds-ink: var(--ds-ink);
+  --color-ds-sidebar: var(--ds-sidebar);
+  --color-ds-sidebar-hover: var(--ds-sidebar-hover);
+  --color-ds-text-primary: var(--ds-text-primary);
+  --color-ds-text-secondary: var(--ds-text-secondary);
+  --color-ds-text-muted: var(--ds-text-muted);
+  --color-ds-text-tertiary: var(--ds-text-tertiary);
+  --color-ds-text-quaternary: var(--ds-text-quaternary);
+  --color-ds-text-placeholder: var(--ds-text-placeholder);
+  --color-ds-sage: var(--ds-sage);
+  --color-ds-sage-strong: var(--ds-sage-strong);
+  --color-ds-pink: var(--ds-pink);
+  --color-ds-pink-strong: var(--ds-pink-strong);
+  --color-ds-gray-tile: var(--ds-gray-tile);
+  --color-ds-panel-muted: var(--ds-panel-muted);
+  --color-ds-surface-muted: var(--ds-surface-muted);
+  --color-ds-surface-pill: var(--ds-surface-pill);
+  --color-ds-surface-hover: var(--ds-surface-hover);
+  --color-ds-chevron: var(--ds-chevron);
+
+  --text-ds-2xs: var(--ds-text-2xs);
+  --text-ds-xs: var(--ds-text-xs);
+  --text-ds-sm: var(--ds-text-sm);
+  --text-ds-sm-plus: var(--ds-text-sm-plus);
+  --text-ds-body-sm: var(--ds-text-body-sm);
+  --text-ds-body: var(--ds-text-body);
+  --text-ds-body-lg: var(--ds-text-body-lg);
+  --text-ds-body-xl: var(--ds-text-body-xl);
+  --text-ds-lg: var(--ds-text-lg);
+  --text-ds-xl: var(--ds-text-xl);
+  --text-ds-2xl: var(--ds-text-2xl);
+  --text-ds-3xl: var(--ds-text-3xl);
+  --text-ds-4xl: var(--ds-text-4xl);
+  --text-ds-5xl: var(--ds-text-5xl);
+  --text-ds-6xl: var(--ds-text-6xl);
+  --text-ds-7xl: var(--ds-text-7xl);
+  --text-ds-8xl: var(--ds-text-8xl);
+  --text-ds-stat: var(--ds-text-stat);
+
+  --spacing-ds-page: var(--ds-page-padding);
+  --spacing-ds-gutter: var(--ds-gutter);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased font-sans;
   }
 
   html {
@@ -180,50 +115,47 @@
     margin: 0;
   }
 
-  body {
-    @apply bg-background text-foreground antialiased;
-    font-family: "Lab Grotesque", var(--font-inter), ui-sans-serif, sans-serif;
-  }
-
   h1 {
     font-size: var(--text-2xl);
     font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    line-height: var(--ds-leading-body);
   }
 
   h2 {
     font-size: var(--text-xl);
     font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    line-height: var(--ds-leading-body);
   }
 
   h3 {
     font-size: var(--text-lg);
     font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    line-height: var(--ds-leading-body);
   }
 
   h4 {
     font-size: var(--text-base);
     font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    line-height: var(--ds-leading-body);
   }
 
   label {
     font-size: var(--text-base);
     font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    line-height: var(--ds-leading-body);
   }
 
   button {
-    font-size: var(--text-base);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
+    font-family: inherit;
+    font-size: var(--ds-text-body);
+    font-weight: var(--ds-font-medium);
+    line-height: var(--ds-leading-body);
   }
 
   input {
-    font-size: var(--text-base);
+    font-family: inherit;
+    font-size: var(--ds-text-body-lg);
     font-weight: var(--font-weight-normal);
-    line-height: 1.5;
+    line-height: var(--ds-leading-body);
   }
 }

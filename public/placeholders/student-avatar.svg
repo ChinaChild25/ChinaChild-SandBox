@@ -2,5 +2,5 @@
   <rect width="160" height="160" rx="80" fill="#D8D8D8"/>
   <circle cx="80" cy="66" r="26" fill="#B8B8B8"/>
   <path d="M36 138C42 109 57 94 80 94C103 94 118 109 124 138H36Z" fill="#B8B8B8"/>
-  <text x="80" y="152" text-anchor="middle" fill="#7A7A7A" font-family="Lab Grotesque" font-size="12">REPLACE</text>
+  <text x="80" y="152" text-anchor="middle" fill="#7A7A7A" font-family="Inter, system-ui, sans-serif" font-size="12">REPLACE</text>
 </svg>

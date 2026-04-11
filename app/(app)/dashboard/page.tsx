@@ -62,29 +62,31 @@ export default function DashboardPage() {
   const upcomingLessons = mockLessons.slice(0, 5)
 
   return (
-    <div className="px-3 py-4 md:px-5 md:py-6 lg:px-6 lg:py-7">
-      <div className="mx-auto flex w-full max-w-[76rem] flex-col gap-4">
-        <div className="grid gap-4 md:grid-cols-3">
-          <section className="ek-surface rounded-[1.35rem] bg-[#dddddd] p-6">
-            <p className="text-[4.1rem] leading-[0.9] font-medium tracking-[-0.05em] text-[#12141d]">
+    <div className="ds-page">
+      <div className="mx-auto flex w-full max-w-[var(--ds-shell-max-width)] flex-col gap-ds-gutter">
+        <div className="ds-stat-grid">
+          <section className="ds-stat-card ds-stat-card--muted">
+            <p className="ds-stat-card__value text-ds-ink">
               {dashboardStats.attendedLessons}
-              <span className="pl-1 text-[3rem] text-black/75">/{dashboardStats.lessonGoal}</span>
+              <span className="pl-1 text-ds-5xl text-ds-text-secondary">
+                /{dashboardStats.lessonGoal}
+              </span>
             </p>
-            <p className="mt-5 text-[1.85rem] leading-[1.1] text-black/70">Посещено занятий</p>
+            <p className="ds-stat-card__label text-ds-text-muted">Посещено занятий</p>
           </section>
-          <section className="ek-surface rounded-[1.35rem] bg-[#13151f] p-6 text-white">
-            <p className="text-[4.1rem] leading-[0.9] font-medium tracking-[-0.05em]">
+          <section className="ds-stat-card ds-stat-card--dark">
+            <p className="ds-stat-card__value">
               {dashboardStats.completedHomework}
-              <span className="pl-1 text-[3rem] text-white/80">/{dashboardStats.homeworkGoal}</span>
+              <span className="pl-1 text-ds-5xl text-white/80">/{dashboardStats.homeworkGoal}</span>
             </p>
-            <p className="mt-5 text-[1.85rem] leading-[1.1] text-white/75">Выполнено домашних заданий</p>
+            <p className="ds-stat-card__label text-white/75">Выполнено домашних заданий</p>
           </section>
-          <section className="ek-surface rounded-[1.35rem] bg-[#d8ea95] p-6">
-            <p className="text-[4.1rem] leading-[0.9] font-medium tracking-[-0.05em] text-[#12141d]">
+          <section className="ds-stat-card ds-stat-card--sage">
+            <p className="ds-stat-card__value text-ds-ink">
               {dashboardStats.averageScore}
-              <span className="pl-1 text-[3rem] text-black/75">/100</span>
+              <span className="pl-1 text-ds-5xl text-ds-text-secondary">/100</span>
             </p>
-            <p className="mt-5 text-[1.85rem] leading-[1.1] text-black/70">
+            <p className="ds-stat-card__label text-ds-text-muted">
               Средний балл
               <br />
               по тестам
@@ -92,56 +94,51 @@ export default function DashboardPage() {
           </section>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-          <section className="ek-surface rounded-[1.35rem] bg-[#ebebeb] px-5 py-4 sm:px-6">
-            <ul className="divide-y divide-black/7">
+        <div className="ds-dashboard-grid">
+          <section className="ek-surface bg-ds-panel-muted px-5 py-4 sm:px-6">
+            <ul className="flex flex-col gap-4 pt-1">
               {upcomingLessons.map((lesson, index) => {
                 const dayNumber = Number(new Date(lesson.scheduledDate).getDate())
                 const color = lessonColors[index] ?? "#d8d8d8"
-                const circleText = color === "#10131d" ? "text-white" : "text-black/75"
+                const circleText = color === "#10131d" ? "text-white" : "text-ds-text-secondary"
 
                 return (
-                  <li key={lesson.id} className="flex items-center gap-4 py-4 first:pt-1">
+                  <li key={lesson.id} className="ds-lesson-row !mb-0 py-0">
                     <div
-                      className={`flex h-[4.45rem] w-[4.45rem] shrink-0 flex-col items-center justify-center rounded-full ${circleText}`}
+                      className={`ds-lesson-dot text-center ${circleText}`}
                       style={{ backgroundColor: color }}
                     >
-                      <span className="text-[2rem] leading-none tracking-[-0.03em]">{dayNumber}</span>
-                      <span className="mt-1 text-[0.7rem] leading-none">
+                      <span className="ds-lesson-dot__day">{dayNumber}</span>
+                      <span className="ds-lesson-dot__time">
                         {lesson.scheduledTime.replace(" AM", "").replace(" PM", "")}
                       </span>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[2rem] leading-none tracking-[-0.04em] text-[#1a1d26]">
-                        {lesson.title}
-                      </p>
-                      <p className="mt-1 text-[1rem] leading-[1.2] text-black/58">
+                      <p className="ds-lesson-row__title">{lesson.title}</p>
+                      <p className="ds-lesson-row__meta">
                         {lesson.titleChinese}. {lesson.duration}
                       </p>
                     </div>
-                    <ChevronRight className="h-7 w-7 shrink-0 text-black/48" />
+                    <ChevronRight className="ds-lesson-row__chevron h-7 w-7" />
                   </li>
                 )
               })}
             </ul>
-            <button className="mt-2 ml-[6.15rem] text-[2rem] tracking-[-0.04em] text-[#b4cb62] transition-opacity hover:opacity-80">
+            <button type="button" className="ds-link-sage mt-2 ml-[5.5rem]">
               смотреть дальше
             </button>
           </section>
 
-          <div className="grid gap-4">
-            <section className="ek-surface rounded-[1.35rem] bg-[#ebebeb] px-6 py-5">
+          <div className="grid gap-ds-gutter">
+            <section className="ek-surface bg-ds-panel-muted px-6 py-5">
               <div className="flex items-end justify-between">
-                <h2 className="text-[2.7rem] leading-none font-semibold tracking-[-0.05em] text-[#141720]">
-                  апрель <span className="text-[2rem] font-medium text-black/80">2025</span>
+                <h2 className="text-ds-5xl leading-none font-bold tracking-tight text-ds-text-primary">
+                  апрель <span className="text-ds-2xl font-normal text-ds-text-secondary">2025</span>
                 </h2>
               </div>
               <div className="mt-4 grid grid-cols-7 gap-y-2 text-center">
                 {["вс", "пн", "вт", "ср", "чт", "пт", "сб"].map((day) => (
-                  <div
-                    key={day}
-                    className="text-[1.45rem] font-medium lowercase tracking-[-0.02em] text-black/86"
-                  >
+                  <div key={day} className="ds-calendar-weekday font-medium lowercase">
                     {day}
                   </div>
                 ))}
@@ -150,8 +147,8 @@ export default function DashboardPage() {
                     {day ? (
                       <div className="flex h-full flex-col items-center justify-center">
                         <span
-                          className={`grid h-7 w-7 place-content-center rounded-full text-[1.55rem] leading-none ${
-                            day === 11 ? "bg-[#d8ea95] text-[#1a1d25]" : "text-black/76"
+                          className={`ds-calendar-cell grid h-7 w-7 place-content-center ${
+                            day === 11 ? "ds-calendar-cell--today font-medium text-ds-ink" : ""
                           }`}
                         >
                           {day}
@@ -171,20 +168,18 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            <section className="ek-surface rounded-[1.35rem] bg-[#ebebeb] px-6 py-4">
-              <ul className="divide-y divide-black/8">
+            <section className="ek-surface bg-ds-panel-muted px-6 py-4">
+              <ul className="divide-y divide-black/10">
                 {mentors.map((mentor) => (
-                  <li key={mentor.name} className="flex items-center gap-4 py-3">
-                    <div className="flex h-[3.5rem] w-[3.5rem] shrink-0 items-center justify-center rounded-full bg-white text-sm font-semibold text-black/70">
+                  <li key={mentor.name} className="ds-contact-row py-3">
+                    <div className="ds-contact-avatar flex items-center justify-center bg-white text-sm font-semibold text-ds-text-secondary">
                       {mentor.initials}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[2.2rem] leading-none tracking-[-0.04em] text-[#1a1d26]">
-                        {mentor.name}
-                      </p>
-                      <p className="mt-1 text-[1.15rem] text-black/58">{mentor.role}</p>
+                      <p className="ds-contact-name">{mentor.name}</p>
+                      <p className="ds-contact-role">{mentor.role}</p>
                     </div>
-                    <ArrowRight className="h-7 w-7 shrink-0 text-black" />
+                    <ArrowRight className="h-6 w-6 shrink-0 text-ds-ink" />
                   </li>
                 ))}
               </ul>
