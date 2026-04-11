@@ -854,4 +854,158 @@
   .ds-activity-row:focus-visible {
     box-shadow: 0 0 0 2px rgb(26 26 26 / 0.2);
   }
+
+  /* —— Lesson screen tabs (Figmadasboard LessonPage.tsx) —— */
+  .ds-lesson-figma-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ds-space-2);
+    margin-bottom: var(--ds-space-6);
+    border-bottom: 1px solid var(--ds-sidebar);
+    padding-bottom: 0;
+  }
+
+  .ds-lesson-figma-tab {
+    margin-bottom: -1px;
+    border: none;
+    border-radius: 12px 12px 0 0;
+    padding: 10px 20px;
+    font-family: inherit;
+    font-size: var(--ds-text-body-sm);
+    font-weight: var(--ds-font-medium);
+    line-height: var(--ds-leading-body);
+    cursor: pointer;
+    background: transparent;
+    color: var(--ds-text-tertiary);
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .ds-lesson-figma-tab:hover:not(.ds-lesson-figma-tab--active) {
+    color: var(--ds-ink);
+  }
+
+  .ds-lesson-figma-tab--active {
+    background-color: var(--ds-ink);
+    color: #ffffff;
+  }
+
+  /* —— Settings panels (Figmadasboard SettingsPage.tsx) —— */
+  .ds-settings-panel {
+    border-radius: var(--ds-radius-lg);
+    background-color: var(--ds-surface-muted);
+    padding: var(--ds-space-6);
+  }
+
+  .ds-settings-section-head {
+    display: flex;
+    align-items: center;
+    gap: var(--ds-space-3);
+    margin-bottom: var(--ds-space-5);
+    font-size: var(--ds-text-body-xl);
+    font-weight: var(--ds-font-semibold);
+    color: var(--ds-ink);
+  }
+
+  .ds-settings-section-head svg {
+    flex-shrink: 0;
+    color: var(--ds-text-tertiary);
+  }
+
+  .ds-settings-label {
+    display: block;
+    margin-bottom: var(--ds-space-1);
+    font-size: var(--ds-text-xs);
+    color: var(--ds-text-tertiary);
+  }
+
+  .ds-settings-input {
+    box-sizing: border-box;
+    width: 100%;
+    border-radius: var(--ds-radius-md);
+    border: 1px solid var(--ds-sidebar);
+    background-color: var(--ds-surface);
+    padding: 10px var(--ds-space-4);
+    font-family: inherit;
+    font-size: var(--ds-text-body-sm);
+    color: var(--ds-ink);
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+
+  .ds-settings-input:focus {
+    border-color: var(--ds-ink);
+  }
+
+  .ds-figma-toggle {
+    position: relative;
+    height: 24px;
+    width: 48px;
+    flex-shrink: 0;
+    cursor: pointer;
+    border: none;
+    border-radius: var(--ds-radius-pill);
+    padding: 0;
+    transition: background-color 0.15s ease;
+  }
+
+  .ds-figma-toggle--on {
+    background-color: var(--ds-ink);
+  }
+
+  .ds-figma-toggle--off {
+    background-color: var(--ds-sidebar-hover);
+  }
+
+  .ds-figma-toggle-knob {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    height: 16px;
+    width: 16px;
+    border-radius: var(--ds-radius-pill);
+    background-color: #ffffff;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+    transition: transform 0.15s ease;
+  }
+
+  .ds-figma-toggle--on .ds-figma-toggle-knob {
+    transform: translateX(24px);
+  }
+
+  /* —— Schedule week column (Figmadasboard Schedule.tsx) —— */
+  .ds-schedule-day-head {
+    border-radius: var(--ds-radius-md);
+    padding: var(--ds-space-2);
+    text-align: center;
+  }
+
+  .ds-schedule-day-head--today {
+    background-color: var(--ds-ink);
+    color: #ffffff;
+  }
+
+  .ds-schedule-day-head--muted {
+    background-color: var(--ds-canvas);
+    color: var(--ds-text-tertiary);
+  }
+
+  .ds-schedule-slot {
+    cursor: pointer;
+    border-radius: var(--ds-radius-md);
+    padding: 10px;
+    transition: opacity 0.15s ease;
+  }
+
+  .ds-schedule-slot:hover {
+    opacity: 0.92;
+  }
+
+  .ds-schedule-empty {
+    min-height: 60px;
+    flex: 1;
+    border-radius: var(--ds-radius-md);
+    border: 2px dashed var(--ds-sidebar);
+  }
 }

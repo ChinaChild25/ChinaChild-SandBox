@@ -1,65 +1,269 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import Image from "next/image"
+import { Bell, Camera, Globe, Moon, Save, Shield } from "lucide-react"
+
+import { useAuth } from "@/lib/auth-context"
+import { placeholderImages } from "@/lib/placeholders"
+import type { User } from "@/lib/types"
+
+const LEVEL_RU: Record<User["level"], string> = {
+  Beginner: "Начинающий уровень",
+  Elementary: "Базовый уровень",
+  Intermediate: "Средний уровень",
+  Advanced: "Продвинутый уровень"
+}
+
+function SettingsField({
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  type?: string
+  placeholder?: string
+}) {
+  return (
+    <div>
+      <label className="ds-settings-label">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="ds-settings-input"
+      />
+    </div>
+  )
+}
+
+function FigmaToggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={`ds-figma-toggle ${checked ? "ds-figma-toggle--on" : "ds-figma-toggle--off"}`}
+    >
+      <span className="ds-figma-toggle-knob" />
+    </button>
+  )
+}
 
 export default function SettingsPage() {
-  const [emailNotifications, setEmailNotifications] = useState(true)
-  const [weekGoal, setWeekGoal] = useState("5 уроков")
-  const [timezone, setTimezone] = useState("UTC+8 (Пекин)")
+  const { user, updateUser } = useAuth()
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [phone, setPhone] = useState("+7 999 123-45-67")
+  const [language, setLanguage] = useState("ru")
+  const [notifications, setNotifications] = useState({
+    lessons: true,
+    homework: true,
+    messages: true,
+    news: false
+  })
+  const [saved, setSaved] = useState(false)
+  const [selectedTheme, setSelectedTheme] = useState(0)
+  const [passwords, setPasswords] = useState({ cur: "", next: "", repeat: "" })
+
+  useEffect(() => {
+    if (!user) return
+    setName(user.name)
+    setEmail(user.email)
+  }, [user])
+
+  const handleSave = () => {
+    if (user) {
+      updateUser({ name, email })
+    }
+    setSaved(true)
+    window.setTimeout(() => setSaved(false), 2000)
+  }
+
+  if (!user) return null
+
+  const avatarSrc = user.avatar ?? placeholderImages.studentAvatar
 
   return (
     <div className="ds-page">
-      <div className="mx-auto flex w-full max-w-[var(--ds-shell-max-width)] flex-col gap-4">
-        <section className="ek-surface bg-ds-panel-muted px-7 py-6">
-          <p className="text-sm uppercase tracking-[0.18em] text-black/45">Конфигурация</p>
-          <h1 className="mt-3 text-[2.6rem] leading-none font-semibold tracking-[-0.05em] text-ds-ink">
-            Настройки
-          </h1>
-        </section>
+      <div className="mx-auto w-full max-w-[var(--ds-shell-max-width)] px-4 py-8 md:px-8">
+        <div className="mb-7">
+          <h1 className="text-[36px] font-bold leading-none text-ds-ink">Настройки</h1>
+          <p className="mt-1 text-[15px] text-[var(--ds-text-secondary)]">
+            Управление профилем и предпочтениями
+          </p>
+        </div>
 
-        <section className="ek-surface bg-ds-panel-muted px-7 py-6">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-sm text-black/60">
-              Недельная цель
-              <input
-                value={weekGoal}
-                onChange={(e) => setWeekGoal(e.target.value)}
-                className="mt-1.5 h-11 w-full rounded-2xl border border-black/12 bg-white px-4 text-[15px] text-ds-ink focus:outline-none"
-              />
-            </label>
-            <label className="text-sm text-black/60">
-              Часовой пояс
-              <input
-                value={timezone}
-                onChange={(e) => setTimezone(e.target.value)}
-                className="mt-1.5 h-11 w-full rounded-2xl border border-black/12 bg-white px-4 text-[15px] text-ds-ink focus:outline-none"
-              />
-            </label>
-          </div>
-
-          <div className="mt-4 flex items-center justify-between rounded-2xl border border-black/8 bg-white px-4 py-3">
-            <div>
-              <p className="text-[0.98rem] font-medium text-ds-ink">Почтовые уведомления</p>
-              <p className="text-xs text-black/50">Напоминания о занятиях и домашних заданиях</p>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="ds-settings-panel">
+            <div className="ds-settings-section-head">
+              <Shield size={20} aria-hidden />
+              Профиль
             </div>
-            <button
-              type="button"
-              onClick={() => setEmailNotifications((prev) => !prev)}
-              className={`rounded-full px-3 py-1.5 text-xs ${
-                emailNotifications ? "bg-ds-ink text-white" : "bg-black/8 text-black/55"
-              }`}
-            >
-              {emailNotifications ? "Включено" : "Выключено"}
-            </button>
+
+            <div className="mb-6 flex items-center gap-4">
+              <div className="relative">
+                <div className="relative h-20 w-20 overflow-hidden rounded-full bg-ds-sidebar">
+                  <Image src={avatarSrc} alt="Аватар" fill className="object-cover" sizes="80px" />
+                </div>
+                <button
+                  type="button"
+                  className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-ds-ink"
+                  aria-label="Изменить фото"
+                >
+                  <Camera size={13} className="text-white" aria-hidden />
+                </button>
+              </div>
+              <div>
+                <div className="text-[16px] font-semibold text-ds-ink">{name || user.name}</div>
+                <div className="text-[13px] text-ds-text-tertiary">{LEVEL_RU[user.level]}</div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <SettingsField label="Имя" value={name} onChange={setName} />
+              <SettingsField label="Email" value={email} onChange={setEmail} type="email" />
+              <SettingsField label="Телефон" value={phone} onChange={setPhone} type="tel" />
+            </div>
           </div>
 
+          <div className="ds-settings-panel">
+            <div className="ds-settings-section-head">
+              <Bell size={20} aria-hidden />
+              Уведомления
+            </div>
+
+            <div className="space-y-4">
+              {(
+                [
+                  ["lessons", "Напоминания о занятиях"],
+                  ["homework", "Дедлайны домашних заданий"],
+                  ["messages", "Новые сообщения"],
+                  ["news", "Новости и акции"]
+                ] as const
+              ).map(([key, label]) => (
+                <div key={key} className="flex items-center justify-between gap-3">
+                  <span className="text-[15px] text-ds-text-quaternary">{label}</span>
+                  <FigmaToggle
+                    checked={notifications[key]}
+                    onChange={(v) => setNotifications((n) => ({ ...n, [key]: v }))}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 border-t border-ds-sidebar pt-5">
+              <div className="ds-settings-section-head mb-4">
+                <Globe size={20} aria-hidden />
+                Язык интерфейса
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ["ru", "Русский"],
+                    ["en", "English"],
+                    ["zh", "中文"]
+                  ] as const
+                ).map(([code, lab]) => (
+                  <button
+                    key={code}
+                    type="button"
+                    onClick={() => setLanguage(code)}
+                    className={`rounded-full px-4 py-2 text-[14px] transition-colors ${
+                      language === code
+                        ? "bg-ds-ink text-white"
+                        : "bg-ds-sidebar text-ds-ink hover:bg-ds-sidebar-hover"
+                    }`}
+                  >
+                    {lab}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="ds-settings-panel">
+            <div className="ds-settings-section-head">
+              <Shield size={20} aria-hidden />
+              Безопасность
+            </div>
+            <div className="space-y-4">
+              <SettingsField
+                label="Текущий пароль"
+                value={passwords.cur}
+                onChange={(v) => setPasswords((p) => ({ ...p, cur: v }))}
+                type="password"
+                placeholder="••••••••"
+              />
+              <SettingsField
+                label="Новый пароль"
+                value={passwords.next}
+                onChange={(v) => setPasswords((p) => ({ ...p, next: v }))}
+                type="password"
+                placeholder="••••••••"
+              />
+              <SettingsField
+                label="Повторите пароль"
+                value={passwords.repeat}
+                onChange={(v) => setPasswords((p) => ({ ...p, repeat: v }))}
+                type="password"
+                placeholder="••••••••"
+              />
+            </div>
+          </div>
+
+          <div className="ds-settings-panel">
+            <div className="ds-settings-section-head">
+              <Moon size={20} aria-hidden />
+              Внешний вид
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {(
+                [
+                  { label: "Светлая", bg: "#ffffff", border: true },
+                  { label: "Тёмная", bg: "#1a1a1a", text: "#fff" },
+                  { label: "Зелёная", bg: "#d4e7b0" },
+                  { label: "Розовая", bg: "#f4c4c4" }
+                ] as const
+              ).map((theme, i) => (
+                <button
+                  key={theme.label}
+                  type="button"
+                  onClick={() => setSelectedTheme(i)}
+                  className={`rounded-2xl p-4 text-left transition-transform hover:scale-[1.02] ${
+                    selectedTheme === i ? "ring-2 ring-ds-ink" : ""
+                  }`}
+                  style={{
+                    backgroundColor: theme.bg,
+                    color: theme.text ?? "#1a1a1a",
+                    border: theme.border ? "1px solid #e8e8e8" : "none"
+                  }}
+                >
+                  <span className="text-[14px]">{theme.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end">
           <button
             type="button"
-            className="mt-5 rounded-2xl bg-ds-ink px-5 py-3 text-sm font-medium text-white hover:opacity-90"
+            onClick={handleSave}
+            className={`flex items-center gap-2 rounded-2xl px-7 py-3 text-[15px] transition-colors ${
+              saved ? "bg-ds-sage-strong text-white" : "bg-ds-ink text-white hover:bg-[#333333]"
+            }`}
           >
-            Сохранить настройки
+            <Save size={17} aria-hidden />
+            {saved ? "Сохранено!" : "Сохранить изменения"}
           </button>
-        </section>
+        </div>
       </div>
     </div>
   )

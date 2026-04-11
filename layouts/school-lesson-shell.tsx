@@ -4,10 +4,10 @@ type Props = {
   children: ReactNode
 }
 
-/** Full-bleed lesson column: tokens via .lesson-shell + cc-design-system.css */
+/** Lesson column: Figma LessonPage canvas (white / full-width content band). */
 export function SchoolLessonShell({ children }: Props) {
   return (
-    <div className="min-h-0 bg-[var(--cc-hsk-bg)] py-6 md:py-8">
+    <div className="min-h-0 bg-ds-surface py-6 md:py-8">
       <div className="lesson-shell">{children}</div>
     </div>
   )

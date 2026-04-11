@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft } from "lucide-react"
+import { ChevronLeft } from "lucide-react"
 
 import { PendingLesson } from "@/components/school/pending-lesson"
 import { InteractiveLesson } from "@/components/school/interactive-lesson"
@@ -30,19 +30,25 @@ export default async function LessonPage({ params }: LessonPageProps) {
 
   const ready = file.contentStatus === "ready" && file.data !== null
 
+  const coursePillBg = catalog.courseId === "hsk1" ? "var(--ds-sage)" : "var(--ds-pink)"
+
   return (
     <SchoolLessonShell>
-      <div className="mb-6 flex flex-wrap items-center gap-3">
+      <div className="mb-6">
         <Link
           href={`/courses/${catalog.courseId}`}
-          className="inline-flex min-h-[44px] items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-[var(--cc-hsk-text)] shadow-sm ring-1 ring-[var(--cc-hsk-line)] transition-colors hover:bg-[#f3f4f6]"
+          className="mb-5 inline-flex min-h-[44px] items-center gap-1 text-[14px] text-ds-text-tertiary transition-colors hover:text-ds-ink"
         >
-          <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
+          <ChevronLeft className="h-[18px] w-[18px] shrink-0" aria-hidden />
           Назад к курсу {catalog.courseName}
         </Link>
-        <span className="text-sm text-[var(--cc-hsk-muted)]">
-          {catalog.courseName} · {ready ? "интерактивный урок" : "каркас маршрута"}
-        </span>
+
+        <div
+          className="mb-6 inline-block rounded-full px-3 py-1 text-[12px] text-ds-ink"
+          style={{ backgroundColor: coursePillBg }}
+        >
+          {catalog.courseName}
+        </div>
       </div>
 
       {ready ? (
