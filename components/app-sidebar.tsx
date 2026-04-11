@@ -17,8 +17,8 @@ import {
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
-import { placeholderImages } from "@/lib/placeholders"
 import { BrandLogo } from "@/components/brand-logo"
+import { FIGMA_STUDENT_AVATAR } from "@/lib/figma-dashboard"
 
 type NavItem = {
   href: string
@@ -26,11 +26,12 @@ type NavItem = {
   icon: LucideIcon
 }
 
+/** Как в Figmadasboard Layout: Главная → Занятия → Мои оценки → Расписание → … */
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Главная", icon: LayoutGrid },
   { href: "/classes", label: "Занятия", icon: GraduationCap },
-  { href: "/schedule", label: "Расписание", icon: CalendarDays },
   { href: "/progress", label: "Мои оценки", icon: Award },
+  { href: "/schedule", label: "Расписание", icon: CalendarDays },
   { href: "/messages", label: "Сообщения", icon: Mail },
   { href: "/courses", label: "Мои курсы", icon: BookOpen },
   { href: "/settings", label: "Настройки", icon: Settings }
@@ -48,7 +49,7 @@ export function AppSidebar() {
   }[user?.level ?? "Beginner"]
 
   const firstName = user?.name?.split(" ")[0] ?? "Яна"
-  const avatarSrc = user?.avatar ?? placeholderImages.studentAvatar
+  const avatarSrc = user?.avatar ?? FIGMA_STUDENT_AVATAR
 
   const isActive = (href: string, label: string) => {
     if (href === "/dashboard") return pathname === "/dashboard"
@@ -78,7 +79,7 @@ export function AppSidebar() {
             alt="Аватар ученика"
             width={110}
             height={110}
-            unoptimized={avatarSrc.startsWith("data:")}
+            unoptimized={avatarSrc.startsWith("data:") || avatarSrc.startsWith("http")}
             className="h-full w-full object-cover"
           />
         </div>

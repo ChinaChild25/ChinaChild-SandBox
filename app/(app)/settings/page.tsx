@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
-import { useTheme } from "next-themes"
-import { Bell, Camera, Globe, Moon, Save, Shield } from "lucide-react"
+import { Bell, Camera, Globe, Palette, Save, Shield } from "lucide-react"
 
 import {
   applyUiAccentToDocument,
@@ -64,7 +63,6 @@ function FigmaToggle({ checked, onChange }: { checked: boolean; onChange: (v: bo
 
 export default function SettingsPage() {
   const { user, updateUser } = useAuth()
-  const { setTheme, resolvedTheme } = useTheme()
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -77,7 +75,8 @@ export default function SettingsPage() {
     news: false
   })
   const [saved, setSaved] = useState(false)
-  const [selectedTheme, setSelectedTheme] = useState(0)
+  /** 0 стандартная, 1 зелёный акцент, 2 розовый — только светлая тема */
+  const [accentPreset, setAccentPreset] = useState(0)
   const [passwords, setPasswords] = useState({ cur: "", next: "", repeat: "" })
 
   useEffect(() => {
@@ -87,16 +86,11 @@ export default function SettingsPage() {
   }, [user])
 
   useEffect(() => {
-    if (!resolvedTheme) return
-    if (resolvedTheme === "dark") {
-      setSelectedTheme(1)
-      return
-    }
     const accent = readStoredUiAccent()
-    if (accent === "sage") setSelectedTheme(2)
-    else if (accent === "pink") setSelectedTheme(3)
-    else setSelectedTheme(0)
-  }, [resolvedTheme])
+    if (accent === "sage") setAccentPreset(1)
+    else if (accent === "pink") setAccentPreset(2)
+    else setAccentPreset(0)
+  }, [])
 
   const handleSave = () => {
     if (user) {
@@ -265,40 +259,34 @@ export default function SettingsPage() {
 
           <div className="ds-settings-panel">
             <div className="ds-settings-section-head">
-              <Moon size={20} aria-hidden />
-              Внешний вид
+              <Palette size={20} aria-hidden />
+              Акцент интерфейса
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <p className="mb-4 text-[13px] text-ds-text-tertiary">
+              Интерфейс всегда в светлой теме, как в макете. Можно смягчить фон зелёным или розовым оттенком.
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {(
                 [
-                  { label: "Светлая", bg: "#ffffff", border: true },
-                  { label: "Тёмная", bg: "#1a1a1a", text: "#fff" },
-                  { label: "Зелёная", bg: "#d4e7b0" },
-                  { label: "Розовая", bg: "#f4c4c4" }
+                  { label: "Стандартная", bg: "#ffffff", border: true, accent: "default" as const },
+                  { label: "Зелёная", bg: "#d4e7b0", accent: "sage" as const },
+                  { label: "Розовая", bg: "#f4c4c4", accent: "pink" as const }
                 ] as const
               ).map((theme, i) => (
                 <button
                   key={theme.label}
                   type="button"
                   onClick={() => {
-                    setSelectedTheme(i)
-                    if (i === 1) {
-                      setTheme("dark")
-                      persistUiAccent("default")
-                      applyUiAccentToDocument("default")
-                    } else {
-                      setTheme("light")
-                      const accent = i === 2 ? "sage" : i === 3 ? "pink" : "default"
-                      persistUiAccent(accent)
-                      applyUiAccentToDocument(accent)
-                    }
+                    setAccentPreset(i)
+                    persistUiAccent(theme.accent)
+                    applyUiAccentToDocument(theme.accent)
                   }}
                   className={`rounded-2xl p-4 text-left transition-transform hover:scale-[1.02] ${
-                    selectedTheme === i ? "ring-2 ring-ds-ink dark:ring-white" : ""
+                    accentPreset === i ? "ring-2 ring-ds-ink" : ""
                   }`}
                   style={{
                     backgroundColor: theme.bg,
-                    color: theme.text ?? "#1a1a1a",
+                    color: "#1a1a1a",
                     border: theme.border ? "1px solid #e8e8e8" : "none"
                   }}
                 >

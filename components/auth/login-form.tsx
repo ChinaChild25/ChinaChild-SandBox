@@ -7,9 +7,10 @@ import { useAuth } from "@/lib/auth-context"
 
 interface LoginFormProps {
   onSwitchToRegister: () => void
+  onForgotPassword: () => void
 }
 
-export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
+export function LoginForm({ onSwitchToRegister, onForgotPassword }: LoginFormProps) {
   const router = useRouter()
   const { login, isLoading } = useAuth()
   const [email, setEmail] = useState("")
@@ -60,6 +61,7 @@ export function LoginForm({ onSwitchToRegister }: LoginFormProps) {
           </label>
           <button
             type="button"
+            onClick={onForgotPassword}
             className="text-[12px] font-medium text-ds-text-tertiary transition-colors hover:text-ds-ink"
           >
             Забыли пароль?

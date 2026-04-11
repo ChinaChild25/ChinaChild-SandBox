@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowRight, ChartNoAxesCombined, MessageSquareMore, Sparkles } from "lucide-react"
+import { ForgotPasswordForm } from "@/components/auth/forgot-password-form"
 import { LoginForm } from "@/components/auth/login-form"
 import { RegisterForm } from "@/components/auth/register-form"
 import { useAuth } from "@/lib/auth-context"
@@ -30,6 +31,7 @@ export default function AuthPage() {
   const router = useRouter()
   const { isAuthenticated } = useAuth()
   const [isLogin, setIsLogin] = useState(true)
+  const [authMode, setAuthMode] = useState<"login" | "register" | "forgot">("login")
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -93,23 +95,32 @@ export default function AuthPage() {
       <div className="ds-auth-form-aside">
         <div className="mx-auto flex w-full max-w-[min(26rem,100%)] flex-1 flex-col justify-center py-6 lg:py-10">
           <div className="ds-auth-form-panel">
-            <div className="ds-segmented mb-8">
-              <button
-                type="button"
-                onClick={() => setIsLogin(true)}
-                className={`ds-segmented__btn ${isLogin ? "ds-segmented__btn--active" : ""}`}
-              >
-                Вход
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsLogin(false)}
-                className={`ds-segmented__btn ${!isLogin ? "ds-segmented__btn--active" : ""}`}
-              >
-                Регистрация
-              </button>
-            </div>
+            {authMode !== "forgot" ? (
+              <div className="ds-segmented mb-8">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLogin(true)
+                    setAuthMode("login")
+                  }}
+                  className={`ds-segmented__btn ${isLogin && authMode === "login" ? "ds-segmented__btn--active" : ""}`}
+                >
+                  Вход
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLogin(false)
+                    setAuthMode("register")
+                  }}
+                  className={`ds-segmented__btn ${!isLogin && authMode === "register" ? "ds-segmented__btn--active" : ""}`}
+                >
+                  Регистрация
+                </button>
+              </div>
+            ) : null}
 
+            {authMode !== "forgot" ? (
             <div className="mb-8 grid grid-cols-3 gap-2">
               <div className="rounded-[var(--ds-radius-lg)] bg-ds-sidebar px-2 py-3 text-center transition-transform duration-200 hover:scale-[1.02]">
                 <p className="text-[1.35rem] font-semibold leading-none tracking-tight text-ds-ink">
@@ -136,23 +147,48 @@ export default function AuthPage() {
                 </p>
               </div>
             </div>
+            ) : null}
 
-            <h2 className="text-[clamp(1.65rem,4vw,2rem)] font-semibold leading-[1.1] tracking-[-0.04em] text-ds-ink">
-              {isLogin ? "С возвращением" : "Добро пожаловать в ChinaChild"}
-            </h2>
-            <p className="mt-3 max-w-[28rem] text-[15px] leading-relaxed text-ds-text-secondary">
-              {isLogin
-                ? "Тот же кабинет, что и после входа: расписание, прогресс и контакты — в одной сетке."
-                : "Один аккаунт — доступ к урокам, заданиям и чату с наставниками."}
-            </p>
+            {authMode === "forgot" ? (
+              <div className="mt-2">
+                <ForgotPasswordForm
+                  onBackToLogin={() => {
+                    setAuthMode("login")
+                    setIsLogin(true)
+                  }}
+                />
+              </div>
+            ) : (
+              <>
+                <h2 className="text-[clamp(1.65rem,4vw,2rem)] font-semibold leading-[1.1] tracking-[-0.04em] text-ds-ink">
+                  {isLogin ? "С возвращением" : "Добро пожаловать в ChinaChild"}
+                </h2>
+                <p className="mt-3 max-w-[28rem] text-[15px] leading-relaxed text-ds-text-secondary">
+                  {isLogin
+                    ? "Тот же кабинет, что и после входа: расписание, прогресс и контакты — в одной сетке."
+                    : "Один аккаунт — доступ к урокам, заданиям и чату с наставниками."}
+                </p>
 
-            <div className="mt-8">
-              {isLogin ? (
-                <LoginForm onSwitchToRegister={() => setIsLogin(false)} />
-              ) : (
-                <RegisterForm onSwitchToLogin={() => setIsLogin(true)} />
-              )}
-            </div>
+                <div className="mt-8">
+                  {isLogin ? (
+                    <LoginForm
+                      onSwitchToRegister={() => {
+                        setIsLogin(false)
+                        setAuthMode("register")
+                      }}
+                      onForgotPassword={() => setAuthMode("forgot")}
+                    />
+                  ) : (
+                    <RegisterForm
+                      onSwitchToLogin={() => {
+                        setIsLogin(true)
+                        setAuthMode("login")
+                      }}
+                    />
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           <p className="group mt-8 inline-flex items-center gap-2 px-1 text-ds-sm-plus text-ds-text-muted">
