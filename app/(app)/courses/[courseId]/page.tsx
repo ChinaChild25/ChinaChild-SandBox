@@ -2,25 +2,61 @@
 
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { ChevronRight, FileText, GraduationCap } from "lucide-react"
-import { courseCatalog } from "@/lib/course-catalog"
+import {
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Lock,
+  PlayCircle
+} from "lucide-react"
+import { courseCatalog, type CourseCatalog } from "@/lib/course-catalog"
+
+function topicFlags(title: string, slug: string) {
+  const isDiagnostic = slug === "hsk-1" || title.toLowerCase().includes("диагностическ")
+  const isTest = title.includes("Варианты") || title.includes("варианты")
+  return { isDiagnostic, isTest }
+}
+
+function lessonStates(courseId: CourseCatalog["id"], index: number) {
+  if (courseId === "hsk1") {
+    const done = index < 7
+    const active = index === 7
+    return { done, active }
+  }
+  const done = false
+  const active = index === 0
+  return { done, active }
+}
+
+function isRowLocked(
+  i: number,
+  topics: { done: boolean; active: boolean }[]
+): boolean {
+  const topic = topics[i]
+  if (!topic) return true
+  if (topic.done || topic.active) return false
+  if (i === 0) return false
+  const prev = topics[i - 1]
+  return !prev.done && !prev.active
+}
 
 export default function CourseDetailsPage() {
   const params = useParams<{ courseId: string }>()
   const courseId = params.courseId
   const course = courseCatalog.find((item) => item.id === courseId)
 
-  if (!course) {
+  if (!course || (course.id !== "hsk1" && course.id !== "hsk2")) {
     return (
       <div className="ds-page">
         <div className="mx-auto max-w-[var(--ds-shell-max-width)]">
-          <section className="ek-surface bg-ds-panel-muted px-7 py-6">
-            <h1 className="text-[2rem] font-semibold tracking-[-0.03em] text-ds-ink">
+          <section className="rounded-[var(--ds-radius-xl)] bg-ds-panel-muted px-7 py-6">
+            <h1 className="text-[length:var(--ds-text-4xl)] font-semibold tracking-[-0.03em] text-ds-ink">
               Курс не найден
             </h1>
             <Link
               href="/courses"
-              className="mt-4 inline-flex rounded-full bg-ds-ink px-4 py-2 text-sm text-white"
+              className="mt-4 inline-flex rounded-[var(--ds-radius-md)] bg-ds-ink px-4 py-2 text-ds-body-sm font-medium text-white transition-opacity hover:opacity-90"
             >
               Вернуться к курсам
             </Link>
@@ -30,71 +66,165 @@ export default function CourseDetailsPage() {
     )
   }
 
+  const isHsk1 = course.id === "hsk1"
+  const bgColor = isHsk1 ? "var(--ds-sage)" : "var(--ds-pink)"
+  const accentColor = isHsk1 ? "var(--ds-sage-strong)" : "var(--ds-pink-strong)"
+  const titleLine = isHsk1 ? "HSK 1 — Базовый курс" : "HSK 2 — Элементарный курс"
+  const subtitle = isHsk1 ? "Базовый курс · 150 слов" : "Элементарный курс · 300 слов"
+  const levelShort = isHsk1 ? "HSK 1" : "HSK 2"
+
+  const states = course.lessons.map((_, i) => lessonStates(course.id, i))
+  const completedCount = states.filter((s) => s.done).length
+  const progress = Math.round((completedCount / course.lessons.length) * 100)
+
   return (
     <div className="ds-page">
-      <div className="mx-auto flex w-full max-w-[var(--ds-shell-max-width)] flex-col gap-4">
-        <section className="ek-surface bg-ds-panel-muted px-7 py-6">
-          <p className="text-sm uppercase tracking-[0.18em] text-black/45">Учебный план</p>
-          <h1 className="mt-3 text-[2.6rem] leading-none font-semibold tracking-[-0.05em] text-ds-ink">
-            {course.name}
-          </h1>
-          <p className="mt-2 max-w-3xl text-[1.06rem] leading-[1.35] text-black/58">
-            {course.description}
-          </p>
-        </section>
+      <div className="mx-auto w-full max-w-[var(--ds-shell-max-width)]">
+        <Link
+          href="/courses"
+          className="mb-6 inline-flex items-center gap-1 text-ds-body-sm text-ds-text-tertiary transition-colors hover:text-ds-ink"
+        >
+          <ChevronLeft className="h-[18px] w-[18px]" aria-hidden />
+          Назад к курсам
+        </Link>
 
-        <section className="ek-surface bg-ds-panel-muted px-6 py-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-[2rem] leading-none font-semibold tracking-[-0.04em] text-ds-ink">
-              {course.name}: список уроков
-            </h2>
-            <span className="rounded-full bg-white px-3 py-1.5 text-sm text-black/55">
-              {course.lessons.length} уроков
-            </span>
+        <section
+          className="mb-8 rounded-[var(--ds-radius-xl)] p-7"
+          style={{ backgroundColor: bgColor }}
+        >
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div>
+              <p className="mb-1 text-[34px] font-bold leading-none text-ds-ink">{levelShort}</p>
+              <p className="text-ds-body-lg text-ds-text-muted">{subtitle}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[36px] font-bold leading-none text-ds-ink">{progress}%</p>
+              <p className="text-ds-sm-plus text-ds-text-secondary">выполнено</p>
+            </div>
           </div>
 
-          <ul className="space-y-2">
-            {course.lessons.map((lesson) => (
-              <li key={lesson.slug}>
-                <Link
-                  href={`/${lesson.slug}`}
-                  className="group flex items-center gap-3 rounded-2xl border border-black/8 bg-white px-4 py-3 transition-colors hover:bg-black/[0.03]"
+          <div className="h-2.5 overflow-hidden rounded-full bg-[rgb(255_255_255/0.6)]">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{ width: `${progress}%`, backgroundColor: accentColor }}
+            />
+          </div>
+
+          <div className="mt-4 flex gap-6">
+            <div>
+              <span className="font-semibold text-ds-ink">{completedCount}</span>
+              <span className="ml-1 text-ds-sm-plus text-ds-text-secondary">пройдено</span>
+            </div>
+            <div>
+              <span className="font-semibold text-ds-ink">{course.lessons.length - completedCount}</span>
+              <span className="ml-1 text-ds-sm-plus text-ds-text-secondary">осталось</span>
+            </div>
+          </div>
+        </section>
+
+        <h2 className="sr-only">{titleLine}</h2>
+
+        <div className="flex flex-col gap-2">
+          {course.lessons.map((lesson, i) => {
+            const { done, active } = states[i]
+            const locked = isRowLocked(i, states)
+            const { isDiagnostic, isTest } = topicFlags(lesson.title, lesson.slug)
+            const href = `/${lesson.slug}`
+
+            const rowClass = active
+              ? "cursor-pointer bg-ds-ink text-white"
+              : done
+                ? "cursor-pointer bg-ds-canvas hover:bg-[#eeeeee]"
+                : locked
+                  ? "cursor-not-allowed bg-ds-canvas opacity-50"
+                  : "cursor-pointer bg-ds-canvas hover:bg-[#eeeeee]"
+
+            const inner = (
+              <>
+                <div className="shrink-0">
+                  {done ? (
+                    <CheckCircle className="h-[22px] w-[22px] text-ds-sage-strong" aria-hidden />
+                  ) : isDiagnostic ? (
+                    <div className="flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 border-current">
+                      <span className="text-[11px] font-bold">!</span>
+                    </div>
+                  ) : isTest ? (
+                    <FileText
+                      className={`h-[22px] w-[22px] ${active ? "text-white" : "text-ds-text-tertiary"}`}
+                      aria-hidden
+                    />
+                  ) : locked ? (
+                    <Lock className="h-[18px] w-[18px] text-ds-chevron" aria-hidden />
+                  ) : (
+                    <PlayCircle
+                      className={`h-[22px] w-[22px] ${active ? "text-white" : "text-ds-text-tertiary"}`}
+                      aria-hidden
+                    />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={`text-ds-body leading-tight ${active ? "text-white" : "text-ds-ink"}`}
+                  >
+                    {lesson.title}
+                  </p>
+                  {isDiagnostic ? (
+                    <p className={`mt-0.5 text-ds-sm ${active ? "text-white/70" : "text-ds-text-tertiary"}`}>
+                      Полный диагностический тест
+                    </p>
+                  ) : null}
+                  {isTest && !isDiagnostic ? (
+                    <p className={`mt-0.5 text-ds-sm ${active ? "text-white/70" : "text-ds-text-tertiary"}`}>
+                      Вариант теста
+                    </p>
+                  ) : null}
+                </div>
+                {!locked ? (
+                  <ChevronRight
+                    className={`h-5 w-5 shrink-0 ${active ? "text-white" : "text-ds-chevron"}`}
+                    aria-hidden
+                  />
+                ) : null}
+              </>
+            )
+
+            if (locked) {
+              return (
+                <div
+                  key={lesson.slug}
+                  className={`flex items-center gap-4 rounded-[var(--ds-radius-md)] p-4 ${rowClass}`}
                 >
-                  <div className="grid h-10 w-10 shrink-0 place-content-center rounded-full bg-ds-sage text-ds-ink">
-                    <FileText className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[1.02rem] font-medium text-ds-ink">{lesson.title}</p>
-                    <p className="mt-0.5 text-xs text-black/50">Маршрут: /{lesson.slug}</p>
-                  </div>
-                  <ChevronRight className="h-5 w-5 shrink-0 text-black/45 transition-transform group-hover:translate-x-0.5" />
-                </Link>
-              </li>
-            ))}
-          </ul>
+                  {inner}
+                </div>
+              )
+            }
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <Link
-              href={`/${course.lessons[0]?.slug ?? "hsk1-tema1"}`}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ds-ink px-4 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
-            >
-              <GraduationCap className="h-4 w-4" aria-hidden />
-              Начать курс {course.name}
-            </Link>
-            <Link
-              href="/progress"
-              className="rounded-2xl border border-black/12 bg-white px-4 py-3 text-center text-sm font-medium text-ds-ink hover:bg-black/[0.03]"
-            >
-              Материалы и отчёты (PDF)
-            </Link>
-            <Link
-              href="/courses"
-              className="sm:col-span-2 rounded-2xl border border-black/12 bg-white px-4 py-3 text-center text-sm font-medium text-ds-ink hover:bg-black/[0.03]"
-            >
-              Вернуться ко всем курсам
-            </Link>
-          </div>
-        </section>
+            return (
+              <Link
+                key={lesson.slug}
+                href={href}
+                className={`flex items-center gap-4 rounded-[var(--ds-radius-md)] p-4 no-underline transition-colors ${rowClass}`}
+              >
+                {inner}
+              </Link>
+            )
+          })}
+        </div>
+
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <Link
+            href={`/${course.lessons[0]?.slug ?? "hsk1-tema1"}`}
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--ds-radius-md)] bg-ds-ink px-4 py-3 text-ds-body-sm font-medium text-white transition-opacity hover:opacity-90 sm:min-w-[200px]"
+          >
+            Начать с первой темы
+          </Link>
+          <Link
+            href="/progress"
+            className="inline-flex flex-1 items-center justify-center rounded-[var(--ds-radius-md)] border border-black/12 bg-white px-4 py-3 text-ds-body-sm font-medium text-ds-ink hover:bg-ds-surface-hover sm:min-w-[200px]"
+          >
+            Материалы и отчёты (PDF)
+          </Link>
+        </div>
       </div>
     </div>
   )

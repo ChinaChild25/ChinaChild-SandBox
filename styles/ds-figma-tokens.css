@@ -589,4 +589,269 @@
     border-radius: var(--ds-radius-pill);
     background-color: var(--ds-sage);
   }
+
+  /* —— Auth (same product language as dashboard; no template chrome) —— */
+  .ds-auth-root {
+    min-height: 100dvh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--ds-canvas);
+    font-family: var(--ds-font-sans);
+  }
+
+  @media (min-width: 1024px) {
+    .ds-auth-root {
+      flex-direction: row;
+    }
+  }
+
+  .ds-auth-marketing {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background-color: var(--ds-sidebar);
+    padding: max(var(--ds-space-6), env(safe-area-inset-top))
+      max(var(--ds-space-6), env(safe-area-inset-right))
+      var(--ds-space-8)
+      max(var(--ds-space-6), env(safe-area-inset-left));
+  }
+
+  @media (min-width: 1024px) {
+    .ds-auth-marketing {
+      width: 50%;
+      flex: 1;
+      padding: var(--ds-space-10) var(--ds-space-10) var(--ds-space-8);
+    }
+  }
+
+  .ds-auth-form-aside {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--ds-surface);
+    padding: max(var(--ds-space-6), env(safe-area-inset-top))
+      max(var(--ds-space-6), env(safe-area-inset-right))
+      max(var(--ds-space-8), env(safe-area-inset-bottom))
+      max(var(--ds-space-6), env(safe-area-inset-left));
+  }
+
+  @media (min-width: 1024px) {
+    .ds-auth-form-aside {
+      width: 50%;
+      padding: var(--ds-space-10);
+    }
+  }
+
+  .ds-segmented {
+    display: inline-flex;
+    width: fit-content;
+    border-radius: var(--ds-radius-pill);
+    padding: 6px;
+    background-color: #ececf0;
+  }
+
+  .ds-segmented__btn {
+    border: none;
+    border-radius: var(--ds-radius-pill);
+    padding: 10px 20px;
+    font-family: inherit;
+    font-size: var(--ds-text-body-sm);
+    font-weight: var(--ds-font-medium);
+    line-height: var(--ds-leading-body);
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+    background: transparent;
+    color: var(--ds-text-muted);
+  }
+
+  .ds-segmented__btn:hover:not(.ds-segmented__btn--active) {
+    color: var(--ds-ink);
+  }
+
+  .ds-segmented__btn--active {
+    background-color: var(--ds-ink);
+    color: #ffffff;
+  }
+
+  .ds-form-card {
+    border-radius: var(--ds-radius-xl);
+    border: 1px solid rgb(0 0 0 / 0.06);
+    background-color: #fafafa;
+    padding: var(--ds-space-6);
+  }
+
+  @media (min-width: 768px) {
+    .ds-form-card {
+      padding: var(--ds-space-8);
+    }
+  }
+
+  .ds-feature-tile {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--ds-space-4);
+    border-radius: var(--ds-radius-xl);
+    background-color: var(--ds-surface);
+    padding: var(--ds-space-5);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.06);
+  }
+
+  .ds-feature-tile__icon {
+    display: grid;
+    height: 40px;
+    width: 40px;
+    flex-shrink: 0;
+    place-content: center;
+    border-radius: var(--ds-radius-pill);
+    background-color: var(--ds-sage);
+    color: var(--ds-ink);
+  }
+
+  .ds-input-field {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: 48px;
+    border-radius: var(--ds-radius-md);
+    border: 1px solid rgb(0 0 0 / 0.1);
+    background-color: var(--ds-surface);
+    padding: 0 var(--ds-space-4);
+    font-family: inherit;
+    font-size: var(--ds-text-body);
+    font-weight: var(--ds-font-normal);
+    line-height: var(--ds-leading-body);
+    color: var(--ds-text-primary);
+    outline: none;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .ds-input-field::placeholder {
+    color: var(--ds-text-placeholder);
+  }
+
+  .ds-input-field:focus-visible {
+    border-color: rgb(0 0 0 / 0.2);
+    box-shadow: 0 0 0 3px rgb(26 26 26 / 0.12);
+  }
+
+  .ds-input-field:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .ds-btn-primary-solid {
+    display: inline-flex;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ds-space-2);
+    height: 48px;
+    border: none;
+    border-radius: var(--ds-radius-md);
+    background-color: var(--ds-ink);
+    font-family: inherit;
+    font-size: var(--ds-text-body);
+    font-weight: var(--ds-font-medium);
+    line-height: var(--ds-leading-body);
+    color: #ffffff;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+
+  .ds-btn-primary-solid:hover:not(:disabled) {
+    opacity: 0.92;
+  }
+
+  .ds-btn-primary-solid:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .ds-btn-primary-solid:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(26 26 26 / 0.2);
+  }
+
+  .ds-btn-social {
+    display: inline-flex;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ds-space-2);
+    border-radius: var(--ds-radius-md);
+    border: 1px solid rgb(0 0 0 / 0.1);
+    background-color: var(--ds-surface);
+    font-family: inherit;
+    font-size: var(--ds-text-body-sm);
+    font-weight: var(--ds-font-medium);
+    color: var(--ds-ink);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+
+  .ds-btn-social:hover {
+    background-color: var(--input-background);
+  }
+
+  .ds-btn-social:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(26 26 26 / 0.12);
+  }
+
+  .ds-field-label {
+    font-size: var(--ds-text-sm-plus);
+    font-weight: var(--ds-font-medium);
+    line-height: var(--ds-leading-body);
+    color: var(--ds-ink);
+  }
+
+  .ds-course-card__icon-wrap {
+    display: flex;
+    height: 48px;
+    width: 48px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--ds-radius-md);
+    background-color: var(--ds-white-60);
+  }
+
+  .ds-progress-track {
+    height: 8px;
+    overflow: hidden;
+    border-radius: var(--ds-radius-pill);
+    background-color: var(--ds-white-60);
+  }
+
+  .ds-progress-fill {
+    height: 100%;
+    border-radius: var(--ds-radius-pill);
+    transition: width 0.25s ease;
+  }
+
+  .ds-activity-row {
+    display: flex;
+    align-items: center;
+    gap: var(--ds-space-4);
+    border-radius: var(--ds-radius-md);
+    background-color: var(--ds-surface-muted);
+    padding: var(--ds-space-4);
+    text-decoration: none;
+    color: inherit;
+    outline: none;
+    transition: background-color 0.15s ease;
+  }
+
+  .ds-activity-row:hover {
+    background-color: var(--ds-surface-hover);
+  }
+
+  .ds-activity-row:focus-visible {
+    box-shadow: 0 0 0 2px rgb(26 26 26 / 0.2);
+  }
 }

@@ -3,10 +3,8 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Loader2, Check, X } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 import { useAuth } from "@/lib/auth-context"
 
 interface RegisterFormProps {
@@ -65,152 +63,134 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="name" className="text-[13px] font-medium text-black/70">
-          Имя и фамилия
-        </Label>
-        <Input
+        <Label htmlFor="name">Имя и фамилия</Label>
+        <input
           id="name"
           type="text"
           placeholder="Введите имя и фамилию"
           value={name}
           onChange={(e) => setName(e.target.value)}
           disabled={isLoading}
-          className="h-11 rounded-2xl border border-black/10 bg-white px-4 text-[15px] shadow-none placeholder:text-black/35 focus-visible:border-black/25 focus-visible:ring-black/10"
+          className="ds-input-field"
+          autoComplete="name"
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="reg-email" className="text-[13px] font-medium text-black/70">
-          Почта
-        </Label>
-        <Input
+        <Label htmlFor="reg-email">Почта</Label>
+        <input
           id="reg-email"
           type="email"
           placeholder="name@chinachild.ru"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={isLoading}
-          className="h-11 rounded-2xl border border-black/10 bg-white px-4 text-[15px] shadow-none placeholder:text-black/35 focus-visible:border-black/25 focus-visible:ring-black/10"
+          className="ds-input-field"
+          autoComplete="email"
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="reg-password" className="text-[13px] font-medium text-black/70">
-          Пароль
-        </Label>
+        <Label htmlFor="reg-password">Пароль</Label>
         <div className="relative">
-          <Input
+          <input
             id="reg-password"
             type={showPassword ? "text" : "password"}
             placeholder="Создайте пароль"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={isLoading}
-            className="h-11 rounded-2xl border border-black/10 bg-white px-4 pr-11 text-[15px] shadow-none placeholder:text-black/35 focus-visible:border-black/25 focus-visible:ring-black/10"
+            className="ds-input-field pr-11"
+            autoComplete="new-password"
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-black/45 transition-colors hover:text-black"
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-ds-text-muted transition-colors hover:text-ds-ink"
+            aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
           >
-            {showPassword ? (
-              <EyeOff className="h-4 w-4" />
-            ) : (
-              <Eye className="h-4 w-4" />
-            )}
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
-        {password && (
-          <div className="mt-3 space-y-1.5 rounded-2xl border border-black/8 bg-black/[0.03] p-3">
+        {password ? (
+          <div className="mt-3 space-y-1.5 rounded-[var(--ds-radius-md)] border border-black/8 bg-ds-surface-muted p-3">
             {passwordRequirements.map((req, idx) => (
               <div
                 key={idx}
-                className={`flex items-center gap-2 text-xs ${
-                  req.met ? "text-black/85" : "text-black/45"
+                className={`flex items-center gap-2 text-ds-sm ${
+                  req.met ? "text-ds-text-primary" : "text-ds-text-tertiary"
                 }`}
               >
-                {req.met ? (
-                  <Check className="h-3.5 w-3.5" />
-                ) : (
-                  <X className="h-3.5 w-3.5" />
-                )}
+                {req.met ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
                 {req.label}
               </div>
             ))}
           </div>
-        )}
+        ) : null}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="confirm-password" className="text-[13px] font-medium text-black/70">
-          Подтвердите пароль
-        </Label>
-        <Input
+        <Label htmlFor="confirm-password">Подтвердите пароль</Label>
+        <input
           id="confirm-password"
           type="password"
           placeholder="Повторите пароль"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           disabled={isLoading}
-          className="h-11 rounded-2xl border border-black/10 bg-white px-4 text-[15px] shadow-none placeholder:text-black/35 focus-visible:border-black/25 focus-visible:ring-black/10"
+          className="ds-input-field"
+          autoComplete="new-password"
         />
-        {confirmPassword && password !== confirmPassword && (
-          <p className="mt-2 flex items-center gap-1.5 text-xs text-red-600">
-            <X className="h-3.5 w-3.5" />
+        {confirmPassword && password !== confirmPassword ? (
+          <p className="mt-2 flex items-center gap-1.5 text-ds-sm text-red-600">
+            <X className="h-3.5 w-3.5" aria-hidden />
             Пароли не совпадают
           </p>
-        )}
+        ) : null}
       </div>
 
-      <div className="flex items-start space-x-2 pt-2">
+      <div className="flex items-start gap-2 pt-2">
         <Checkbox
           id="terms"
           checked={acceptTerms}
           onCheckedChange={(checked) => setAcceptTerms(checked as boolean)}
-          className="mt-0.5 rounded-[6px] border-black/25 data-[state=checked]:border-black data-[state=checked]:bg-black data-[state=checked]:text-white"
+          className="mt-0.5"
         />
-        <Label
-          htmlFor="terms"
-          className="cursor-pointer text-[13px] leading-snug font-normal text-black/55"
-        >
+        <Label htmlFor="terms" className="cursor-pointer font-normal leading-snug text-ds-text-muted">
           Я принимаю{" "}
-          <a href="#" className="text-black hover:underline">
+          <a href="#" className="text-ds-ink underline-offset-2 hover:underline">
             условия сервиса
           </a>{" "}
           и{" "}
-          <a href="#" className="text-black hover:underline">
+          <a href="#" className="text-ds-ink underline-offset-2 hover:underline">
             политику конфиденциальности
           </a>
         </Label>
       </div>
 
-      {error && (
-        <p className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+      {error ? (
+        <p className="rounded-[var(--ds-radius-md)] border border-red-200 px-3 py-2 text-ds-body-sm text-red-600">
           {error}
         </p>
-      )}
+      ) : null}
 
-      <Button
-        type="submit"
-        disabled={isLoading}
-        className="mt-2 h-12 w-full rounded-2xl bg-[#1a1a1a] text-[15px] font-medium text-white shadow-none hover:bg-[#2a2a2a]"
-      >
+      <button type="submit" disabled={isLoading} className="ds-btn-primary-solid mt-2">
         {isLoading ? (
           <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
             Создание аккаунта...
           </>
         ) : (
           "Создать аккаунт"
         )}
-      </Button>
+      </button>
 
-      <p className="pt-1 text-center text-sm text-black/55">
+      <p className="pt-1 text-center text-ds-body-sm text-ds-text-muted">
         Уже есть аккаунт?{" "}
         <button
           type="button"
           onClick={onSwitchToLogin}
-          className="font-medium text-black hover:underline"
+          className="font-medium text-ds-ink underline-offset-2 hover:underline"
         >
           Войти
         </button>

@@ -149,12 +149,12 @@ export default function DashboardPage() {
               <div className="flex items-end justify-between">
                 <Link
                   href="/schedule"
-                  className="group text-left no-underline outline-offset-2 focus-visible:rounded-md focus-visible:outline focus-visible:ring-2 focus-visible:ring-ds-ink/25"
+                  className="group mb-3 block text-left no-underline outline-offset-2 focus-visible:rounded-md focus-visible:outline focus-visible:ring-2 focus-visible:ring-ds-ink/25"
                 >
-                  <h2 className="text-ds-5xl leading-none font-bold tracking-tight text-ds-text-primary transition-colors group-hover:text-ds-ink">
-                    апрель <span className="text-ds-2xl font-normal text-ds-text-secondary">2025</span>
-                  </h2>
-                  <p className="mt-1 text-ds-body-sm text-ds-text-secondary">Открыть расписание</p>
+                  <span className="text-[30px] font-bold leading-none text-ds-text-primary transition-colors group-hover:opacity-90">
+                    апрель{" "}
+                  </span>
+                  <span className="text-[30px] font-normal leading-none text-ds-text-primary">2025</span>
                 </Link>
               </div>
               <div className="mt-4 grid grid-cols-7 gap-y-2 text-center">

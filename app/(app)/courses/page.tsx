@@ -1,50 +1,156 @@
 "use client"
 
 import Link from "next/link"
-import { ChevronRight, GraduationCap } from "lucide-react"
+import { BookOpen, CheckCircle, ChevronRight } from "lucide-react"
 import { courseCatalog } from "@/lib/course-catalog"
+
+const courseVisual: Record<
+  "hsk1" | "hsk2",
+  { levelLine: string; titleLine: string; words: string; completed: number; progress: number; accentVar: string }
+> = {
+  hsk1: {
+    levelLine: "HSK 1",
+    titleLine: "Базовый курс",
+    words: "150 слов",
+    completed: 7,
+    progress: 37,
+    accentVar: "--ds-sage-strong"
+  },
+  hsk2: {
+    levelLine: "HSK 2",
+    titleLine: "Элементарный курс",
+    words: "300 слов",
+    completed: 0,
+    progress: 0,
+    accentVar: "--ds-pink-strong"
+  }
+}
+
+const recentActivity = [
+  {
+    topic: "Тема №7 — Члены семьи",
+    course: "HSK1",
+    score: 92,
+    date: "9 апр",
+    slug: "hsk1-tema7"
+  },
+  {
+    topic: "Тема №6 — Телефонные номера",
+    course: "HSK1",
+    score: 88,
+    date: "7 апр",
+    slug: "hsk1-tema6"
+  },
+  {
+    topic: "Тема №5 — Возраст",
+    course: "HSK1",
+    score: 95,
+    date: "5 апр",
+    slug: "hsk1-tema5"
+  }
+] as const
 
 export default function CoursesPage() {
   return (
     <div className="ds-page">
-      <div className="mx-auto flex w-full max-w-[var(--ds-shell-max-width)] flex-col gap-6">
-        <section className="ek-surface bg-ds-panel-muted px-7 py-6">
-          <p className="text-sm uppercase tracking-[0.18em] text-black/45">Учебный план</p>
-          <h1 className="mt-3 text-[2.6rem] leading-none font-semibold tracking-[-0.05em] text-ds-ink">
+      <div className="mx-auto w-full max-w-[var(--ds-shell-max-width)]">
+        <header className="mb-8">
+          <h1 className="text-[length:var(--ds-text-8xl)] font-bold leading-none text-ds-text-primary">
             Мои курсы
           </h1>
-          <p className="mt-2 max-w-3xl text-[1.06rem] leading-[1.35] text-black/58">
-            Полная структура HSK1 и HSK2 с фиксированным порядком тем, вариантами и тестовыми блоками.
-          </p>
-        </section>
+          <p className="mt-1 text-ds-body text-ds-text-secondary">Выберите курс для продолжения обучения</p>
+        </header>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          {courseCatalog.map((item) => (
-            <Link
-              key={item.id}
-              href={`/courses/${item.id}`}
-              className="ek-surface group flex flex-col bg-ds-panel-muted p-6 no-underline outline-offset-2 transition-transform hover:scale-[1.01] focus-visible:outline focus-visible:ring-2 focus-visible:ring-ds-ink/20"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="inline-flex w-fit items-center gap-2 rounded-full bg-ds-sage px-3 py-1 text-xs font-medium text-ds-ink">
-                    <GraduationCap className="h-3.5 w-3.5" aria-hidden />
-                    {item.name}
-                  </span>
-                  <h2 className="mt-4 text-2xl font-semibold tracking-tight text-ds-ink">{item.name}</h2>
-                  <p className="mt-2 text-sm leading-relaxed text-black/55">{item.description}</p>
-                  <p className="mt-4 text-sm font-medium text-ds-sage-strong">
-                    {item.lessons.length} уроков — открыть программу
+        <div className="ds-course-grid">
+          {courseCatalog.map((item) => {
+            const ui = courseVisual[item.id]
+            const bg = item.id === "hsk1" ? "var(--ds-sage)" : "var(--ds-pink)"
+            const totalTopics = item.lessons.length
+
+            return (
+              <Link
+                key={item.id}
+                href={`/courses/${item.id}`}
+                className="ds-course-card block text-inherit no-underline outline-offset-2 focus-visible:outline focus-visible:ring-2 focus-visible:ring-[rgb(26_26_26/0.2)]"
+                style={{ backgroundColor: bg }}
+              >
+                <div className="mb-5 flex items-start justify-between">
+                  <div>
+                    <p className="mb-1 text-[length:var(--ds-text-6xl)] font-bold leading-none text-ds-ink">
+                      {ui.levelLine}
+                    </p>
+                    <p className="text-[length:var(--ds-text-body-lg)] text-ds-text-quaternary">{ui.titleLine}</p>
+                  </div>
+                  <div className="ds-course-card__icon-wrap">
+                    <BookOpen className="h-[22px] w-[22px] text-ds-ink" aria-hidden />
+                  </div>
+                </div>
+
+                <p className="mb-5 text-ds-body-sm leading-snug text-ds-text-quaternary">{item.description}</p>
+
+                <div className="mb-5 flex items-center gap-6">
+                  <div className="text-center">
+                    <p className="text-[length:var(--ds-text-2xl)] font-bold leading-none text-ds-ink">
+                      {ui.completed}
+                    </p>
+                    <p className="text-ds-sm text-ds-text-secondary">пройдено</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[length:var(--ds-text-2xl)] font-bold leading-none text-ds-ink">
+                      {totalTopics}
+                    </p>
+                    <p className="text-ds-sm text-ds-text-secondary">тем всего</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[length:var(--ds-text-2xl)] font-bold leading-none text-ds-ink">{ui.words}</p>
+                    <p className="text-ds-sm text-ds-text-secondary">словарный запас</p>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <div className="mb-1.5 flex justify-between">
+                    <span className="text-ds-sm-plus text-ds-text-muted">Прогресс</span>
+                    <span className="text-ds-sm-plus font-semibold text-ds-ink">{ui.progress}%</span>
+                  </div>
+                  <div className="ds-progress-track">
+                    <div
+                      className="ds-progress-fill"
+                      style={{
+                        width: `${ui.progress}%`,
+                        backgroundColor: `var(${ui.accentVar})`
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-1 text-ds-body text-ds-ink">
+                  <span>Перейти к курсу</span>
+                  <ChevronRight className="h-[18px] w-[18px]" aria-hidden />
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+
+        <section className="mt-2">
+          <h2 className="mb-4 text-[length:var(--ds-text-xl)] font-semibold text-ds-ink">Последняя активность</h2>
+          <div className="flex flex-col gap-3">
+            {recentActivity.map((row) => (
+              <Link key={row.slug} href={`/${row.slug}`} className="ds-activity-row">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ds-sage">
+                  <CheckCircle className="h-[18px] w-[18px] text-ds-sage-strong" aria-hidden />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-ds-body text-ds-text-primary">{row.topic}</p>
+                  <p className="text-ds-sm-plus text-ds-text-tertiary">
+                    {row.course} · {row.date}
                   </p>
                 </div>
-                <ChevronRight
-                  className="mt-1 h-8 w-8 shrink-0 text-ds-chevron transition-transform group-hover:translate-x-0.5 group-hover:text-ds-ink"
-                  aria-hidden
-                />
-              </div>
-            </Link>
-          ))}
-        </div>
+                <p className="text-[length:var(--ds-text-lg)] font-bold text-ds-sage-strong">{row.score}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
       </div>
     </div>
   )
