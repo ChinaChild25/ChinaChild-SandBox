@@ -393,6 +393,87 @@
     font-size: var(--ds-text-body);
   }
 
+  .ds-stat-card--interactive {
+    position: relative;
+    text-decoration: none;
+    color: inherit;
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  .ds-stat-card--interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 42px rgb(0 0 0 / 0.1);
+  }
+
+  .ds-stat-card--interactive:active {
+    transform: translateY(0);
+  }
+
+  .ds-stat-card--interactive:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--ds-surface), 0 0 0 4px rgb(26 26 26 / 0.22);
+  }
+
+  .ds-stat-card--dark.ds-stat-card--interactive:hover {
+    box-shadow: 0 18px 50px rgb(0 0 0 / 0.42);
+  }
+
+  .ds-stat-card__top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--ds-space-3);
+    margin-bottom: var(--ds-space-2);
+  }
+
+  .ds-stat-card__icon-badge {
+    display: flex;
+    height: 40px;
+    width: 40px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--ds-radius-md);
+    background-color: rgb(255 255 255 / 0.55);
+    color: var(--ds-ink);
+  }
+
+  .ds-stat-card--dark .ds-stat-card__icon-badge {
+    background-color: rgb(255 255 255 / 0.12);
+    color: #ffffff;
+  }
+
+  .ds-stat-card--sage .ds-stat-card__icon-badge {
+    background-color: rgb(255 255 255 / 0.55);
+  }
+
+  .ds-stat-card__cta {
+    margin-top: var(--ds-space-4);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--ds-text-body-sm);
+    font-weight: var(--ds-font-medium);
+    transition:
+      gap 0.15s ease,
+      opacity 0.15s ease;
+  }
+
+  .ds-stat-card--interactive:hover .ds-stat-card__cta {
+    gap: 8px;
+  }
+
+  .ds-stat-card--dark .ds-stat-card__cta {
+    color: rgb(255 255 255 / 0.88);
+  }
+
+  .ds-stat-card--muted .ds-stat-card__cta,
+  .ds-stat-card--sage .ds-stat-card__cta {
+    color: var(--ds-sage-hover);
+  }
+
   .ds-dashboard-grid {
     display: grid;
     gap: var(--ds-gutter);
@@ -410,7 +491,14 @@
     cursor: pointer;
     align-items: center;
     gap: var(--ds-space-4);
-    margin-bottom: var(--ds-space-4);
+    margin-bottom: 0;
+    border-radius: var(--ds-radius-md);
+    padding: 10px 12px;
+    transition: background-color 0.16s ease;
+  }
+
+  .ds-lesson-row:hover {
+    background-color: rgb(0 0 0 / 0.035);
   }
 
   .ds-lesson-row:hover .ds-lesson-row__chevron {
@@ -516,6 +604,44 @@
     background-color: var(--ds-surface-hover);
   }
 
+  /* Figma Dashboard calendar: tight gap, sage today cell, single event dot */
+  .ds-calendar-grid-figma {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: var(--ds-space-1);
+  }
+
+  .ds-calendar-day-cell {
+    cursor: pointer;
+    border-radius: var(--ds-radius-md);
+    padding: 6px 2px 8px;
+    text-align: center;
+    transition: background-color 0.15s ease;
+  }
+
+  .ds-calendar-day-cell--today {
+    background-color: var(--ds-sage);
+  }
+
+  .ds-calendar-day-cell:hover:not(.ds-calendar-day-cell--today) {
+    background-color: var(--ds-surface-hover);
+  }
+
+  .ds-calendar-event-dot {
+    margin-top: 2px;
+    display: flex;
+    height: 10px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ds-calendar-event-dot > span {
+    height: 4px;
+    width: 4px;
+    border-radius: var(--ds-radius-pill);
+    background-color: var(--ds-ink);
+  }
+
   .ds-contact-row {
     display: flex;
     cursor: pointer;
@@ -524,6 +650,7 @@
   }
 
   .ds-contact-avatar {
+    position: relative;
     height: var(--ds-contact-avatar);
     width: var(--ds-contact-avatar);
     flex-shrink: 0;
@@ -687,6 +814,126 @@
     .ds-form-card {
       padding: var(--ds-space-8);
     }
+  }
+
+  /* Premium auth: large shape, no hairline frame (product, not OAuth template) */
+  .ds-auth-form-panel {
+    width: 100%;
+    border-radius: 32px;
+    background: linear-gradient(165deg, rgb(255 255 255 / 0.94) 0%, rgb(250 250 250 / 0.98) 100%);
+    padding: clamp(var(--ds-space-6), 4vw, var(--ds-space-10));
+    box-shadow:
+      0 24px 80px rgb(0 0 0 / 0.06),
+      0 1px 0 rgb(255 255 255 / 0.8) inset;
+  }
+
+  .ds-auth-field-label {
+    display: block;
+    margin-bottom: var(--ds-space-1);
+    font-size: var(--ds-text-xs);
+    font-weight: var(--ds-font-medium);
+    letter-spacing: 0.02em;
+    color: var(--ds-text-tertiary);
+  }
+
+  .ds-auth-field-label--flush {
+    margin-bottom: 0;
+  }
+
+  .ds-auth-remember {
+    display: flex;
+    align-items: center;
+    gap: var(--ds-space-3);
+  }
+
+  .ds-auth-remember-track {
+    position: relative;
+    height: 22px;
+    width: 38px;
+    flex-shrink: 0;
+    cursor: pointer;
+    border: none;
+    border-radius: var(--ds-radius-pill);
+    padding: 0;
+    transition: background-color 0.15s ease;
+  }
+
+  .ds-auth-remember-track--on {
+    background-color: var(--ds-ink);
+  }
+
+  .ds-auth-remember-track--off {
+    background-color: var(--ds-sidebar);
+  }
+
+  .ds-auth-remember-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    height: 16px;
+    width: 16px;
+    border-radius: var(--ds-radius-pill);
+    background-color: #ffffff;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+    transition: transform 0.15s ease;
+  }
+
+  .ds-auth-remember-track--on .ds-auth-remember-knob {
+    transform: translateX(16px);
+  }
+
+  .ds-auth-social-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ds-space-3);
+    padding-top: var(--ds-space-4);
+  }
+
+  .ds-auth-social-link {
+    border: none;
+    background: none;
+    padding: 4px 2px;
+    font-family: inherit;
+    font-size: var(--ds-text-sm-plus);
+    color: var(--ds-text-tertiary);
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 3px;
+    transition:
+      color 0.15s ease,
+      text-decoration-color 0.15s ease;
+  }
+
+  .ds-auth-social-link:hover {
+    color: var(--ds-ink);
+    text-decoration-color: var(--ds-ink);
+  }
+
+  .ds-auth-social-sep {
+    font-size: var(--ds-text-sm-plus);
+    color: var(--ds-sidebar-hover);
+  }
+
+  .ds-contact-card {
+    display: flex;
+    align-items: center;
+    gap: var(--ds-space-3);
+    border-radius: var(--ds-radius-xl);
+    border: 1px solid transparent;
+    padding: var(--ds-space-2) var(--ds-space-3);
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease;
+  }
+
+  .ds-contact-card:hover {
+    background-color: rgb(0 0 0 / 0.03);
+    border-color: rgb(0 0 0 / 0.06);
+    box-shadow: 0 8px 28px rgb(0 0 0 / 0.05);
   }
 
   .ds-feature-tile {

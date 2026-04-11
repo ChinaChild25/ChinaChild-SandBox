@@ -4,7 +4,6 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Loader2, Check, X } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
 import { useAuth } from "@/lib/auth-context"
 
 interface RegisterFormProps {
@@ -61,9 +60,11 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="name">Имя и фамилия</Label>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div>
+        <label htmlFor="name" className="ds-auth-field-label">
+          Имя и фамилия
+        </label>
         <input
           id="name"
           type="text"
@@ -76,8 +77,10 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="reg-email">Почта</Label>
+      <div>
+        <label htmlFor="reg-email" className="ds-auth-field-label">
+          Почта
+        </label>
         <input
           id="reg-email"
           type="email"
@@ -90,8 +93,10 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="reg-password">Пароль</Label>
+      <div>
+        <label htmlFor="reg-password" className="ds-auth-field-label">
+          Пароль
+        </label>
         <div className="relative">
           <input
             id="reg-password"
@@ -113,7 +118,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           </button>
         </div>
         {password ? (
-          <div className="mt-3 space-y-1.5 rounded-[var(--ds-radius-md)] border border-black/8 bg-ds-surface-muted p-3">
+          <div className="mt-3 space-y-1.5 rounded-[var(--ds-radius-md)] bg-ds-surface-muted p-3">
             {passwordRequirements.map((req, idx) => (
               <div
                 key={idx}
@@ -129,8 +134,10 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         ) : null}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="confirm-password">Подтвердите пароль</Label>
+      <div>
+        <label htmlFor="confirm-password" className="ds-auth-field-label">
+          Подтвердите пароль
+        </label>
         <input
           id="confirm-password"
           type="password"
@@ -149,14 +156,14 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         ) : null}
       </div>
 
-      <div className="flex items-start gap-2 pt-2">
+      <div className="flex items-start gap-3 pt-1">
         <Checkbox
           id="terms"
           checked={acceptTerms}
           onCheckedChange={(checked) => setAcceptTerms(checked as boolean)}
           className="mt-0.5"
         />
-        <Label htmlFor="terms" className="cursor-pointer font-normal leading-snug text-ds-text-muted">
+        <label htmlFor="terms" className="cursor-pointer text-ds-body-sm leading-snug text-ds-text-muted">
           Я принимаю{" "}
           <a href="#" className="text-ds-ink underline-offset-2 hover:underline">
             условия сервиса
@@ -165,7 +172,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           <a href="#" className="text-ds-ink underline-offset-2 hover:underline">
             политику конфиденциальности
           </a>
-        </Label>
+        </label>
       </div>
 
       {error ? (
@@ -174,7 +181,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         </p>
       ) : null}
 
-      <button type="submit" disabled={isLoading} className="ds-btn-primary-solid mt-2">
+      <button type="submit" disabled={isLoading} className="ds-btn-primary-solid h-12 text-[15px]">
         {isLoading ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -185,12 +192,12 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         )}
       </button>
 
-      <p className="pt-1 text-center text-ds-body-sm text-ds-text-muted">
+      <p className="text-center text-ds-sm-plus text-ds-text-muted">
         Уже есть аккаунт?{" "}
         <button
           type="button"
           onClick={onSwitchToLogin}
-          className="font-medium text-ds-ink underline-offset-2 hover:underline"
+          className="font-semibold text-ds-ink underline-offset-4 transition-colors hover:underline"
         >
           Войти
         </button>

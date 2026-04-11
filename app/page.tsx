@@ -91,35 +91,62 @@ export default function AuthPage() {
       </div>
 
       <div className="ds-auth-form-aside">
-        <div className="mx-auto flex w-full max-w-[26rem] flex-1 flex-col justify-center">
-          <div className="ds-segmented mb-6">
-            <button
-              type="button"
-              onClick={() => setIsLogin(true)}
-              className={`ds-segmented__btn ${isLogin ? "ds-segmented__btn--active" : ""}`}
-            >
-              Вход
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsLogin(false)}
-              className={`ds-segmented__btn ${!isLogin ? "ds-segmented__btn--active" : ""}`}
-            >
-              Регистрация
-            </button>
-          </div>
+        <div className="mx-auto flex w-full max-w-[min(26rem,100%)] flex-1 flex-col justify-center py-6 lg:py-10">
+          <div className="ds-auth-form-panel">
+            <div className="ds-segmented mb-8">
+              <button
+                type="button"
+                onClick={() => setIsLogin(true)}
+                className={`ds-segmented__btn ${isLogin ? "ds-segmented__btn--active" : ""}`}
+              >
+                Вход
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsLogin(false)}
+                className={`ds-segmented__btn ${!isLogin ? "ds-segmented__btn--active" : ""}`}
+              >
+                Регистрация
+              </button>
+            </div>
 
-          <div className="ds-form-card">
-            <h2 className="text-[length:var(--ds-text-4xl)] font-normal leading-tight tracking-[-0.03em] text-ds-ink">
+            <div className="mb-8 grid grid-cols-3 gap-2">
+              <div className="rounded-[var(--ds-radius-lg)] bg-ds-sidebar px-2 py-3 text-center transition-transform duration-200 hover:scale-[1.02]">
+                <p className="text-[1.35rem] font-semibold leading-none tracking-tight text-ds-ink">
+                  9<span className="text-ds-text-tertiary">/48</span>
+                </p>
+                <p className="mt-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-ds-text-tertiary">
+                  Занятия
+                </p>
+              </div>
+              <div className="rounded-[var(--ds-radius-lg)] bg-ds-ink px-2 py-3 text-center text-white transition-transform duration-200 hover:scale-[1.02]">
+                <p className="text-[1.35rem] font-semibold leading-none tracking-tight">
+                  8<span className="text-white/65">/48</span>
+                </p>
+                <p className="mt-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-white/60">
+                  Домашние
+                </p>
+              </div>
+              <div className="rounded-[var(--ds-radius-lg)] bg-ds-sage px-2 py-3 text-center transition-transform duration-200 hover:scale-[1.02]">
+                <p className="text-[1.35rem] font-semibold leading-none tracking-tight text-ds-ink">
+                  93<span className="text-ds-text-secondary">/100</span>
+                </p>
+                <p className="mt-1.5 text-[10px] font-medium uppercase tracking-[0.08em] text-ds-text-muted">
+                  Балл
+                </p>
+              </div>
+            </div>
+
+            <h2 className="text-[clamp(1.65rem,4vw,2rem)] font-semibold leading-[1.1] tracking-[-0.04em] text-ds-ink">
               {isLogin ? "С возвращением" : "Добро пожаловать в ChinaChild"}
             </h2>
-            <p className="mt-2 text-ds-body-sm leading-relaxed text-ds-text-muted">
+            <p className="mt-3 max-w-[28rem] text-[15px] leading-relaxed text-ds-text-secondary">
               {isLogin
-                ? "Войдите, чтобы открыть персональный учебный кабинет."
-                : "Создайте профиль и начните обучение по структурированной программе."}
+                ? "Тот же кабинет, что и после входа: расписание, прогресс и контакты — в одной сетке."
+                : "Один аккаунт — доступ к урокам, заданиям и чату с наставниками."}
             </p>
 
-            <div className="mt-6">
+            <div className="mt-8">
               {isLogin ? (
                 <LoginForm onSwitchToRegister={() => setIsLogin(false)} />
               ) : (
@@ -128,7 +155,7 @@ export default function AuthPage() {
             </div>
           </div>
 
-          <p className="group mt-6 inline-flex items-center gap-2 text-ds-sm-plus text-ds-text-muted">
+          <p className="group mt-8 inline-flex items-center gap-2 px-1 text-ds-sm-plus text-ds-text-muted">
             Доступ к урокам, заданиям и сообщениям преподавателей
             <ArrowRight className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" aria-hidden />
           </p>

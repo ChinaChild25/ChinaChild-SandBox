@@ -1,3 +1,4 @@
+import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ArrowLeft, Mail } from "lucide-react"
@@ -27,8 +28,8 @@ export default async function MentorPage({ params }: Props) {
 
         <section className="ek-surface bg-ds-panel-muted px-7 py-6">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-            <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-white text-2xl font-semibold text-ds-text-secondary">
-              {mentor.initials}
+            <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full bg-ds-sidebar ring-2 ring-white">
+              <Image src={mentor.photo} alt={mentor.name} fill className="object-cover" sizes="96px" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm uppercase tracking-[0.18em] text-black/45">Преподавательский состав</p>
