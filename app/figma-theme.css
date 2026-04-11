@@ -123,7 +123,7 @@
 }
 
 @theme inline {
-  --font-sans: "Lab Grotesque", var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Lab Grotesque", var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -182,7 +182,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: "Lab Grotesque", var(--font-dm-sans), ui-sans-serif, sans-serif;
+    font-family: "Lab Grotesque", var(--font-inter), ui-sans-serif, sans-serif;
   }
 
   h1 {

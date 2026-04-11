@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import './figma-theme.css';
+@import '../styles/cc-design-system.css';
 
 @layer components {
   .ek-auth-title {
