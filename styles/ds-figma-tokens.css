@@ -254,6 +254,73 @@ html:not(.dark)[data-ui-accent="pink"] {
 }
 
 @layer components {
+  /* —— Figma publish shell (chinachild.figma.site / Figmadasboard Layout) —— */
+  .ds-figma-app-canvas {
+    box-sizing: border-box;
+    display: flex;
+    min-height: 100dvh;
+    width: 100%;
+    align-items: flex-start;
+    justify-content: center;
+    background-color: #f5f5f5;
+    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom))
+      max(12px, env(safe-area-inset-left));
+    font-family: var(--ds-font-sans);
+  }
+
+  @media (min-width: 1024px) {
+    .ds-figma-app-canvas {
+      padding: 32px;
+    }
+  }
+
+  .ds-figma-app-card {
+    display: flex;
+    width: 100%;
+    max-width: 1400px;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 24px;
+    border: 4px solid #1a1a1a;
+    background-color: #ffffff;
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  }
+
+  @media (min-width: 1024px) {
+    .ds-figma-app-card {
+      border-radius: 40px;
+      border-width: 6px;
+    }
+  }
+
+  .ds-figma-app-row {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    min-height: min(100dvh - 32px, 1200px);
+  }
+
+  @media (min-width: 1024px) {
+    .ds-figma-app-row {
+      min-height: calc(100vh - 64px);
+    }
+  }
+
+  .ds-sidebar--figma-shell {
+    border-radius: 0;
+    min-height: 100%;
+  }
+
+  .dark .ds-figma-app-canvas {
+    background-color: #0a0a0a;
+  }
+
+  .dark .ds-figma-app-card {
+    border-color: #e5e5e5;
+    background-color: #121212;
+    box-shadow: 0 25px 60px -12px rgb(0 0 0 / 0.65);
+  }
+
   /* —— App shell (Layout) —— */
   .ds-app-canvas {
     display: flex;
