@@ -143,20 +143,8 @@ function MessagesPageInner() {
 
   return (
     <div className="ds-figma-page">
-      <div className="mx-auto flex w-full max-w-[var(--ds-shell-max-width)] flex-col gap-4 md:gap-5">
-        <section className="ek-surface bg-ds-panel-muted px-5 py-5 sm:px-7 sm:py-6">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ds-text-tertiary">
-            Коммуникация
-          </p>
-          <h1 className="mt-2 text-[clamp(1.75rem,4vw,2.35rem)] font-semibold leading-none tracking-[-0.04em] text-ds-ink">
-            Сообщения
-          </h1>
-          <p className="mt-2 max-w-xl text-[14px] leading-snug text-[var(--ds-text-secondary)]">
-            Чат с куратором, преподавателем и группой — как в обновлённом макете кабинета.
-          </p>
-        </section>
-
-        <div className="ds-messages-shell min-h-[min(72dvh,760px)] flex-col shadow-sm lg:flex-row">
+      <div className="mx-auto flex w-full max-w-[var(--ds-shell-max-width)] flex-col">
+        <div className="ds-messages-shell flex-col lg:flex-row">
           <div
             className={cn(
               "ds-messages-sidebar max-h-[min(52dvh,420px)] lg:max-h-none",
@@ -164,14 +152,15 @@ function MessagesPageInner() {
               "lg:flex"
             )}
           >
-            <div className="border-b border-black/8 p-3 dark:border-white/10 sm:p-4">
-              <div className="ds-messages-search">
-                <Search size={15} className="shrink-0 text-ds-text-placeholder" aria-hidden />
+            <div className="border-b border-[#e8e8e8] p-4 dark:border-white/10">
+              <div className="flex items-center gap-2 rounded-xl bg-[#f5f5f5] px-3 py-2 dark:bg-white/5">
+                <Search size={15} className="shrink-0 text-[#aaa] dark:text-ds-text-placeholder" aria-hidden />
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Поиск..."
                   aria-label="Поиск диалогов"
+                  className="min-w-0 flex-1 border-0 bg-transparent text-[14px] text-ds-ink outline-none placeholder:text-[#aaa] dark:placeholder:text-ds-text-placeholder"
                 />
               </div>
             </div>
@@ -184,8 +173,8 @@ function MessagesPageInner() {
                     type="button"
                     onClick={() => handleSwitch(conv.id)}
                     className={cn(
-                      "flex w-full items-center gap-3 border-b border-black/6 p-3 text-left transition-colors dark:border-white/8 sm:p-4",
-                      selected ? "bg-ds-surface-pill" : "hover:bg-ds-surface-hover/80"
+                      "flex w-full cursor-pointer items-center gap-3 border-b border-[#f0f0f0] p-4 text-left transition-colors dark:border-white/8",
+                      selected ? "bg-[#f5f5f5] dark:bg-white/5" : "hover:bg-[#fafafa] dark:hover:bg-white/[0.03]"
                     )}
                   >
                     <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-ds-sidebar">
@@ -220,7 +209,7 @@ function MessagesPageInner() {
               "lg:flex"
             )}
           >
-            <header className="flex items-center gap-3 border-b border-black/8 px-3 py-3 dark:border-white/10 sm:px-5 sm:py-4">
+            <header className="flex items-center gap-3 border-b border-[#e8e8e8] p-5 dark:border-white/10">
               {!wide ? (
                 <button
                   type="button"
@@ -254,12 +243,12 @@ function MessagesPageInner() {
               ) : null}
             </header>
 
-            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-3 sm:p-5">
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-5">
               {messages.map((msg, i) => (
                 <div key={`${msg.time}-${i}`} className={cn("flex", msg.from === "me" ? "justify-end" : "justify-start")}>
                   <div
                     className={cn(
-                      "max-w-[min(100%,520px)] rounded-2xl px-4 py-2.5 text-[14px] leading-[1.5]",
+                      "max-w-[70%] rounded-2xl px-4 py-2.5 text-[14px] leading-[1.5]",
                       msg.from === "me" ? "ds-msg-bubble-me" : "ds-msg-bubble-them"
                     )}
                   >
@@ -277,18 +266,18 @@ function MessagesPageInner() {
               ))}
             </div>
 
-            <div className="flex items-center gap-2 border-t border-black/8 p-3 dark:border-white/10 sm:gap-3 sm:p-4">
+            <div className="flex items-center gap-3 border-t border-[#e8e8e8] p-4 dark:border-white/10">
               <input
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
                 placeholder="Напишите сообщение..."
-                className="min-h-[44px] flex-1 rounded-2xl border border-transparent bg-ds-surface-pill px-4 py-2.5 text-[14px] text-ds-ink outline-none placeholder:text-ds-text-placeholder focus-visible:ring-2 focus-visible:ring-ds-ink/20"
+                className="min-h-[44px] flex-1 rounded-2xl border-0 bg-[#f5f5f5] px-4 py-2.5 text-[14px] text-ds-ink outline-none placeholder:text-[#aaa] focus-visible:ring-2 focus-visible:ring-ds-ink/20 dark:bg-white/5 dark:placeholder:text-ds-text-placeholder"
               />
               <button
                 type="button"
                 onClick={handleSend}
-                className="grid h-11 w-11 shrink-0 place-content-center rounded-full bg-ds-ink text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-ds-ink"
+                className="grid h-10 w-10 shrink-0 place-content-center rounded-full bg-[#1a1a1a] text-white transition-colors hover:bg-[#333] dark:bg-white dark:text-ds-ink dark:hover:bg-neutral-200"
                 aria-label="Отправить"
               >
                 <Send size={16} />

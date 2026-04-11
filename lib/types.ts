@@ -2,6 +2,10 @@ export interface User {
   id: string
   email: string
   name: string
+  /** Телефон в профиле (настройки) */
+  phone?: string
+  /** Подзаголовок под именем, напр. «студентка 1 степени» */
+  profileSubtitle?: string
   avatar?: string
   dashboardStats?: {
     attendedLessons: number

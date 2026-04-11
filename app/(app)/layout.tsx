@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect } from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Menu } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { AppSidebar } from "@/components/app-sidebar"
-import { BrandLogo } from "@/components/brand-logo"
+import { ChinaChildCircleMark } from "@/components/brand-logo"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
@@ -43,7 +44,9 @@ export default function AppLayout({
 
           <div className="ds-figma-shell-main">
             <header className="flex items-center justify-between gap-3 border-b border-black/10 bg-[#e8e8e8] px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 dark:border-white/10 dark:bg-[#1a1a1a] lg:hidden">
-              <BrandLogo className="text-[22px] font-bold leading-none text-ds-ink" />
+              <Link href="/dashboard" className="shrink-0" aria-label="ChinaChild">
+                <ChinaChildCircleMark className="h-10 w-10 text-[13px]" />
+              </Link>
               <Sheet>
                 <SheetTrigger asChild>
                   <Button

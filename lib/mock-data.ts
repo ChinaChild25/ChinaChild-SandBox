@@ -2,8 +2,10 @@ import type { User, Course, Lesson, Notification, Achievement, LearningResource 
 
 export const mockUser: User = {
   id: "user-1",
-  email: "yana@chinachild.ru",
+  email: "yana@example.com",
   name: "Яна",
+  phone: "+7 999 123-45-67",
+  profileSubtitle: "студентка 1 степени",
   avatar: undefined,
   dashboardStats: {
     attendedLessons: 9,

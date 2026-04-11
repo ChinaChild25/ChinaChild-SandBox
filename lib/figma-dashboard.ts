@@ -80,9 +80,13 @@ export const FIGMA_CALENDAR = {
   monthTitle: "апрель",
   year: 2025,
   startOffset: 2,
-  eventDays: [11, 15, 18, 22, 24, 25, 29, 30] as const,
+  /** Точки под датами с событиями — как в макете главного экрана */
+  eventDays: [8, 15, 22, 29] as const,
   today: 11
 } as const
+
+/** Первые 4 пункта в блоке «Предстоящие занятия» на главной */
+export const FIGMA_DASHBOARD_LESSONS = FIGMA_UPCOMING_LESSONS.slice(0, 4)
 
 export const FIGMA_CONTINUE_LESSON = {
   title: "HSK1 — Тема №8: Самопрезентация",

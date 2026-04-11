@@ -12,27 +12,28 @@ import {
   BookOpen,
   Settings,
   LogOut,
+  ChevronRight,
   type LucideIcon
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
-import { BrandLogo } from "@/components/brand-logo"
+import { ChinaChildCircleMark } from "@/components/brand-logo"
 import { FIGMA_STUDENT_AVATAR } from "@/lib/figma-dashboard"
 
 type NavItem = {
   href: string
   label: string
   icon: LucideIcon
+  badge?: string
 }
 
-/** Как в Figmadasboard Layout: Главная → Занятия → Мои оценки → Расписание → … */
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Главная", icon: LayoutGrid },
   { href: "/classes", label: "Занятия", icon: GraduationCap },
   { href: "/progress", label: "Мои оценки", icon: Award },
   { href: "/schedule", label: "Расписание", icon: CalendarDays },
-  { href: "/messages", label: "Сообщения", icon: Mail },
+  { href: "/messages", label: "Сообщения", icon: Mail, badge: "7" },
   { href: "/courses", label: "Мои курсы", icon: BookOpen },
   { href: "/settings", label: "Настройки", icon: Settings }
 ]
@@ -50,6 +51,7 @@ export function AppSidebar() {
 
   const firstName = user?.name?.split(" ")[0] ?? "Яна"
   const avatarSrc = user?.avatar ?? FIGMA_STUDENT_AVATAR
+  const subtitle = user?.profileSubtitle ?? `студентка ${levelLabel}`
 
   const isActive = (href: string, label: string) => {
     if (href === "/dashboard") return pathname === "/dashboard"
@@ -63,9 +65,10 @@ export function AppSidebar() {
       <div className="mb-10">
         <Link
           href="/dashboard"
-          className="inline-block rounded-lg outline-offset-2 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ds-ink/20"
+          className="inline-flex rounded-lg outline-offset-2 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ds-ink/20"
+          aria-label="ChinaChild — главная"
         >
-          <BrandLogo className="text-[28px] font-bold leading-none" />
+          <ChinaChildCircleMark />
         </Link>
       </div>
 
@@ -83,8 +86,8 @@ export function AppSidebar() {
             className="h-full w-full object-cover"
           />
         </div>
-        <div className="mb-1 text-[36px] font-normal leading-none text-ds-ink">{firstName}</div>
-        <div className="text-[14px] text-ds-text-muted">студентка {levelLabel}</div>
+        <div className="mb-1 text-[36px] font-semibold leading-none text-ds-ink">{firstName}</div>
+        <div className="text-center text-[14px] text-ds-text-muted">{subtitle}</div>
       </Link>
 
       <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto" aria-label="Основное меню">
@@ -97,11 +100,35 @@ export function AppSidebar() {
               className={cn("figma-nav-link", active && "figma-nav-link--active")}
             >
               <item.icon size={20} strokeWidth={2} aria-hidden />
-              <span>{item.label}</span>
+              <span className="flex-1">{item.label}</span>
+              {item.badge ? (
+                <span
+                  className={cn(
+                    "flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-bold",
+                    active ? "bg-white text-ds-ink dark:bg-[#141414] dark:text-white" : "bg-ds-ink text-white dark:bg-white dark:text-ds-ink"
+                  )}
+                >
+                  {item.badge}
+                </span>
+              ) : null}
             </Link>
           )
         })}
       </nav>
+
+      <Link
+        href="/courses"
+        className="mt-4 flex flex-col gap-2 rounded-[20px] bg-ds-sage p-4 no-underline text-ds-ink transition-opacity hover:opacity-95"
+      >
+        <div className="text-[14px] font-semibold">HSK 1 — Прогресс</div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-white/50">
+          <div className="h-full w-[37%] rounded-full bg-[#5a7c3a]" />
+        </div>
+        <div className="flex items-center gap-1 text-[13px] font-medium text-ds-ink/80">
+          <span>37%</span>
+          <ChevronRight className="h-4 w-4" aria-hidden />
+        </div>
+      </Link>
 
       <div className="mt-6 border-t border-black/10 pt-4">
         <Button

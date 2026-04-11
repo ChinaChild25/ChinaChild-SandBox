@@ -14,10 +14,11 @@ const gradesData = [
   { subject: "Тема №7 — Члены семьи", date: "5 апр", score: 90, maxScore: 100, type: "ДЗ" }
 ]
 
+/** Как Figmadasboard Grades.tsx getScoreColor */
 function scoreColor(score: number) {
-  if (score >= 90) return "var(--ds-sage-strong)"
+  if (score >= 90) return "#8ab84a"
   if (score >= 75) return "#e6a817"
-  return "var(--ds-pink-strong)"
+  return "#c06060"
 }
 
 export default function ProgressPage() {

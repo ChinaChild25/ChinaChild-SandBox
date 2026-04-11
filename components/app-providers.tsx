@@ -8,19 +8,21 @@ import { ThemeProvider } from "@/components/theme-provider"
 const UI_ACCENT_KEY = "chinachild-ui-accent"
 export const THEME_STORAGE_KEY = "chinachild-theme"
 
-export function readStoredUiAccent(): "default" | "sage" | "pink" | null {
+export type UiAccent = "default" | "sage" | "pink" | "blue" | "orange"
+
+export function readStoredUiAccent(): UiAccent | null {
   if (typeof window === "undefined") return null
   const v = window.localStorage.getItem(UI_ACCENT_KEY)
-  if (v === "sage" || v === "pink" || v === "default") return v
+  if (v === "sage" || v === "pink" || v === "blue" || v === "orange" || v === "default") return v
   return null
 }
 
-export function persistUiAccent(accent: "default" | "sage" | "pink") {
+export function persistUiAccent(accent: UiAccent) {
   if (typeof window === "undefined") return
   window.localStorage.setItem(UI_ACCENT_KEY, accent)
 }
 
-export function applyUiAccentToDocument(accent: "default" | "sage" | "pink") {
+export function applyUiAccentToDocument(accent: UiAccent) {
   const root = document.documentElement
   if (accent === "default") root.removeAttribute("data-ui-accent")
   else root.setAttribute("data-ui-accent", accent)

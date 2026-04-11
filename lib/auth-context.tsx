@@ -4,6 +4,8 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 import type { User } from "./types"
 import { mockUser } from "./mock-data"
 
+export const LAST_LOGIN_STORAGE_KEY = "chinachild-last-login"
+
 interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
@@ -12,6 +14,8 @@ interface AuthContextType {
   register: (name: string, email: string, password: string) => Promise<boolean>
   logout: () => void
   updateUser: (updates: Partial<User>) => void
+  /** Демо: смена пароля без бэкенда */
+  changePassword: (currentPassword: string, newPassword: string) => Promise<{ ok: boolean; message: string }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -27,6 +31,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // Mock validation - in production, this would be a real API call
     if (email && password.length >= 6) {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(LAST_LOGIN_STORAGE_KEY, new Date().toISOString())
+      }
       setUser({ ...mockUser, email })
       setIsLoading(false)
       return true
@@ -42,6 +49,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // Mock registration - in production, this would be a real API call
     if (name && email && password.length >= 6) {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(LAST_LOGIN_STORAGE_KEY, new Date().toISOString())
+      }
       setUser({
         ...mockUser,
         id: `user-${Date.now()}`,
@@ -58,7 +68,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         learningStreak: 0,
         totalLessonsCompleted: 0,
         totalStudyHours: 0,
-        level: "Beginner"
+        level: "Beginner",
+        profileSubtitle: "студентка 1 степени"
       })
       setIsLoading(false)
       return true
@@ -75,6 +86,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser((prev) => (prev ? { ...prev, ...updates } : null))
   }, [])
 
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    await new Promise((r) => setTimeout(r, 600))
+    if (currentPassword.length < 6) {
+      return { ok: false, message: "Введите текущий пароль (не менее 6 символов)." }
+    }
+    if (newPassword.length < 6) {
+      return { ok: false, message: "Новый пароль — не менее 6 символов." }
+    }
+    return { ok: true, message: "Пароль обновлён (демо, без сервера)." }
+  }, [])
+
   return (
     <AuthContext.Provider
       value={{
@@ -84,7 +106,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
-        updateUser
+        updateUser,
+        changePassword
       }}
     >
       {children}

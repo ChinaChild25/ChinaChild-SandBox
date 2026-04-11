@@ -22,3 +22,18 @@ export function BrandLogo({ className, compact = false }: BrandLogoProps) {
     </div>
   )
 }
+
+/** Круглый знак «ЧЧ» как в макете Figma (сайдбар) */
+export function ChinaChildCircleMark({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        "flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-black text-[15px] font-bold tracking-[-0.02em] text-white",
+        className
+      )}
+      aria-hidden
+    >
+      ЧЧ
+    </div>
+  )
+}

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Eye, EyeOff, Loader2, Check, X } from "lucide-react"
+import { ArrowRight, Eye, EyeOff, Loader2, Check, X } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth } from "@/lib/auth-context"
 
@@ -79,7 +79,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
       <div>
         <label htmlFor="reg-email" className="ds-auth-field-label">
-          Почта
+          Email
         </label>
         <input
           id="reg-email"
@@ -105,16 +105,16 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={isLoading}
-            className="ds-input-field pr-11"
+            className="ds-input-field pr-12"
             autoComplete="new-password"
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-ds-text-muted transition-colors hover:text-ds-ink"
+            className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-[#a3a3a3] transition-colors hover:bg-black/[0.04] hover:text-[#525252]"
             aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
           >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {showPassword ? <EyeOff className="h-4 w-4" strokeWidth={1.75} /> : <Eye className="h-4 w-4" strokeWidth={1.75} />}
           </button>
         </div>
         {password ? (
@@ -181,23 +181,28 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         </p>
       ) : null}
 
-      <button type="submit" disabled={isLoading} className="ds-btn-primary-solid h-12 text-[15px]">
+      <button type="submit" disabled={isLoading} className="ds-btn-primary-solid w-full gap-2">
         {isLoading ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
             Создание аккаунта...
           </>
         ) : (
-          "Создать аккаунт"
+          <>
+            Создать аккаунт
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </>
         )}
       </button>
 
-      <p className="text-center text-ds-sm-plus text-ds-text-muted">
+      <hr className="ds-auth-divider" />
+
+      <p className="text-center text-[15px] text-[#737373]">
         Уже есть аккаунт?{" "}
         <button
           type="button"
           onClick={onSwitchToLogin}
-          className="font-semibold text-ds-ink underline-offset-4 transition-colors hover:underline"
+          className="border-0 bg-transparent font-bold text-black transition-opacity hover:opacity-80"
         >
           Войти
         </button>

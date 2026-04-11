@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 
 interface LoginFormProps {
@@ -16,7 +16,6 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }: LoginFormPro
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
-  const [rememberMe, setRememberMe] = useState(false)
   const [error, setError] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -37,15 +36,15 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }: LoginFormPro
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-5">
       <div>
         <label htmlFor="email" className="ds-auth-field-label">
-          Почта
+          Email
         </label>
         <input
           id="email"
           type="email"
-          placeholder="yana@chinachild.ru"
+          placeholder="name@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={isLoading}
@@ -55,18 +54,9 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }: LoginFormPro
       </div>
 
       <div>
-        <div className="mb-1 flex items-center justify-between gap-2">
-          <label htmlFor="password" className="ds-auth-field-label ds-auth-field-label--flush">
-            Пароль
-          </label>
-          <button
-            type="button"
-            onClick={onForgotPassword}
-            className="text-[12px] font-medium text-ds-text-tertiary transition-colors hover:text-ds-ink"
-          >
-            Забыли пароль?
-          </button>
-        </div>
+        <label htmlFor="password" className="ds-auth-field-label">
+          Пароль
+        </label>
         <div className="relative">
           <input
             id="password"
@@ -81,65 +71,55 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }: LoginFormPro
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-[var(--ds-radius-md)] text-ds-text-muted transition-colors hover:bg-black/[0.06] hover:text-ds-ink"
+            className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-[#a3a3a3] transition-colors hover:bg-black/[0.04] hover:text-[#525252]"
             aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
           >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            {showPassword ? <EyeOff className="h-4 w-4" strokeWidth={1.75} /> : <Eye className="h-4 w-4" strokeWidth={1.75} />}
           </button>
         </div>
       </div>
 
-      <div className="ds-auth-remember">
-        <button
-          type="button"
-          role="switch"
-          aria-checked={rememberMe}
-          onClick={() => setRememberMe((v) => !v)}
-          className={`ds-auth-remember-track ${rememberMe ? "ds-auth-remember-track--on" : "ds-auth-remember-track--off"}`}
-        >
-          <span className="ds-auth-remember-knob" />
-        </button>
-        <span className="text-ds-body-sm text-ds-text-muted">Запомнить меня на 30 дней</span>
-      </div>
-
       {error ? (
         <p
-          className="rounded-[var(--ds-radius-md)] border border-red-200/90 px-3 py-2.5 text-ds-sm-plus text-red-700"
+          className="rounded-[10px] border border-red-200/90 px-3 py-2.5 text-[14px] text-red-700"
           style={{ backgroundColor: "rgb(254 242 242)" }}
         >
           {error}
         </p>
       ) : null}
 
-      <button type="submit" disabled={isLoading} className="ds-btn-primary-solid h-12 text-[15px]">
+      <button type="submit" disabled={isLoading} className="ds-btn-primary-solid w-full gap-2">
         {isLoading ? (
           <>
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
             Вход...
           </>
         ) : (
-          "Войти"
+          <>
+            Войти
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </>
         )}
       </button>
 
-      <div className="ds-auth-social-row">
-        <button type="button" className="ds-auth-social-link">
-          Google
+      <p className="text-center">
+        <button
+          type="button"
+          onClick={onForgotPassword}
+          className="border-0 bg-transparent text-[15px] text-[#737373] underline-offset-4 transition-colors hover:text-[#1a1a1a]"
+        >
+          Забыли пароль?
         </button>
-        <span className="ds-auth-social-sep" aria-hidden>
-          ·
-        </span>
-        <button type="button" className="ds-auth-social-link">
-          GitHub
-        </button>
-      </div>
+      </p>
 
-      <p className="text-center text-ds-sm-plus text-ds-text-muted">
+      <hr className="ds-auth-divider" />
+
+      <p className="text-center text-[15px] text-[#737373]">
         Нет аккаунта?{" "}
         <button
           type="button"
           onClick={onSwitchToRegister}
-          className="font-semibold text-ds-ink underline-offset-4 transition-colors hover:underline"
+          className="border-0 bg-transparent font-bold text-black transition-opacity hover:opacity-80"
         >
           Зарегистрироваться
         </button>

@@ -22,36 +22,29 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-[clamp(1.65rem,4vw,2rem)] font-semibold leading-[1.1] tracking-[-0.04em] text-ds-ink">
-        Сброс пароля
-      </h2>
-      <p className="max-w-[28rem] text-[15px] leading-relaxed text-ds-text-secondary">
-        Укажите почту аккаунта — отправим ссылку для восстановления доступа (демо: без реальной отправки).
-      </p>
-
+    <div className="space-y-5">
       {sent ? (
-        <div className="space-y-6">
+        <div className="space-y-5">
           <p
-            className="rounded-[var(--ds-radius-md)] border border-black/10 px-3 py-2.5 text-ds-sm-plus text-ds-ink"
+            className="rounded-[10px] border border-black/10 px-3 py-2.5 text-[14px] text-[#1a1a1a]"
             style={{ backgroundColor: "rgb(240 253 244)" }}
           >
             Если адрес зарегистрирован, письмо со ссылкой скоро придёт на <strong>{email}</strong>.
           </p>
-          <button type="button" onClick={onBackToLogin} className="ds-btn-primary-solid h-12 text-[15px]">
+          <button type="button" onClick={onBackToLogin} className="ds-btn-primary-solid w-full">
             Вернуться ко входу
           </button>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label htmlFor="forgot-email" className="ds-auth-field-label">
-              Почта
+              Email
             </label>
             <input
               id="forgot-email"
               type="email"
-              placeholder="yana@chinachild.ru"
+              placeholder="name@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
@@ -60,7 +53,7 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
               required
             />
           </div>
-          <button type="submit" disabled={loading} className="ds-btn-primary-solid h-12 text-[15px]">
+          <button type="submit" disabled={loading} className="ds-btn-primary-solid w-full gap-2">
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -70,11 +63,12 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
               "Отправить ссылку"
             )}
           </button>
-          <p className="text-center text-ds-sm-plus text-ds-text-muted">
+          <hr className="ds-auth-divider" />
+          <p className="text-center text-[15px] text-[#737373]">
             <button
               type="button"
               onClick={onBackToLogin}
-              className="font-semibold text-ds-ink underline-offset-4 transition-colors hover:underline"
+              className="border-0 bg-transparent font-bold text-black transition-opacity hover:opacity-80"
             >
               Назад ко входу
             </button>
