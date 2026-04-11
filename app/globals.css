@@ -45,4 +45,10 @@
     background-color: var(--ds-ink);
     @apply text-white;
   }
+
+  .dark .figma-nav-link--active,
+  .dark .figma-nav-link--active:hover {
+    background-color: #f4f4f4;
+    color: #141414;
+  }
 }

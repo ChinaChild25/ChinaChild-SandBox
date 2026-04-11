@@ -25,10 +25,11 @@ export default function ProfilePage() {
           <section className="ek-surface bg-ds-panel-muted px-6 py-6">
             <div className="mx-auto h-32 w-32 overflow-hidden rounded-full">
               <Image
-                src={placeholderImages.studentAvatar}
+                src={user?.avatar ?? placeholderImages.studentAvatar}
                 alt="Аватар ученика"
                 width={128}
                 height={128}
+                unoptimized={Boolean(user?.avatar?.startsWith("data:"))}
                 className="h-full w-full object-cover"
               />
             </div>

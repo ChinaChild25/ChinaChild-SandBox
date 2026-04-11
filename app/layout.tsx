@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import { AppProviders } from "@/components/app-providers"
 import { AuthProvider } from "@/lib/auth-context"
 import "./globals.css"
 
@@ -29,11 +30,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ru" className={inter.variable}>
+    <html lang="ru" className={inter.variable} suppressHydrationWarning>
       <body className="font-sans antialiased">
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <AppProviders>
+          <AuthProvider>{children}</AuthProvider>
+        </AppProviders>
         {process.env.NODE_ENV === "production" && <Analytics />}
       </body>
     </html>

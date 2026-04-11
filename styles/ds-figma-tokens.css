@@ -201,6 +201,56 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
+
+  /* ChinaChild / Figma dashboard tokens — dark surfaces */
+  --ds-canvas: #0c0c0c;
+  --ds-surface: #141414;
+  --ds-ink: #f4f4f4;
+  --ds-border-strong: #f4f4f4;
+  --ds-sidebar: #1a1a1a;
+  --ds-sidebar-hover: #2a2a2a;
+  --ds-text-primary: #f4f4f4;
+  --ds-text-secondary: #b5b5b5;
+  --ds-text-muted: #a3a3a3;
+  --ds-text-tertiary: #8a8a8a;
+  --ds-text-quaternary: #c4c4c4;
+  --ds-text-soft: #737373;
+  --ds-text-soft-dark: #9ca3af;
+  --ds-text-placeholder: #737373;
+  --ds-chevron: #525252;
+  --ds-surface-muted: #1e1e1e;
+  --ds-surface-pill: #262626;
+  --ds-surface-hover: #2a2a2a;
+  --ds-sage: #3d4d2e;
+  --ds-sage-strong: #9bc45c;
+  --ds-sage-hover: #b8d97a;
+  --ds-pink: #4a3034;
+  --ds-pink-strong: #e57373;
+  --ds-gray-tile: #2a2a2a;
+  --ds-panel-muted: #1a1a1a;
+  --ds-icon-on-dark: #a3a3a3;
+  --ds-stat-muted-on-dark: #b5b5b5;
+  --ds-stat-fraction-muted: #9ca3af;
+  --ds-stat-fraction-muted-dark: #d4d4d4;
+  --ds-white-60: rgb(255 255 255 / 0.12);
+  --ds-white-60-progress: rgb(255 255 255 / 0.45);
+}
+
+/* Light theme colour accents (Figma «Зелёная» / «Розовая») */
+html:not(.dark)[data-ui-accent="sage"] {
+  --ds-canvas: #e8efe0;
+  --ds-sidebar: #d4e4c4;
+  --ds-sidebar-hover: #c4d8b0;
+  --ds-panel-muted: #dfe8d4;
+  --ds-surface-muted: #e6eedc;
+}
+
+html:not(.dark)[data-ui-accent="pink"] {
+  --ds-canvas: #f5e8e8;
+  --ds-sidebar: #edd4d4;
+  --ds-sidebar-hover: #e4c4c4;
+  --ds-panel-muted: #ead5d5;
+  --ds-surface-muted: #f0dede;
 }
 
 @layer components {
@@ -358,7 +408,17 @@
     margin-bottom: var(--ds-section-gap);
   }
 
-  @media (max-width: 1023px) {
+  @media (min-width: 640px) and (max-width: 1023px) {
+    .ds-stat-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .ds-stat-grid > :nth-child(3) {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 639px) {
     .ds-stat-grid {
       grid-template-columns: 1fr;
     }
@@ -1254,5 +1314,80 @@
     flex: 1;
     border-radius: var(--ds-radius-md);
     border: 2px dashed var(--ds-sidebar);
+  }
+
+  /* —— Classes list (Figmadasboard Classes.tsx) —— */
+  .ds-class-card {
+    background-color: var(--ds-surface-muted);
+    color: inherit;
+  }
+
+  .ds-class-card:hover {
+    background-color: var(--ds-surface-hover);
+  }
+
+  /* —— Messages split layout —— */
+  .ds-messages-shell {
+    display: flex;
+    min-height: min(70dvh, 720px);
+    overflow: hidden;
+    border-radius: var(--ds-radius-xl);
+    background-color: var(--ds-surface);
+    border: 1px solid rgb(0 0 0 / 0.06);
+  }
+
+  .dark .ds-messages-shell {
+    border-color: rgb(255 255 255 / 0.08);
+  }
+
+  .ds-messages-sidebar {
+    display: flex;
+    width: 260px;
+    flex-shrink: 0;
+    flex-direction: column;
+    border-right: 1px solid rgb(0 0 0 / 0.08);
+  }
+
+  .dark .ds-messages-sidebar {
+    border-right-color: rgb(255 255 255 / 0.08);
+  }
+
+  .ds-messages-search {
+    display: flex;
+    align-items: center;
+    gap: var(--ds-space-2);
+    border-radius: var(--ds-radius-md);
+    background-color: var(--ds-surface-pill);
+    padding: 8px 12px;
+  }
+
+  .ds-messages-search input {
+    min-width: 0;
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: var(--ds-text-body-sm);
+    color: var(--ds-text-primary);
+    outline: none;
+  }
+
+  .ds-messages-search input::placeholder {
+    color: var(--ds-text-placeholder);
+  }
+
+  .ds-msg-bubble-them {
+    background-color: var(--ds-surface-pill);
+    color: var(--ds-text-primary);
+  }
+
+  .ds-msg-bubble-me {
+    background-color: var(--ds-ink);
+    color: #ffffff;
+  }
+
+  .dark .ds-msg-bubble-me {
+    background-color: #f4f4f4;
+    color: #141414;
   }
 }

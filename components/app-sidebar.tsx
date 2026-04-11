@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   LayoutGrid,
+  GraduationCap,
   Award,
   CalendarDays,
   Mail,
@@ -27,6 +28,7 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "Главная", icon: LayoutGrid },
+  { href: "/classes", label: "Занятия", icon: GraduationCap },
   { href: "/schedule", label: "Расписание", icon: CalendarDays },
   { href: "/progress", label: "Мои оценки", icon: Award },
   { href: "/messages", label: "Сообщения", icon: Mail },
@@ -46,10 +48,12 @@ export function AppSidebar() {
   }[user?.level ?? "Beginner"]
 
   const firstName = user?.name?.split(" ")[0] ?? "Яна"
+  const avatarSrc = user?.avatar ?? placeholderImages.studentAvatar
 
   const isActive = (href: string, label: string) => {
     if (href === "/dashboard") return pathname === "/dashboard"
     if (label === "Мои курсы") return pathname.startsWith("/courses")
+    if (href === "/classes") return pathname === "/classes" || pathname.startsWith("/classes/")
     return pathname === href || pathname.startsWith(`${href}/`)
   }
 
@@ -70,10 +74,11 @@ export function AppSidebar() {
       >
         <div className="mb-3 h-[110px] w-[110px] overflow-hidden rounded-full bg-white ring-1 ring-black/8">
           <Image
-            src={placeholderImages.studentAvatar}
+            src={avatarSrc}
             alt="Аватар ученика"
             width={110}
             height={110}
+            unoptimized={avatarSrc.startsWith("data:")}
             className="h-full w-full object-cover"
           />
         </div>

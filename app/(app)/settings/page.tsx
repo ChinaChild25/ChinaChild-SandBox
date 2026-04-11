@@ -1,9 +1,15 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
+import { useTheme } from "next-themes"
 import { Bell, Camera, Globe, Moon, Save, Shield } from "lucide-react"
 
+import {
+  applyUiAccentToDocument,
+  persistUiAccent,
+  readStoredUiAccent
+} from "@/components/app-providers"
 import { useAuth } from "@/lib/auth-context"
 import { placeholderImages } from "@/lib/placeholders"
 import type { User } from "@/lib/types"
@@ -58,6 +64,8 @@ function FigmaToggle({ checked, onChange }: { checked: boolean; onChange: (v: bo
 
 export default function SettingsPage() {
   const { user, updateUser } = useAuth()
+  const { setTheme, resolvedTheme } = useTheme()
+  const avatarInputRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("+7 999 123-45-67")
@@ -77,6 +85,18 @@ export default function SettingsPage() {
     setName(user.name)
     setEmail(user.email)
   }, [user])
+
+  useEffect(() => {
+    if (!resolvedTheme) return
+    if (resolvedTheme === "dark") {
+      setSelectedTheme(1)
+      return
+    }
+    const accent = readStoredUiAccent()
+    if (accent === "sage") setSelectedTheme(2)
+    else if (accent === "pink") setSelectedTheme(3)
+    else setSelectedTheme(0)
+  }, [resolvedTheme])
 
   const handleSave = () => {
     if (user) {
@@ -110,12 +130,37 @@ export default function SettingsPage() {
             <div className="mb-6 flex items-center gap-4">
               <div className="relative">
                 <div className="relative h-20 w-20 overflow-hidden rounded-full bg-ds-sidebar">
-                  <Image src={avatarSrc} alt="Аватар" fill className="object-cover" sizes="80px" />
+                  <Image
+                    src={avatarSrc}
+                    alt="Аватар"
+                    fill
+                    className="object-cover"
+                    sizes="80px"
+                    unoptimized={avatarSrc.startsWith("data:")}
+                  />
                 </div>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    const reader = new FileReader()
+                    reader.onload = () => {
+                      const url = String(reader.result ?? "")
+                      if (url) updateUser({ avatar: url })
+                    }
+                    reader.readAsDataURL(file)
+                    e.target.value = ""
+                  }}
+                />
                 <button
                   type="button"
                   className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full bg-ds-ink"
                   aria-label="Изменить фото"
+                  onClick={() => avatarInputRef.current?.click()}
                 >
                   <Camera size={13} className="text-white" aria-hidden />
                 </button>
@@ -235,9 +280,21 @@ export default function SettingsPage() {
                 <button
                   key={theme.label}
                   type="button"
-                  onClick={() => setSelectedTheme(i)}
+                  onClick={() => {
+                    setSelectedTheme(i)
+                    if (i === 1) {
+                      setTheme("dark")
+                      persistUiAccent("default")
+                      applyUiAccentToDocument("default")
+                    } else {
+                      setTheme("light")
+                      const accent = i === 2 ? "sage" : i === 3 ? "pink" : "default"
+                      persistUiAccent(accent)
+                      applyUiAccentToDocument(accent)
+                    }
+                  }}
                   className={`rounded-2xl p-4 text-left transition-transform hover:scale-[1.02] ${
-                    selectedTheme === i ? "ring-2 ring-ds-ink" : ""
+                    selectedTheme === i ? "ring-2 ring-ds-ink dark:ring-white" : ""
                   }`}
                   style={{
                     backgroundColor: theme.bg,
