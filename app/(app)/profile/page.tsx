@@ -26,7 +26,7 @@ export default function ProfilePage() {
             <div className="mx-auto h-32 w-32 overflow-hidden rounded-full">
               <Image
                 src={user?.avatar ?? placeholderImages.studentAvatar}
-                alt="Аватар ученика"
+                alt="Аватар"
                 width={128}
                 height={128}
                 unoptimized={Boolean(user?.avatar?.startsWith("data:"))}

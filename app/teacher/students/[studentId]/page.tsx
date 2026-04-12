@@ -3,7 +3,8 @@
 import Image from "next/image"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, CalendarDays } from "lucide-react"
+import { getUpcomingLessonsDisplay } from "@/lib/teacher-schedule-display"
 import { getTeacherStudentById } from "@/lib/teacher-students-mock"
 
 export default function TeacherStudentDetailPage() {
@@ -22,9 +23,11 @@ export default function TeacherStudentDetailPage() {
     )
   }
 
+  const schedule = getUpcomingLessonsDisplay(s.id, 14)
+
   return (
     <div className="ds-figma-page">
-      <div className="mx-auto w-full max-w-[min(100%,640px)]">
+      <div className="mx-auto w-full max-w-[min(100%,1320px)]">
         <Link
           href="/teacher/students"
           className="mb-6 inline-flex items-center gap-2 text-[14px] font-medium text-ds-text-secondary no-underline hover:text-ds-ink"
@@ -33,92 +36,160 @@ export default function TeacherStudentDetailPage() {
           К журналу
         </Link>
 
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start">
-          <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full bg-ds-sidebar ring-1 ring-black/8">
-            <Image
-              src={s.avatar}
-              alt=""
-              fill
-              className="object-cover"
-              sizes="96px"
-              unoptimized={s.avatar.endsWith(".svg")}
-            />
-          </div>
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_min(100%,380px)] lg:items-start">
           <div className="min-w-0">
-            <h1 className="text-[28px] font-bold text-ds-ink">{s.name}</h1>
-            <p className="mt-1 text-[15px] text-ds-text-secondary">{s.group}</p>
-            <p className="mt-2 text-[16px] font-semibold text-ds-ink">
-              Цель: <span className="text-ds-sage-strong">{s.hskTarget}</span>
-              <span className="mx-2 text-ds-text-tertiary">·</span>
-              <span className="font-normal text-ds-text-secondary">уровень {s.levelLabel}</span>
-            </p>
-          </div>
-        </div>
-
-        <section className="mb-8">
-          <h2 className="mb-3 text-[17px] font-semibold text-ds-ink">Треки и прогресс</h2>
-          <ul className="space-y-3">
-            {s.tracks.map((t) => (
-              <li key={t.title}>
-                <div className="mb-1 flex justify-between text-[13px]">
-                  <span className="text-ds-ink">{t.title}</span>
-                  <span className="tabular-nums text-ds-text-tertiary">{t.percent}%</span>
+            <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-start">
+              <div className="relative h-[100px] w-[100px] shrink-0 overflow-hidden rounded-2xl bg-ds-sidebar ring-1 ring-black/8">
+                <Image
+                  src={s.avatar}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  sizes="100px"
+                  unoptimized={s.avatar.endsWith(".svg")}
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-[32px] font-bold leading-tight text-ds-ink sm:text-[38px]">{s.name}</h1>
+                <p className="mt-1 text-[16px] text-ds-text-secondary">{s.group}</p>
+                <div className="mt-4 flex flex-wrap gap-3 text-[15px]">
+                  <span className="rounded-full bg-ds-sage/35 px-4 py-1.5 font-semibold text-ds-ink dark:bg-ds-sage/20">
+                    Цель: {s.hskTarget}
+                  </span>
+                  <span className="rounded-full bg-[var(--ds-neutral-row)] px-4 py-1.5 text-ds-text-secondary dark:bg-white/10">
+                    Уровень: {s.levelLabel}
+                  </span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/10">
-                  <div
-                    className="h-full rounded-full bg-ds-sage-strong"
-                    style={{ width: `${Math.min(100, t.percent)}%` }}
-                  />
+                <div className="mt-5 grid max-w-xl grid-cols-3 gap-3 sm:gap-4">
+                  <div className="rounded-2xl bg-[var(--ds-neutral-row)] p-4 dark:bg-white/[0.06]">
+                    <div className="text-[11px] font-semibold uppercase text-ds-text-tertiary">Домашние</div>
+                    <div className="mt-1 text-[22px] font-bold tabular-nums text-ds-ink">
+                      {s.homeworks.done}/{s.homeworks.total}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl bg-[var(--ds-neutral-row)] p-4 dark:bg-white/[0.06]">
+                    <div className="text-[11px] font-semibold uppercase text-ds-text-tertiary">Посещаемость</div>
+                    <div className="mt-1 text-[22px] font-bold tabular-nums text-ds-ink">
+                      {s.attendance.done}/{s.attendance.total}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl bg-[var(--ds-neutral-row)] p-4 dark:bg-white/[0.06]">
+                    <div className="text-[11px] font-semibold uppercase text-ds-text-tertiary">Итоговая</div>
+                    <div className="mt-1 text-[22px] font-bold tabular-nums text-ds-ink">
+                      {s.grade.value}/{s.grade.max}
+                    </div>
+                  </div>
                 </div>
-              </li>
-            ))}
-          </ul>
-        </section>
+              </div>
+            </div>
 
-        <div className="mb-8 grid gap-6 sm:grid-cols-2">
-          <section>
-            <h2 className="mb-2 text-[16px] font-semibold text-ds-ink">Сильные стороны</h2>
-            <ul className="list-none space-y-1.5 p-0 text-[14px] text-ds-text-secondary">
-              {s.strengths.map((x) => (
-                <li key={x} className="rounded-lg bg-ds-sage/25 px-3 py-2 text-ds-ink dark:bg-ds-sage/15">
-                  {x}
-                </li>
-              ))}
-            </ul>
-          </section>
-          <section>
-            <h2 className="mb-2 text-[16px] font-semibold text-ds-ink">Зоны внимания</h2>
-            <ul className="list-none space-y-1.5 p-0 text-[14px] text-ds-text-secondary">
-              {s.weaknesses.map((x) => (
-                <li key={x} className="rounded-lg bg-black/[0.04] px-3 py-2 dark:bg-white/[0.06]">
-                  {x}
-                </li>
-              ))}
-            </ul>
-          </section>
-        </div>
-
-        <section>
-          <h2 className="mb-3 text-[17px] font-semibold text-ds-ink">Последние тесты</h2>
-          <div className="overflow-hidden rounded-[var(--ds-radius-xl)] border border-black/10 dark:border-white/10">
-            <table className="w-full border-collapse text-left text-[14px]">
-              <thead>
-                <tr className="bg-[var(--ds-neutral-row)] text-[13px] font-semibold text-ds-ink">
-                  <th className="px-4 py-3">Тема</th>
-                  <th className="px-4 py-3">Балл</th>
-                </tr>
-              </thead>
-              <tbody>
-                {s.lastTests.map((t) => (
-                  <tr key={t.title} className="border-t border-black/8 dark:border-white/10">
-                    <td className="px-4 py-3 text-ds-text-secondary">{t.title}</td>
-                    <td className="px-4 py-3 font-medium tabular-nums text-ds-ink">{t.score}</td>
-                  </tr>
+            <section className="mb-10">
+              <h2 className="mb-4 text-[20px] font-semibold text-ds-ink">Треки и прогресс</h2>
+              <ul className="grid gap-4 sm:grid-cols-2">
+                {s.tracks.map((tr) => (
+                  <li key={tr.title} className="rounded-[var(--ds-radius-xl)] border border-black/8 bg-ds-surface p-4 dark:border-white/10">
+                    <div className="mb-2 flex justify-between text-[14px]">
+                      <span className="font-medium text-ds-ink">{tr.title}</span>
+                      <span className="tabular-nums text-ds-text-tertiary">{tr.percent}%</span>
+                    </div>
+                    <div className="h-2.5 overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-ds-sage-strong"
+                        style={{ width: `${Math.min(100, tr.percent)}%` }}
+                      />
+                    </div>
+                  </li>
                 ))}
-              </tbody>
-            </table>
+              </ul>
+            </section>
+
+            <div className="mb-10 grid gap-6 lg:grid-cols-2">
+              <section>
+                <h2 className="mb-3 text-[18px] font-semibold text-ds-ink">Сильные стороны</h2>
+                <ul className="list-none space-y-2 p-0">
+                  {s.strengths.map((x) => (
+                    <li
+                      key={x}
+                      className="rounded-xl bg-ds-sage/25 px-4 py-2.5 text-[15px] text-ds-ink dark:bg-ds-sage/15"
+                    >
+                      {x}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+              <section>
+                <h2 className="mb-3 text-[18px] font-semibold text-ds-ink">Зоны внимания</h2>
+                <ul className="list-none space-y-2 p-0">
+                  {s.weaknesses.map((x) => (
+                    <li
+                      key={x}
+                      className="rounded-xl bg-[var(--ds-neutral-row)] px-4 py-2.5 text-[15px] text-ds-text-secondary dark:bg-white/[0.06]"
+                    >
+                      {x}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </div>
+
+            <section>
+              <h2 className="mb-4 text-[18px] font-semibold text-ds-ink">Последние тесты и работы</h2>
+              <div className="overflow-hidden rounded-[var(--ds-radius-xl)] border border-black/10 dark:border-white/10">
+                <table className="w-full border-collapse text-left text-[15px]">
+                  <thead>
+                    <tr className="bg-[var(--ds-neutral-row)] text-[12px] font-semibold uppercase tracking-wide text-ds-text-tertiary">
+                      <th className="px-5 py-3">Тема</th>
+                      <th className="px-5 py-3">Балл</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {s.lastTests.map((t) => (
+                      <tr key={t.title} className="border-t border-black/8 dark:border-white/10">
+                        <td className="px-5 py-3.5 text-ds-text-secondary">{t.title}</td>
+                        <td className="px-5 py-3.5 font-semibold tabular-nums text-ds-ink">{t.score}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </div>
-        </section>
+
+          <aside className="lg:sticky lg:top-6">
+            <div className="rounded-[var(--ds-radius-xl)] border border-black/10 bg-[var(--ds-neutral-row)] p-5 dark:border-white/10 dark:bg-[#141414]">
+              <div className="mb-4 flex items-center gap-2 text-[16px] font-semibold text-ds-ink">
+                <CalendarDays className="h-5 w-5 text-ds-sage-strong" aria-hidden />
+                Расписание
+              </div>
+              <p className="mb-4 text-[13px] leading-relaxed text-ds-text-secondary">
+                Слоты с учётом переносов из кабинета ученика (Яна — user-1) и демо-данных для остальных.
+              </p>
+              {schedule.length === 0 ? (
+                <p className="text-[14px] text-ds-text-tertiary">Нет предстоящих занятий.</p>
+              ) : (
+                <ul className="max-h-[min(70vh,520px)] space-y-2 overflow-y-auto pr-1">
+                  {schedule.map((u) => (
+                    <li
+                      key={`${u.lesson.id}-${u.start.getTime()}`}
+                      className="rounded-xl border border-black/8 bg-ds-surface px-4 py-3 dark:border-white/10 dark:bg-[#0a0a0a]"
+                    >
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-[15px] font-semibold text-ds-ink">
+                          {u.weekdayShort} {u.dateLabel}
+                        </span>
+                        <span className="shrink-0 text-[15px] font-semibold tabular-nums text-ds-sage-strong">
+                          {u.timeLabel}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[13px] text-ds-text-secondary">{u.lesson.title}</p>
+                      <p className="mt-0.5 text-[12px] text-ds-text-tertiary">{u.lesson.teacher}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </aside>
+        </div>
       </div>
     </div>
   )

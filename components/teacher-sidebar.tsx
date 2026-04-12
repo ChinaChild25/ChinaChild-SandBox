@@ -3,21 +3,42 @@
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutGrid, Users, CalendarDays, Mail, Settings, LogOut, type LucideIcon } from "lucide-react"
+import { useEffect, useState } from "react"
+import {
+  LayoutGrid,
+  GraduationCap,
+  Award,
+  CalendarDays,
+  Mail,
+  BookOpen,
+  Settings,
+  LogOut,
+  ChevronRight,
+  Users,
+  type LucideIcon
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { ChinaChildSidebarLogo } from "@/components/brand-logo"
+import {
+  readNotificationPreferences,
+  subscribeNotificationPreferences,
+  type NotificationPreferences
+} from "@/lib/notification-preferences"
 import { useUiLocale } from "@/lib/ui-locale"
 
-type NavItem = { href: string; label: string; icon: LucideIcon }
+type NavItem = { href: string; labelKey: string; icon: LucideIcon }
 
 const navItems: NavItem[] = [
-  { href: "/teacher/dashboard", label: "Главная", icon: LayoutGrid },
-  { href: "/teacher/students", label: "Ученики", icon: Users },
-  { href: "/teacher/schedule", label: "Расписание", icon: CalendarDays },
-  { href: "/teacher/messages", label: "Сообщения", icon: Mail },
-  { href: "/teacher/settings", label: "Настройки", icon: Settings }
+  { href: "/teacher/dashboard", labelKey: "nav.home", icon: LayoutGrid },
+  { href: "/teacher/classes", labelKey: "nav.classes", icon: GraduationCap },
+  { href: "/teacher/students", labelKey: "nav.students", icon: Users },
+  { href: "/teacher/progress", labelKey: "nav.grades", icon: Award },
+  { href: "/teacher/schedule", labelKey: "nav.schedule", icon: CalendarDays },
+  { href: "/teacher/messages", labelKey: "nav.messages", icon: Mail },
+  { href: "/teacher/courses", labelKey: "nav.courses", icon: BookOpen },
+  { href: "/teacher/settings", labelKey: "nav.settings", icon: Settings }
 ]
 
 type TeacherSidebarProps = { variant?: "sidebar" | "drawer" }
@@ -27,16 +48,27 @@ export function TeacherSidebar({ variant = "sidebar" }: TeacherSidebarProps) {
   const { user, logout } = useAuth()
   const { t } = useUiLocale()
   const drawer = variant === "drawer"
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(readNotificationPreferences)
+
+  useEffect(() => {
+    setNotifPrefs(readNotificationPreferences())
+    return subscribeNotificationPreferences(() => setNotifPrefs(readNotificationPreferences()))
+  }, [])
 
   const firstName = user?.name?.split(" ")[0] ?? "Преподаватель"
   const avatarSrc = user?.avatar ?? "/staff/zhao-li.png"
   const subtitle = user?.profileSubtitle ?? "преподаватель"
 
-  const isActive = (href: string) =>
-    pathname === href || (href !== "/teacher/dashboard" && pathname.startsWith(`${href}/`))
+  const isActive = (href: string) => {
+    if (href === "/teacher/dashboard") return pathname === "/teacher/dashboard"
+    if (href === "/teacher/courses") return pathname.startsWith("/teacher/courses")
+    if (href === "/teacher/students") return pathname === "/teacher/students" || pathname.startsWith("/teacher/students/")
+    return pathname === href || pathname.startsWith(`${href}/`)
+  }
 
   const navLinkNodes = navItems.map((item) => {
     const active = isActive(item.href)
+    const label = t(item.labelKey)
     return (
       <Link
         key={item.href}
@@ -44,10 +76,43 @@ export function TeacherSidebar({ variant = "sidebar" }: TeacherSidebarProps) {
         className={cn("figma-nav-link", drawer && "figma-nav-link--drawer-list", active && "figma-nav-link--active")}
       >
         <item.icon size={20} strokeWidth={2} className="shrink-0" aria-hidden />
-        <span className="min-w-0 flex-1 leading-snug">{item.label}</span>
+        <span className="min-w-0 flex-1 leading-snug">{label}</span>
       </Link>
     )
   })
+
+  const hskCard =
+    notifPrefs.lessons ? (
+      <Link
+        href="/teacher/courses"
+        className={cn(
+          "flex no-underline text-ds-ink transition-opacity hover:opacity-95",
+          drawer
+            ? "w-full flex-row items-center gap-3 rounded-xl bg-ds-sage px-3 py-2.5"
+            : "mt-4 flex-col gap-2 rounded-[20px] bg-ds-sage p-4"
+        )}
+      >
+        <div className={cn("font-semibold", drawer ? "min-w-0 flex-1 text-[13px] leading-snug" : "text-[14px]")}>
+          {t("sidebar.hskTitle")}
+        </div>
+        <div
+          className={cn(
+            "overflow-hidden rounded-full bg-white/50",
+            drawer ? "h-1.5 min-w-0 flex-1" : "h-2 w-full"
+          )}
+        >
+          <div className="h-full w-[37%] rounded-full bg-ds-sage-strong" />
+        </div>
+        {!drawer ? (
+          <div className="flex items-center gap-1 text-[13px] font-medium text-ds-ink/80">
+            <span>37%</span>
+            <ChevronRight className="h-4 w-4" aria-hidden />
+          </div>
+        ) : (
+          <span className="shrink-0 text-[12px] font-semibold text-ds-ink/85">37%</span>
+        )}
+      </Link>
+    ) : null
 
   return (
     <div className={cn("flex h-full min-h-0 flex-col text-ds-ink", drawer && "gap-0")}>
@@ -64,7 +129,7 @@ export function TeacherSidebar({ variant = "sidebar" }: TeacherSidebarProps) {
       ) : null}
 
       <Link
-        href="/teacher/settings"
+        href="/teacher/profile"
         className={cn(
           "no-underline outline-offset-2 transition-colors hover:bg-black/[0.04] focus-visible:outline focus-visible:ring-2 focus-visible:ring-ds-ink/20 dark:hover:bg-white/[0.06]",
           drawer ? "mb-4 flex flex-row items-center gap-3 rounded-xl py-2 pr-2" : "mb-8 flex flex-col items-center rounded-2xl py-1"
@@ -107,14 +172,21 @@ export function TeacherSidebar({ variant = "sidebar" }: TeacherSidebarProps) {
 
       {drawer ? (
         <div className="flex min-h-0 flex-1 flex-col gap-1.5">
-          <nav className="flex flex-col gap-1.5" aria-label="Навигация преподавателя">
+          <nav className="flex flex-col gap-1.5" aria-label={t("sidebar.navAria")}>
             {navLinkNodes}
           </nav>
+          {hskCard}
         </div>
       ) : (
-        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto" aria-label="Навигация преподавателя">
-          {navLinkNodes}
-        </nav>
+        <>
+          <nav
+            className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto"
+            aria-label={t("sidebar.navAria")}
+          >
+            {navLinkNodes}
+          </nav>
+          {hskCard}
+        </>
       )}
 
       <div className={cn("border-t border-black/10 dark:border-white/12", drawer ? "mt-4 pt-3" : "mt-6 pt-4")}>
@@ -127,7 +199,7 @@ export function TeacherSidebar({ variant = "sidebar" }: TeacherSidebarProps) {
           )}
         >
           <LogOut className="mr-2 h-4 w-4 shrink-0" aria-hidden />
-          Выйти
+          {t("sidebar.logout")}
         </Button>
       </div>
     </div>

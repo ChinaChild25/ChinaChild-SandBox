@@ -30,7 +30,7 @@ export default function TeacherSchedulePage() {
 
   return (
     <div className="ds-figma-page">
-      <div className="mx-auto w-full max-w-[min(100%,720px)]">
+      <div className="mx-auto w-full max-w-[var(--ds-shell-max-width)]">
         <nav className="mb-4 text-[14px] text-ds-text-tertiary">
           <Link href="/teacher/dashboard" className="text-ds-text-secondary no-underline hover:underline">
             Главная

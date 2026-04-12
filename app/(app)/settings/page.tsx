@@ -223,7 +223,10 @@ export default function SettingsPage() {
     Intermediate: "profile.levelIntermediate",
     Advanced: "profile.levelAdvanced"
   }[user.level ?? "Beginner"] as string
-  const subtitle = user.profileSubtitle ?? t("profile.subtitle", { level: t(levelKey) })
+  const subtitle =
+    user.role === "teacher"
+      ? (user.profileSubtitle ?? "Преподаватель")
+      : (user.profileSubtitle ?? t("profile.subtitle", { level: t(levelKey) }))
   const isDark = resolvedTheme === "dark"
 
   return (
