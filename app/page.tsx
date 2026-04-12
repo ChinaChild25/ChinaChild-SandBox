@@ -64,7 +64,9 @@ export default function AuthPage() {
               <>
                 <h1 className="ds-auth-screen-title">Сброс пароля</h1>
                 <p className="ds-auth-screen-sub">
-                  Укажите email — отправим ссылку для восстановления (в демо письмо не уходит).
+                  {usesSupabase
+                    ? "Укажите email — отправим ссылку для восстановления пароля."
+                    : "Укажите email — отправим ссылку для восстановления (в демо письмо не уходит)."}
                 </p>
                 <div className="ds-auth-form-panel">
                   <ForgotPasswordForm

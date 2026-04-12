@@ -7,6 +7,7 @@ import { mockTeacherUser, mockUser } from "./mock-data"
 import { formatUiMessage, readStoredUiLocale } from "./ui-messages"
 import { isSupabaseConfigured } from "./supabase/config"
 import { createBrowserSupabaseClient } from "./supabase/browser"
+import { getPasswordRecoveryRedirectUrl } from "./supabase/site-url"
 import { fetchProfileForAuthUser, updateProfileFields, type ProfileWritableFields } from "./supabase/profile"
 
 export const LAST_LOGIN_STORAGE_KEY = "chinachild-last-login"
@@ -30,6 +31,8 @@ interface AuthContextType {
   logout: () => void
   updateUser: (updates: Partial<User>) => void
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ ok: boolean; message: string }>
+  /** Запрос письма со ссылкой сброса пароля (Supabase). */
+  requestPasswordReset: (email: string) => Promise<AuthActionResult>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -39,6 +42,9 @@ function translateSupabaseError(message: string): string {
   if (m.includes("invalid login credentials")) return "Неверный email или пароль."
   if (m.includes("email not confirmed")) return "Подтвердите email по ссылке из письма (или отключите подтверждение в Supabase для разработки)."
   if (m.includes("user already registered")) return "Этот email уже зарегистрирован."
+  if (m.includes("rate limit") || m.includes("too many")) {
+    return "Слишком много запросов. Подождите несколько минут и попробуйте снова."
+  }
   if (m.includes("password")) return message
   return message
 }
@@ -325,6 +331,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [usesSupabase]
   )
 
+  const requestPasswordReset = useCallback(
+    async (email: string): Promise<AuthActionResult> => {
+      const trimmed = email.trim()
+      if (!trimmed) {
+        return { ok: false, message: "Укажите email." }
+      }
+
+      if (!usesSupabase) {
+        await new Promise((r) => setTimeout(r, 900))
+        return { ok: true }
+      }
+
+      const redirectTo = getPasswordRecoveryRedirectUrl()
+      if (!redirectTo) {
+        return {
+          ok: false,
+          message:
+            "Не удалось сформировать ссылку восстановления. Задайте NEXT_PUBLIC_SITE_URL в .env.local (например http://localhost:3000) или откройте сайт по обычному адресу."
+        }
+      }
+
+      const supabase = createBrowserSupabaseClient()
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmed, { redirectTo })
+      if (error) {
+        return { ok: false, message: translateSupabaseError(error.message) }
+      }
+      return { ok: true }
+    },
+    [usesSupabase]
+  )
+
   const changePassword = useCallback(
     async (currentPassword: string, newPassword: string) => {
       const loc = readStoredUiLocale()
@@ -367,7 +404,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         register,
         logout,
         updateUser,
-        changePassword
+        changePassword,
+        requestPasswordReset
       }}
     >
       {children}
