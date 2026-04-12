@@ -53,13 +53,13 @@ function buildConversations(): Conversation[] {
       name: "Группа HSK1",
       role: "Групповой чат",
       avatar: null,
-      lastMessage: "Лю Фан: Кто-нибудь ещё идёт на экскурсию?",
+      lastMessage: "Лю Фан: Напоминаю про домашку к пятнице",
       time: "10:05",
       unread: 5,
       seed: [
         { from: "them", text: "Всем привет! Не забудьте про встречу в пятницу", time: "9:00" },
         { from: "me", text: "Буду!", time: "9:05" },
-        { from: "them", text: "Лю Фан: Кто-нибудь ещё идёт на экскурсию?", time: "10:05" }
+        { from: "them", text: "Лю Фан: Напоминаю про домашку к пятнице", time: "10:05" }
       ]
     }
   ]

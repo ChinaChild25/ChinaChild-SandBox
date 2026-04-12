@@ -2,15 +2,15 @@
 
 import Link from "next/link"
 import { useMemo, useState } from "react"
-import { ChevronRight, FileCheck, Users, Video } from "lucide-react"
+import { ChevronRight, FileCheck, Video } from "lucide-react"
 
 import { getClassesForStudent, type ClassDisplayType } from "@/lib/classes-mock"
+import { getOnlineClassJoinUrl } from "@/lib/online-class-link"
 
-const classTypes: Array<ClassDisplayType | "Все"> = ["Все", "Урок", "Разговорный клуб", "Тест"]
+const classTypes: Array<ClassDisplayType | "Все"> = ["Все", "Урок", "Тест"]
 
 function typeIcon(t: ClassDisplayType) {
   if (t === "Тест") return <FileCheck size={20} className="text-ds-text-tertiary" aria-hidden />
-  if (t === "Разговорный клуб") return <Users size={20} className="text-ds-text-tertiary" aria-hidden />
   return <Video size={20} className="text-ds-text-tertiary" aria-hidden />
 }
 
@@ -85,40 +85,59 @@ export default function ClassesPage() {
 
 function ClassCard({ cls }: { cls: ReturnType<typeof getClassesForStudent>[0] }) {
   const href = cls.slug ? `/${cls.slug}` : "/schedule"
+  const joinUrl = getOnlineClassJoinUrl()
+  const showJoin =
+    cls.status === "upcoming" && cls.type === "Урок" && cls.slug != null
+
   return (
-    <Link
-      href={href}
-      className="ds-class-card group flex items-center gap-3 rounded-2xl p-3 no-underline outline-offset-2 transition-colors focus-visible:outline focus-visible:ring-2 focus-visible:ring-ds-ink/25 md:gap-4 md:p-4"
-    >
-      <div
-        className="flex h-[68px] w-[68px] shrink-0 flex-col items-center justify-center rounded-2xl md:h-[72px] md:w-[72px]"
-        style={{ backgroundColor: cls.bgColor, color: cls.textColor }}
+    <div className="ds-class-card group flex flex-col gap-3 rounded-2xl p-3 outline-offset-2 transition-colors focus-within:ring-2 focus-within:ring-ds-ink/25 sm:flex-row sm:items-center md:gap-4 md:p-4">
+      <Link
+        href={href}
+        className="flex min-w-0 flex-1 items-center gap-3 no-underline md:gap-4"
       >
-        <span className="text-[20px] font-semibold leading-none">{cls.dateLabel}</span>
-        <span className="mt-0.5 text-[10px] opacity-90">{cls.monthShort}</span>
-        <span className="mt-0.5 text-[10px] opacity-70">{cls.timeRange.split("–")[0]}</span>
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="mb-0.5 flex items-center gap-2">
-          {typeIcon(cls.type)}
-          <span className="text-[16px] font-medium text-ds-ink">{cls.title}</span>
+        <div
+          className="flex h-[68px] w-[68px] shrink-0 flex-col items-center justify-center rounded-2xl md:h-[72px] md:w-[72px]"
+          style={{ backgroundColor: cls.bgColor, color: cls.textColor }}
+        >
+          <span className="text-[20px] font-semibold leading-none">{cls.dateLabel}</span>
+          <span className="mt-0.5 text-[10px] opacity-90">{cls.monthShort}</span>
+          <span className="mt-0.5 text-[10px] opacity-70">{cls.timeRange.split("–")[0]}</span>
         </div>
-        <p className="truncate text-[13px] text-[var(--ds-text-secondary)]">{cls.description}</p>
-        <p className="text-[12px] text-ds-text-soft">
-          {cls.teacher} · {cls.timeRange}
-        </p>
-      </div>
 
-      {cls.grade != null ? (
-        <span className="shrink-0 text-[22px] font-bold text-ds-sage-strong">{cls.grade}</span>
+        <div className="min-w-0 flex-1">
+          <div className="mb-0.5 flex items-center gap-2">
+            {typeIcon(cls.type)}
+            <span className="text-[16px] font-medium text-ds-ink">{cls.title}</span>
+          </div>
+          <p className="truncate text-[13px] text-[var(--ds-text-secondary)]">{cls.description}</p>
+          <p className="text-[12px] text-ds-text-soft">
+            {cls.teacher} · {cls.timeRange}
+          </p>
+        </div>
+
+        {cls.grade != null ? (
+          <span className="shrink-0 text-[22px] font-bold text-ds-sage-strong">{cls.grade}</span>
+        ) : null}
+
+        <ChevronRight
+          size={20}
+          className="shrink-0 text-ds-chevron opacity-60 transition-opacity group-hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+          aria-hidden
+        />
+      </Link>
+
+      {showJoin ? (
+        <a
+          href={joinUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex w-full shrink-0 items-center justify-center gap-2 rounded-[var(--ds-radius-md)] bg-[#2d8cff] px-4 py-3.5 text-[15px] font-semibold text-white shadow-md transition-colors hover:bg-[#2171d8] sm:w-auto sm:min-w-[11.5rem] sm:py-3 dark:bg-[#0b5cff] dark:hover:bg-[#0a4ed6]"
+          aria-label="Подключиться к онлайн-занятию (Zoom или VooV)"
+        >
+          <Video className="h-5 w-5 shrink-0 opacity-95" aria-hidden />
+          Подключиться
+        </a>
       ) : null}
-
-      <ChevronRight
-        size={20}
-        className="shrink-0 text-ds-chevron opacity-60 transition-opacity group-hover:opacity-100 md:opacity-0 md:group-hover:opacity-100"
-        aria-hidden
-      />
-    </Link>
+    </div>
   )
 }

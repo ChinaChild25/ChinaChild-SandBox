@@ -1,48 +1,38 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { toast } from "@/hooks/use-toast"
 
 const weekDays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"] as const
+
+const SCHEDULE_YEAR = 2026
+const SCHEDULE_MONTH_APRIL = 3 // 0-based
+const LESSON_TIME = "19:00"
+const TEACHER_NAME = "Анастасия Пономарева"
+
+const MS_24H = 24 * 60 * 60 * 1000
 
 type EventItem = {
   time: string
   duration: number
   title: string
-  type: "lesson" | "club" | "test" | "event"
+  type: "lesson"
   teacher?: string
 }
 
-/** Индекс колонки: 0 = понедельник … 6 = воскресенье (как в Figma Schedule.tsx). */
-const scheduleByWeekday: Record<number, EventItem[]> = {
-  0: [{ time: "10:00", duration: 1.5, title: "Урок №8", type: "lesson", teacher: "Ли Вэй" }],
-  1: [],
-  2: [{ time: "16:00", duration: 2, title: "Разговорный клуб", type: "club", teacher: "Чэнь Мэйлин" }],
-  3: [],
-  4: [
-    { time: "9:00", duration: 3, title: "Урок №10", type: "lesson", teacher: "Ли Вэй" },
-    { time: "16:00", duration: 2, title: "Разговорный клуб", type: "club", teacher: "Чэнь Мэйлин" }
-  ],
-  5: [
-    { time: "9:00", duration: 1, title: "Тест №2", type: "test", teacher: "Ли Вэй" },
-    { time: "11:00", duration: 1, title: "Разговорный клуб", type: "club", teacher: "Чэнь Мэйлин" }
-  ],
-  6: [{ time: "9:00", duration: 5, title: "Экскурсия в Запретный город", type: "event" }]
-}
-
 const slotClass: Record<EventItem["type"], string> = {
-  lesson: "ds-schedule-slot--lesson",
-  club: "ds-schedule-slot--club",
-  test: "ds-schedule-slot--test",
-  event: "ds-schedule-slot--event"
-}
-
-const typeLabels: Record<string, string> = {
-  lesson: "Урок",
-  club: "Клуб",
-  test: "Тест",
-  event: "Событие"
+  lesson: "ds-schedule-slot--lesson"
 }
 
 function addDays(d: Date, n: number) {
@@ -59,6 +49,26 @@ function startOfWeekMonday(ref: Date) {
   return addDays(d, diff)
 }
 
+function isApril2026(d: Date) {
+  return d.getFullYear() === SCHEDULE_YEAR && d.getMonth() === SCHEDULE_MONTH_APRIL
+}
+
+/** Уроки Яны: пн и пт в 19:00, только даты в апреле 2026 */
+function eventsForDate(cellDate: Date): EventItem[] {
+  if (!isApril2026(cellDate)) return []
+  const dow = cellDate.getDay()
+  if (dow !== 1 && dow !== 5) return []
+  return [
+    {
+      time: LESSON_TIME,
+      duration: 1,
+      title: "Урок китайского",
+      type: "lesson",
+      teacher: TEACHER_NAME
+    }
+  ]
+}
+
 const MONTHS_GEN = [
   "января",
   "февраля",
@@ -73,14 +83,6 @@ const MONTHS_GEN = [
   "ноября",
   "декабря"
 ] as const
-
-/** Подписи недели как в Figmadasboard Schedule.tsx */
-function figmaDemoWeekLabel(offset: number) {
-  if (offset === 0) return "7 — 13 апреля 2025"
-  if (offset === 1) return "14 — 20 апреля 2025"
-  if (offset === -1) return "31 мар — 6 апреля 2025"
-  return null
-}
 
 function formatWeekLabel(monday: Date) {
   const sunday = addDays(monday, 6)
@@ -99,22 +101,79 @@ function isSameDay(a: Date, b: Date) {
   )
 }
 
-function ScheduleEventCard({ ev }: { ev: EventItem }) {
+function parseLessonStart(cellDate: Date, timeHHMM: string): Date {
+  const [h, m] = timeHHMM.split(":").map((x) => parseInt(x, 10))
+  const d = new Date(cellDate)
+  d.setHours(h, m, 0, 0)
+  return d
+}
+
+/** Перенос разрешён только если до начала занятия строго больше 24 часов */
+function canRescheduleLesson(cellDate: Date, timeStr: string): boolean {
+  const start = parseLessonStart(cellDate, timeStr)
+  return Date.now() < start.getTime() - MS_24H
+}
+
+const APRIL_FIRST = new Date(SCHEDULE_YEAR, SCHEDULE_MONTH_APRIL, 1)
+const FIRST_WEEK_MONDAY = startOfWeekMonday(APRIL_FIRST)
+const LAST_WEEK_MONDAY = startOfWeekMonday(new Date(SCHEDULE_YEAR, SCHEDULE_MONTH_APRIL, 30))
+const WEEK_COUNT =
+  Math.round((LAST_WEEK_MONDAY.getTime() - FIRST_WEEK_MONDAY.getTime()) / (7 * MS_24H)) + 1
+
+function initialWeekOffset(): number {
+  const now = new Date()
+  if (now.getFullYear() === SCHEDULE_YEAR && now.getMonth() === SCHEDULE_MONTH_APRIL) {
+    const mon = startOfWeekMonday(now)
+    const raw = Math.round((mon.getTime() - FIRST_WEEK_MONDAY.getTime()) / (7 * MS_24H))
+    return Math.max(0, Math.min(WEEK_COUNT - 1, raw))
+  }
+  return 0
+}
+
+type ScheduleEventCardProps = {
+  ev: EventItem
+  cellDate: Date
+  onReschedule: (cellDate: Date, ev: EventItem) => void
+}
+
+function ScheduleEventCard({ ev, cellDate, onReschedule }: ScheduleEventCardProps) {
+  const isLesson = ev.type === "lesson"
+  const canMove = isLesson && canRescheduleLesson(cellDate, ev.time)
+
   return (
     <div className={`ds-schedule-slot min-w-0 ${slotClass[ev.type]}`}>
-      <div className="text-[10px] opacity-80">{typeLabels[ev.type]}</div>
+      <div className="text-[10px] opacity-80">Онлайн-урок</div>
       <div className="text-[13px] font-semibold leading-snug sm:text-[12px]">{ev.title}</div>
       <div className="text-[11px] opacity-80">{ev.time}</div>
+      {ev.teacher ? <div className="mt-0.5 text-[11px] text-ds-text-secondary">{ev.teacher}</div> : null}
+      {isLesson ? (
+        <div className="mt-2 border-t border-black/[0.06] pt-2 dark:border-white/10">
+          {canMove ? (
+            <button
+              type="button"
+              onClick={() => onReschedule(cellDate, ev)}
+              className="text-[11px] font-medium text-ds-ink underline-offset-2 hover:underline dark:text-white"
+            >
+              Перенести занятие
+            </button>
+          ) : (
+            <p className="text-[10px] leading-snug text-ds-text-tertiary">
+              Перенос недоступен: до начала меньше 24 ч
+            </p>
+          )}
+        </div>
+      ) : null}
     </div>
   )
 }
 
 export default function SchedulePage() {
-  const [weekOffset, setWeekOffset] = useState(0)
+  const [weekOffset, setWeekOffset] = useState(initialWeekOffset)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [pending, setPending] = useState<{ cellDate: Date; ev: EventItem } | null>(null)
 
   const { monday, cells } = useMemo(() => {
-    const base = startOfWeekMonday(new Date())
-    const monday0 = addDays(base, weekOffset * 7)
+    const monday0 = addDays(FIRST_WEEK_MONDAY, weekOffset * 7)
     const cells = weekDays.map((_, i) => addDays(monday0, i))
     return { monday: monday0, cells }
   }, [weekOffset])
@@ -125,7 +184,24 @@ export default function SchedulePage() {
     return t
   }, [])
 
-  const weekTitle = figmaDemoWeekLabel(weekOffset) ?? formatWeekLabel(monday)
+  const weekTitle = formatWeekLabel(monday)
+
+  const atMin = weekOffset <= 0
+  const atMax = weekOffset >= WEEK_COUNT - 1
+
+  const openReschedule = useCallback((cellDate: Date, ev: EventItem) => {
+    setPending({ cellDate, ev })
+    setDialogOpen(true)
+  }, [])
+
+  const confirmReschedule = useCallback(() => {
+    setDialogOpen(false)
+    setPending(null)
+    toast({
+      title: "Запрос отправлен",
+      description: "Куратор свяжется с вами для согласования нового времени."
+    })
+  }, [])
 
   return (
     <div className="ds-figma-page">
@@ -135,15 +211,20 @@ export default function SchedulePage() {
             Расписание
           </h1>
           <p className="mt-1 text-[15px] text-[var(--ds-text-secondary)]">
-            Ваше еженедельное расписание занятий
+            Апрель {SCHEDULE_YEAR}: два занятия в неделю — понедельник и пятница, {LESSON_TIME}. Преподаватель:{" "}
+            {TEACHER_NAME}.
+          </p>
+          <p className="mt-1 text-[13px] text-ds-text-tertiary">
+            Перенос занятия доступен только если до его начала осталось больше 24 часов.
           </p>
         </div>
 
         <div className="mb-5 flex items-center justify-between gap-3 sm:mb-6">
           <button
             type="button"
+            disabled={atMin}
             onClick={() => setWeekOffset((w) => w - 1)}
-            className="ds-neutral-pill flex h-10 w-10 shrink-0 items-center justify-center rounded-full sm:h-9 sm:w-9"
+            className="ds-neutral-pill flex h-10 w-10 shrink-0 items-center justify-center rounded-full disabled:pointer-events-none disabled:opacity-35 sm:h-9 sm:w-9"
             aria-label="Предыдущая неделя"
           >
             <ChevronLeft size={18} aria-hidden />
@@ -153,18 +234,18 @@ export default function SchedulePage() {
           </div>
           <button
             type="button"
+            disabled={atMax}
             onClick={() => setWeekOffset((w) => w + 1)}
-            className="ds-neutral-pill flex h-10 w-10 shrink-0 items-center justify-center rounded-full sm:h-9 sm:w-9"
+            className="ds-neutral-pill flex h-10 w-10 shrink-0 items-center justify-center rounded-full disabled:pointer-events-none disabled:opacity-35 sm:h-9 sm:w-9"
             aria-label="Следующая неделя"
           >
             <ChevronRight size={18} aria-hidden />
           </button>
         </div>
 
-        {/* Широкий экран: 7 колонок (на планшете — список по дням) */}
         <div className="hidden gap-3 lg:grid lg:grid-cols-7">
           {cells.map((cellDate, i) => {
-            const events = weekOffset === 0 ? scheduleByWeekday[i] ?? [] : []
+            const events = eventsForDate(cellDate)
             const isToday = isSameDay(cellDate, today)
 
             return (
@@ -179,7 +260,7 @@ export default function SchedulePage() {
                 </div>
 
                 {events.map((ev, j) => (
-                  <ScheduleEventCard key={`${ev.time}-${j}`} ev={ev} />
+                  <ScheduleEventCard key={`${ev.time}-${j}`} ev={ev} cellDate={cellDate} onReschedule={openReschedule} />
                 ))}
 
                 {events.length === 0 ? <div className="ds-schedule-empty" /> : null}
@@ -188,10 +269,9 @@ export default function SchedulePage() {
           })}
         </div>
 
-        {/* Узкий экран: карточки по дням */}
         <div className="flex flex-col gap-3 lg:hidden">
           {cells.map((cellDate, i) => {
-            const events = weekOffset === 0 ? scheduleByWeekday[i] ?? [] : []
+            const events = eventsForDate(cellDate)
             const isToday = isSameDay(cellDate, today)
 
             return (
@@ -214,11 +294,11 @@ export default function SchedulePage() {
                 </div>
                 <div className="flex flex-col gap-2">
                   {events.map((ev, j) => (
-                    <ScheduleEventCard key={`${ev.time}-${j}`} ev={ev} />
+                    <ScheduleEventCard key={`${ev.time}-${j}`} ev={ev} cellDate={cellDate} onReschedule={openReschedule} />
                   ))}
                   {events.length === 0 ? (
                     <p className="rounded-[12px] border border-dashed border-black/10 py-6 text-center text-[14px] text-ds-text-tertiary dark:border-white/12">
-                      Нет событий
+                      Нет занятий
                     </p>
                   ) : null}
                 </div>
@@ -228,20 +308,39 @@ export default function SchedulePage() {
         </div>
 
         <div className="mt-6 flex flex-wrap gap-x-5 gap-y-3 border-t border-[#e8e8e8] pt-6 dark:border-white/10">
-          {Object.entries(typeLabels).map(([key, label]) => (
-            <div key={key} className="flex items-center gap-2">
-              <div
-                className={cn(
-                  "h-3.5 w-3.5 shrink-0 rounded-full",
-                  slotClass[key as EventItem["type"]],
-                  key === "club" && "box-border border border-black/12 dark:border-white/14"
-                )}
-              />
-              <span className="text-[13px] text-[var(--ds-text-secondary)]">{label}</span>
-            </div>
-          ))}
+          <div className="flex items-center gap-2">
+            <div className={cn("h-3.5 w-3.5 shrink-0 rounded-full", slotClass.lesson)} />
+            <span className="text-[13px] text-[var(--ds-text-secondary)]">Онлайн-урок</span>
+          </div>
         </div>
       </div>
+
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open)
+          if (!open) setPending(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Перенос занятия</DialogTitle>
+            <DialogDescription>
+              {pending
+                ? `Отправить запрос на перенос урока ${pending.ev.time} (${pending.cellDate.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })})?`
+                : null}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+              Отмена
+            </Button>
+            <Button type="button" onClick={confirmReschedule}>
+              Отправить запрос
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

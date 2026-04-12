@@ -1,7 +1,6 @@
 import { mockLessons } from "@/lib/mock-data"
-import { mentorsBySlug } from "@/lib/mentors"
 
-export type ClassDisplayType = "Урок" | "Разговорный клуб" | "Тест"
+export type ClassDisplayType = "Урок" | "Тест"
 
 export type ClassListItem = {
   id: string
@@ -19,29 +18,22 @@ export type ClassListItem = {
   slug?: string
 }
 
+const ONLINE_TEACHER = "Анастасия Пономарева"
+
 function lessonTitleToType(title: string, lessonType: string): ClassDisplayType {
   if (title.includes("Тест") || title.toLowerCase().includes("тест")) return "Тест"
-  if (title.includes("Разговорный") || title.includes("клуб")) return "Разговорный клуб"
-  if (title.includes("Посещение") || title.includes("Экскурсия")) return "Урок"
   if (lessonType === "Quiz") return "Тест"
   return "Урок"
 }
 
 const visualByType: Record<ClassDisplayType, { bg: string; text: string }> = {
   Урок: { bg: "#1a1a1a", text: "#ffffff" },
-  "Разговорный клуб": { bg: "#e5e5e5", text: "#1a1a1a" },
   Тест: { bg: "#f4c4c4", text: "#1a1a1a" }
 }
 
-const teacherPool = [mentorsBySlug["kim-ji-hun"]?.name ?? "Преподаватель", mentorsBySlug["eo-mi-ran"]?.name ?? "Куратор"]
-
-function pickTeacher(i: number) {
-  return teacherPool[i % teacherPool.length]
-}
-
-/** Upcoming + sample past rows aligned with Figma «Занятия» structure. */
+/** Предстоящие и прошедшие — только онлайн-уроки и при необходимости тесты */
 export function getClassesForStudent(): ClassListItem[] {
-  const fromLessons: ClassListItem[] = mockLessons.map((l, i) => {
+  const fromLessons: ClassListItem[] = mockLessons.map((l) => {
     const d = new Date(l.scheduledDate)
     const type = lessonTitleToType(l.title, l.type)
     const vis = visualByType[type]
@@ -56,9 +48,9 @@ export function getClassesForStudent(): ClassListItem[] {
       description: l.titleChinese,
       type,
       status: l.status === "completed" ? "completed" : "upcoming",
-      teacher: pickTeacher(i),
-      bgColor: l.title.includes("Посещение") || l.title.includes("Гугун") ? "#d4e7b0" : vis.bg,
-      textColor: l.title.includes("Посещение") || l.title.includes("Гугун") ? "#1a1a1a" : vis.text,
+      teacher: ONLINE_TEACHER,
+      bgColor: vis.bg,
+      textColor: vis.text,
       slug: l.slug
     }
   })
@@ -68,12 +60,12 @@ export function getClassesForStudent(): ClassListItem[] {
       id: "past-1",
       dateLabel: "5",
       monthShort: "апр",
-      timeRange: "9:00–12:00",
+      timeRange: "19:00–20:00",
       title: "Урок №9",
       description: "Приветствия и прощания. Повторение пиньинь.",
       type: "Урок",
       status: "completed",
-      teacher: pickTeacher(0),
+      teacher: ONLINE_TEACHER,
       bgColor: "#f5f5f5",
       textColor: "#888888",
       grade: 95,
@@ -81,14 +73,14 @@ export function getClassesForStudent(): ClassListItem[] {
     },
     {
       id: "past-2",
-      dateLabel: "7",
+      dateLabel: "4",
       monthShort: "апр",
-      timeRange: "16:00–18:00",
-      title: "Разговорный клуб",
-      description: "Разговор о семье и профессиях",
-      type: "Разговорный клуб",
+      timeRange: "19:00–20:00",
+      title: "Урок №8",
+      description: "Самопрезентация и простые вопросы.",
+      type: "Урок",
       status: "completed",
-      teacher: pickTeacher(1),
+      teacher: ONLINE_TEACHER,
       bgColor: "#f5f5f5",
       textColor: "#888888",
       grade: null,

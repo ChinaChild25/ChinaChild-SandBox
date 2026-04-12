@@ -8,10 +8,9 @@ export const FIGMA_STUDENT_AVATAR =
 export const FIGMA_TEACHERS = [
   {
     slug: "eo-mi-ran" as const,
-    name: "Чэнь Мэйлин",
+    name: "Денис Гасенко",
     role: "куратор группы",
-    photo:
-      "https://images.unsplash.com/photo-1758873268174-1f1d6a919a2c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxrb3JlYW4lMjB3b21hbiUyMHRlYWNoZXIlMjBwcm9mZXNzaW9uYWx8ZW58MXx8fHwxNzc1ODM4Njk0fDA&ixlib=rb-4.1.0&q=80&w=200"
+    photo: "/staff/denis-gasenko-curator.png"
   },
   {
     slug: "kim-ji-hun" as const,
@@ -25,8 +24,8 @@ export const FIGMA_TEACHERS = [
 export const FIGMA_UPCOMING_LESSONS = [
   {
     id: "figma-1",
-    date: 11,
-    time: "9:00–12:00",
+    date: 7,
+    time: "19:00–20:00",
     title: "Урок №10",
     description: "Числа на китайском. Как использовать 是.",
     bgColor: "#1a1a1a",
@@ -36,53 +35,52 @@ export const FIGMA_UPCOMING_LESSONS = [
   {
     id: "figma-2",
     date: 11,
-    time: "16:00–18:00",
-    title: "Разговорный клуб",
-    description: "Обсуждение фильма «Прощай, моя наложница»",
-    bgColor: "#e5e5e5",
-    textColor: "#1a1a1a",
-    hasIndicator: true,
-    href: "/schedule" as const
+    time: "19:00–20:00",
+    title: "Урок №11",
+    description: "Повседневный распорядок и время суток.",
+    bgColor: "#1a1a1a",
+    textColor: "#ffffff",
+    href: "/hsk1-tema11" as const
   },
   {
     id: "figma-3",
-    date: 12,
-    time: "9:00–10:00",
-    title: "Тест №2",
-    description: "Контроль знаний по всем предыдущим темам.",
-    bgColor: "#f4c4c4",
-    textColor: "#1a1a1a",
-    href: "/hsk-1" as const
+    date: 14,
+    time: "19:00–20:00",
+    title: "Урок №12",
+    description: "Транспорт и дорога до школы.",
+    bgColor: "#1a1a1a",
+    textColor: "#ffffff",
+    href: "/hsk1-tema12" as const
   },
   {
     id: "figma-4",
-    date: 12,
-    time: "11:00–12:00",
-    title: "Разговорный клуб",
-    description: "Обсуждение любимых книг",
-    bgColor: "#e5e5e5",
-    textColor: "#1a1a1a",
-    href: "/schedule" as const
+    date: 18,
+    time: "19:00–20:00",
+    title: "Урок №13",
+    description: "Цвета и простые описания.",
+    bgColor: "#1a1a1a",
+    textColor: "#ffffff",
+    href: "/hsk1-tema13" as const
   },
   {
     id: "figma-5",
-    date: 13,
-    time: "9:00–14:00",
-    title: "Экскурсия в Запретный город",
-    description: "Посещение дворцового комплекса. Билет: 60 юаней",
-    bgColor: "#d4e7b0",
-    textColor: "#1a1a1a",
-    href: "/schedule" as const
+    date: 21,
+    time: "19:00–20:00",
+    title: "Урок №14",
+    description: "Одежда и погода.",
+    bgColor: "#1a1a1a",
+    textColor: "#ffffff",
+    href: "/hsk1-tema14" as const
   }
 ] as const
 
 export const FIGMA_CALENDAR = {
   monthTitle: "апрель",
-  year: 2025,
-  startOffset: 2,
-  /** Точки под датами с событиями — как в макете главного экрана */
-  eventDays: [8, 15, 22, 29] as const,
-  today: 11
+  year: 2026,
+  startOffset: 3,
+  /** Пн/пт с занятиями в апреле */
+  eventDays: [3, 7, 10, 14, 17, 21, 24, 28] as const,
+  today: 12
 } as const
 
 /** Первые 4 пункта в блоке «Предстоящие занятия» на главной */

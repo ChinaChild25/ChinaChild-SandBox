@@ -632,6 +632,17 @@ html:not(.dark)[data-ui-accent="orange"] {
     background-color: var(--ds-sidebar);
   }
 
+  /** Десктоп: нейтральный серый, без оттенка акцентного сайдбара (sage и т.д.) */
+  @media (min-width: 1024px) {
+    .ds-stat-card--muted {
+      background-color: var(--ds-neutral-row);
+    }
+
+    .dark .ds-stat-card--muted {
+      background-color: var(--ds-surface-muted);
+    }
+  }
+
   .ds-stat-card--dark {
     background-color: var(--ds-ink);
     color: #ffffff;
@@ -1839,33 +1850,36 @@ html:not(.dark)[data-ui-accent="orange"] {
     border: 1px solid rgb(255 255 255 / 0.12);
   }
 
-  /* —— Оплата: варианты карточек (светлая / тёмная тема) —— */
+  /* —— Оплата: варианты карточек (светлая / тёмная тема), без обводки —— */
+  .ds-payment-page .ds-settings-panel.ds-payment-panel {
+    border: none;
+    box-shadow: none;
+  }
+
+  .dark .ds-payment-page .ds-settings-panel.ds-payment-panel {
+    border: none;
+  }
+
   .ds-payment-page .ds-payment-panel.ds-payment-panel--neutral {
     background-color: var(--ds-neutral-row);
-    border: 1px solid rgb(0 0 0 / 0.06);
-    box-shadow: none;
   }
 
   .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--neutral {
     background-color: var(--ds-surface-muted);
-    border-color: rgb(255 255 255 / 0.1);
   }
 
+  /* Как блок «HSK 1 — Прогресс» в сайдбаре: bg-ds-sage */
   .ds-payment-page .ds-payment-panel.ds-payment-panel--sage {
-    background-color: #e8f0df;
-    border: 1px solid rgb(138 184 74 / 0.28);
-    box-shadow: none;
+    background-color: var(--ds-sage);
   }
 
   .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--sage {
-    background-color: rgb(61 77 46 / 0.45);
-    border-color: rgb(155 196 92 / 0.35);
+    background-color: var(--ds-sage);
   }
 
   .ds-payment-page .ds-payment-panel.ds-payment-panel--ink {
     background-color: var(--ds-ink);
     color: #ffffff;
-    border: 1px solid rgb(0 0 0 / 0.08);
     box-shadow: 0 8px 28px rgb(0 0 0 / 0.14);
   }
 
@@ -1899,36 +1913,39 @@ html:not(.dark)[data-ui-accent="orange"] {
     opacity: 0.92;
   }
 
+  /**
+   * Тёмная тема: та же логика, что в светлой — тёмная «чернильная» плашка и светлый текст.
+   * Раньше фон был #ececec, а var(--ds-ink) в .dark = светлый — заголовок сливался с карточкой.
+   */
   .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink {
-    background-color: #ececec;
-    color: var(--ds-ink);
-    border-color: rgb(255 255 255 / 0.14);
-    box-shadow: 0 10px 36px rgb(0 0 0 / 0.45);
+    background-color: #1a1a1a;
+    color: #ffffff;
+    box-shadow: 0 8px 32px rgb(0 0 0 / 0.55);
   }
 
   .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-settings-section-head {
-    color: var(--ds-ink);
+    color: #ffffff;
   }
 
   .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-settings-section-head svg {
-    color: var(--ds-text-tertiary);
+    color: rgb(255 255 255 / 0.78);
   }
 
   .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-settings-subtitle {
-    color: var(--ds-text-secondary);
+    color: rgb(255 255 255 / 0.92);
   }
 
   .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .text-ds-ink {
-    color: var(--ds-ink);
+    color: #ffffff;
   }
 
   .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .text-ds-text-tertiary {
-    color: var(--ds-text-tertiary);
+    color: rgb(255 255 255 / 0.72);
   }
 
   .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-payment-panel--ink-cta {
-    background-color: var(--ds-ink);
-    color: #ffffff;
+    background-color: #ffffff;
+    color: #141414;
   }
 
   .ds-settings-section-head {

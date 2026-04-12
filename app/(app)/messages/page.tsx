@@ -79,8 +79,8 @@ function MessagesPageInner() {
 
   return (
     <div className="ds-figma-page ds-messages-page flex min-h-0 flex-1 flex-col">
-      <div className="flex w-full min-h-0 flex-1 flex-col lg:h-[calc(100dvh-10rem)] lg:max-h-[calc(100dvh-10rem)]">
-        <div className="ds-messages-shell min-h-0 flex-1 flex-col lg:flex-row lg:min-h-0">
+      <div className="flex w-full min-h-0 flex-1 flex-col lg:h-[min(100%,calc(100dvh-9rem))] lg:max-h-[calc(100dvh-9rem)]">
+        <div className="ds-messages-shell min-h-0 flex-1 flex-col lg:h-full lg:min-h-0 lg:flex-row lg:items-stretch">
           <div
             className={cn(
               "ds-messages-sidebar max-h-[min(40dvh,340px)] shrink-0 lg:max-h-none lg:min-h-0",
@@ -141,11 +141,11 @@ function MessagesPageInner() {
           <div
             className={cn(
               "flex min-h-0 min-w-0 flex-1 flex-col",
-              !showChat && "hidden",
-              "lg:flex"
+              "lg:grid lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)_auto]",
+              !showChat && "hidden"
             )}
           >
-            <header className="flex shrink-0 items-center gap-3 border-b border-[#e8e8e8] p-4 md:p-5 dark:border-[#333333]">
+            <header className="flex shrink-0 items-center gap-3 border-b border-[#e8e8e8] p-4 md:p-5 dark:border-[#333333] lg:row-start-1">
               {!wide ? (
                 <button
                   type="button"
@@ -179,7 +179,7 @@ function MessagesPageInner() {
               ) : null}
             </header>
 
-            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4 md:p-5">
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4 md:p-5 lg:row-start-2 lg:min-h-0">
               {messages.map((msg, i) => (
                 <div key={`${msg.time}-${i}`} className={cn("flex", msg.from === "me" ? "justify-end" : "justify-start")}>
                   <div
@@ -202,7 +202,7 @@ function MessagesPageInner() {
               ))}
             </div>
 
-            <div className="flex shrink-0 items-center gap-3 border-t border-[#e8e8e8] bg-ds-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-[#333333]">
+            <div className="flex shrink-0 items-center gap-3 border-t border-[#e8e8e8] bg-ds-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-[#333333] lg:row-start-3">
               <input
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
