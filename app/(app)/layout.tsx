@@ -9,6 +9,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { ChinaChildSidebarLogo } from "@/components/brand-logo"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { useUiLocale } from "@/lib/ui-locale"
 
 export default function AppLayout({
   children
@@ -17,6 +18,7 @@ export default function AppLayout({
 }) {
   const router = useRouter()
   const { isAuthenticated } = useAuth()
+  const { t } = useUiLocale()
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -28,7 +30,7 @@ export default function AppLayout({
     return (
       <div className="ds-app-canvas">
         <div className="flex min-h-screen items-center justify-center">
-          <div className="animate-pulse text-muted-foreground">Загрузка...</div>
+          <div className="animate-pulse text-muted-foreground">{t("app.loading")}</div>
         </div>
       </div>
     )
@@ -43,7 +45,7 @@ export default function AppLayout({
 
         <div className="ds-figma-shell-main">
           <header className="flex items-center justify-between gap-3 border-b border-black/10 bg-[#e8e8e8] px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 dark:border-white/10 dark:bg-[#1a1a1a] lg:hidden">
-            <Link href="/dashboard" className="shrink-0" aria-label="ChinaChild">
+            <Link href="/dashboard" className="shrink-0" aria-label={t("sidebar.logoAria")}>
               <ChinaChildSidebarLogo size={40} />
             </Link>
             <Sheet>
@@ -52,7 +54,7 @@ export default function AppLayout({
                   variant="outline"
                   size="icon"
                   className="rounded-2xl bg-white shadow-none transition-colors hover:bg-ds-surface-hover dark:bg-[#262626] dark:hover:bg-[#333333]"
-                  aria-label="Открыть меню"
+                  aria-label={t("app.openMenu")}
                 >
                   <Menu className="h-5 w-5" />
                 </Button>

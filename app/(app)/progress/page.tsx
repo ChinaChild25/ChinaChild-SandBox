@@ -20,11 +20,22 @@ const gradesData = [
   { subject: "Тема №7 — Члены семьи", date: "5 апр", score: 90, maxScore: 100, type: "ДЗ" }
 ]
 
-/** Как Figmadasboard Grades.tsx getScoreColor */
-function scoreColor(score: number) {
-  if (score >= 90) return "#8ab84a"
-  if (score >= 75) return "#e6a817"
-  return "#c06060"
+function scoreTier(score: number): "high" | "mid" | "low" {
+  if (score >= 90) return "high"
+  if (score >= 75) return "mid"
+  return "low"
+}
+
+function scoreBarColor(tier: "high" | "mid" | "low") {
+  if (tier === "high") return "var(--ds-sage-strong)"
+  if (tier === "mid") return "#e6a817"
+  return "var(--ds-pink-strong)"
+}
+
+function scoreBubbleBg(tier: "high" | "mid" | "low") {
+  if (tier === "high") return "color-mix(in srgb, var(--ds-sage-strong) 20%, transparent)"
+  if (tier === "mid") return "color-mix(in srgb, #e6a817 20%, transparent)"
+  return "color-mix(in srgb, var(--ds-pink-strong) 20%, transparent)"
 }
 
 export default function ProgressPage() {
@@ -61,7 +72,10 @@ export default function ProgressPage() {
         </div>
 
         <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="flex items-center gap-4 rounded-[24px] bg-ds-sidebar p-5 ring-1 ring-black/[0.04] dark:ring-white/10">
+          <div
+            className="flex items-center gap-4 rounded-[24px] p-5 ring-1 ring-black/[0.04] dark:ring-white/10"
+            style={{ backgroundColor: "var(--ds-neutral-chrome)" }}
+          >
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-ds-surface dark:bg-zinc-800/90">
               <TrendingUp size={22} className="text-ds-sage-strong" aria-hidden />
             </div>
@@ -95,7 +109,10 @@ export default function ProgressPage() {
         </div>
 
         {!notifPrefs.homework ? (
-          <div className="mb-6 rounded-[24px] border border-black/[0.08] bg-ds-surface-muted px-4 py-3 text-[14px] text-ds-text-secondary dark:border-white/10">
+          <div
+            className="mb-6 rounded-[24px] border border-black/[0.08] px-4 py-3 text-[14px] text-ds-text-secondary dark:border-white/10"
+            style={{ backgroundColor: "var(--ds-neutral-row)" }}
+          >
             Напоминания о дедлайнах домашних заданий отключены в{" "}
             <Link href="/settings" className="font-medium text-ds-ink underline-offset-2 hover:underline dark:text-white">
               настройках
@@ -119,7 +136,7 @@ export default function ProgressPage() {
               className={`rounded-full px-4 py-2 text-[14px] transition-colors ${
                 filter === key
                   ? "bg-ds-ink text-white dark:bg-[#e8e8e8] dark:text-[#141414]"
-                  : "bg-ds-sidebar text-ds-ink hover:bg-ds-sidebar-hover dark:hover:bg-ds-sidebar-hover"
+                  : "ds-neutral-pill text-ds-ink"
               }`}
             >
               {label}
@@ -129,17 +146,20 @@ export default function ProgressPage() {
 
         <div className="space-y-2">
           {filtered.map((grade, i) => {
-            const col = scoreColor(grade.score)
+            const tier = scoreTier(grade.score)
+            const bar = scoreBarColor(tier)
+            const bubbleBg = scoreBubbleBg(tier)
             return (
               <div
                 key={`${grade.subject}-${i}`}
-                className="flex items-center gap-4 rounded-2xl bg-ds-surface-muted p-4"
+                className="flex items-center gap-4 rounded-2xl p-4"
+                style={{ backgroundColor: "var(--ds-neutral-row)" }}
               >
                 <div
                   className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"
-                  style={{ backgroundColor: `${col}22` }}
+                  style={{ backgroundColor: bubbleBg }}
                 >
-                  <span className="text-[16px] font-bold" style={{ color: col }}>
+                  <span className="text-[16px] font-bold" style={{ color: bar }}>
                     {grade.score}
                   </span>
                 </div>
@@ -152,10 +172,13 @@ export default function ProgressPage() {
                 </div>
 
                 <div className="shrink-0 text-right">
-                  <div className="h-2 w-24 overflow-hidden rounded-full bg-ds-sidebar">
+                  <div
+                    className="h-2 w-24 overflow-hidden rounded-full"
+                    style={{ backgroundColor: "var(--ds-neutral-chrome)" }}
+                  >
                     <div
                       className="h-full rounded-full"
-                      style={{ width: `${grade.score}%`, backgroundColor: col }}
+                      style={{ width: `${grade.score}%`, backgroundColor: bar }}
                     />
                   </div>
                   <div className="mt-0.5 text-[11px] text-ds-text-tertiary">

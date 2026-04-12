@@ -41,7 +41,7 @@ export default function ClassesPage() {
               className={`rounded-full px-4 py-2 text-[14px] transition-colors ${
                 activeFilter === t
                   ? "bg-ds-ink text-white dark:bg-[#e8e8e8] dark:text-[#141414]"
-                  : "bg-ds-sidebar text-ds-ink hover:bg-ds-sidebar-hover dark:hover:bg-ds-sidebar-hover"
+                  : "ds-neutral-pill text-ds-ink"
               }`}
             >
               {t}

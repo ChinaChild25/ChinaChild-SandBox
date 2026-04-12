@@ -14,12 +14,12 @@
   }
 }
 
-.ds-auth-marketing__float {
+.ds-auth-marketing__brand.ds-auth-marketing__float {
   animation: ds-auth-float 7s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ds-auth-marketing__float {
+  .ds-auth-marketing__brand.ds-auth-marketing__float {
     animation: none;
   }
 }

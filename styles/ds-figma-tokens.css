@@ -24,6 +24,15 @@
   --ds-sidebar-width: 280px;
   --ds-sidebar-padding: 24px;
 
+  /**
+   * Нейтральный UI (фильтры, строки списков, навигация расписания):
+   * не меняется при data-ui-accent — везде одинаковый серый.
+   */
+  --ds-neutral-chrome: #e8e8e8;
+  --ds-neutral-chrome-hover: #d8d8d8;
+  --ds-neutral-row: #f5f5f5;
+  --ds-neutral-row-hover: #ebebeb;
+
   /* —— Text hierarchy (exact Figma greys) —— */
   --ds-text-primary: #1a1a1a;
   --ds-text-secondary: #666666;
@@ -236,6 +245,11 @@
   --ds-stat-fraction-muted-dark: #d4d4d4;
   --ds-white-60: rgb(255 255 255 / 0.12);
   --ds-white-60-progress: rgb(255 255 255 / 0.45);
+
+  --ds-neutral-chrome: #1a1a1a;
+  --ds-neutral-chrome-hover: #2f2f2f;
+  --ds-neutral-row: #1e1e1e;
+  --ds-neutral-row-hover: #262626;
 }
 
 /* Light theme colour accents (Figma «Зелёная» / «Розовая») */
@@ -245,6 +259,9 @@ html:not(.dark)[data-ui-accent="sage"] {
   --ds-sidebar-hover: #c4d8b0;
   --ds-panel-muted: #dfe8d4;
   --ds-surface-muted: #e6eedc;
+  --ds-sage: #d4e7b0;
+  --ds-sage-strong: #8ab84a;
+  --ds-sage-hover: #6d9838;
 }
 
 html:not(.dark)[data-ui-accent="pink"] {
@@ -253,6 +270,9 @@ html:not(.dark)[data-ui-accent="pink"] {
   --ds-sidebar-hover: #e4c4c4;
   --ds-panel-muted: #ead5d5;
   --ds-surface-muted: #f0dede;
+  --ds-sage: #efd6d6;
+  --ds-sage-strong: #c06060;
+  --ds-sage-hover: #a84848;
 }
 
 html:not(.dark)[data-ui-accent="blue"] {
@@ -261,6 +281,9 @@ html:not(.dark)[data-ui-accent="blue"] {
   --ds-sidebar-hover: #c4d2e8;
   --ds-panel-muted: #dde6f4;
   --ds-surface-muted: #e6ecf8;
+  --ds-sage: #d4dff4;
+  --ds-sage-strong: #3d6ea8;
+  --ds-sage-hover: #2f5685;
 }
 
 html:not(.dark)[data-ui-accent="orange"] {
@@ -269,6 +292,9 @@ html:not(.dark)[data-ui-accent="orange"] {
   --ds-sidebar-hover: #e8d8c4;
   --ds-panel-muted: #f2e8dc;
   --ds-surface-muted: #f8efe4;
+  --ds-sage: #fce8d4;
+  --ds-sage-strong: #c0631a;
+  --ds-sage-hover: #9e4f14;
 }
 
 @layer components {
@@ -716,7 +742,7 @@ html:not(.dark)[data-ui-accent="orange"] {
     gap: 4px;
     font-size: 15px;
     font-weight: 500;
-    color: #8ab84a;
+    color: var(--ds-sage-strong);
     text-decoration: none;
     transition:
       color 0.15s ease,
@@ -725,23 +751,23 @@ html:not(.dark)[data-ui-accent="orange"] {
 
   .ds-dashboard-stat-link:hover {
     gap: 6px;
-    color: #6d9838;
+    color: var(--ds-sage-hover);
   }
 
   .ds-stat-card--dark .ds-dashboard-stat-link {
-    color: #8ab84a;
+    color: var(--ds-sage-strong);
   }
 
   .ds-stat-card--dark .ds-dashboard-stat-link:hover {
-    color: #b8d97a;
+    color: color-mix(in srgb, var(--ds-sage-strong) 58%, #ffffff);
   }
 
   .ds-stat-card--sage .ds-dashboard-stat-link {
-    color: #3f6212;
+    color: color-mix(in srgb, var(--ds-sage-strong) 42%, var(--ds-ink));
   }
 
   .ds-stat-card--sage .ds-dashboard-stat-link:hover {
-    color: #365314;
+    color: color-mix(in srgb, var(--ds-sage-strong) 32%, var(--ds-ink));
   }
 
   .dark .ds-stat-card--sage .ds-dashboard-stat-link {
@@ -749,7 +775,7 @@ html:not(.dark)[data-ui-accent="orange"] {
   }
 
   .dark .ds-stat-card--sage .ds-dashboard-stat-link:hover {
-    color: #d9f99d;
+    color: color-mix(in srgb, var(--ds-sage-hover) 72%, #ffffff);
   }
 
   /* Главная: ширина и ритм как в v0 (узкая колонка ~760px → на xl шире под две колонки) */
@@ -1034,7 +1060,18 @@ html:not(.dark)[data-ui-accent="orange"] {
     flex-shrink: 0;
     flex-direction: column;
     overflow: hidden;
-    background-color: #2d1f4a;
+    background: linear-gradient(
+      128deg,
+      #f5f3ff 0%,
+      #ede9fe 22%,
+      #ddd6fe 48%,
+      #c4b5fd 72%,
+      #a78bfa 100%
+    );
+  }
+
+  .dark .ds-auth-marketing {
+    background: linear-gradient(128deg, #0a0912 0%, #1e1b4b 40%, #312e81 78%, #0f172a 100%);
   }
 
   @media (min-width: 1024px) {
@@ -1045,20 +1082,68 @@ html:not(.dark)[data-ui-accent="orange"] {
     }
   }
 
-  .ds-auth-marketing__img {
+  .ds-auth-marketing__logo-corner {
     position: absolute;
-    inset: 0;
-    height: 100%;
-    width: 100%;
-    object-fit: cover;
-    object-position: center 30%;
+    z-index: 4;
+    top: max(1rem, env(safe-area-inset-top));
+    left: max(1rem, env(safe-area-inset-left));
+    width: 52px;
+    height: 52px;
+  }
+
+  .ds-auth-marketing__logo-img {
+    display: block;
+    height: 52px;
+    width: 52px;
+    object-fit: contain;
+  }
+
+  .dark .ds-auth-marketing__logo-img {
+    filter: invert(1);
+  }
+
+  .ds-auth-marketing__brand {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    padding: 4.5rem 1.25rem 2.5rem;
+  }
+
+  @media (min-width: 1024px) {
+    .ds-auth-marketing__brand {
+      padding: 3rem 2rem;
+    }
+  }
+
+  .ds-auth-marketing__brand-text {
+    max-width: 18ch;
+    text-align: center;
+    font-size: clamp(2.5rem, 9vw, 6.25rem);
+    font-weight: var(--ds-font-bold);
+    line-height: 0.92;
+    letter-spacing: -0.045em;
+    color: rgb(49 46 89 / 0.92);
+    text-shadow: 0 2px 24px rgb(255 255 255 / 0.35);
+  }
+
+  .dark .ds-auth-marketing__brand-text {
+    color: rgb(255 255 255 / 0.94);
+    text-shadow: 0 12px 48px rgb(0 0 0 / 0.35);
   }
 
   .ds-auth-marketing__shine {
     pointer-events: none;
     position: absolute;
     inset: 0;
-    background: linear-gradient(125deg, rgb(255 255 255 / 0.08) 0%, transparent 42%, transparent 100%);
+    z-index: 2;
+    background: linear-gradient(125deg, rgb(255 255 255 / 0.35) 0%, transparent 38%, transparent 100%);
+  }
+
+  .dark .ds-auth-marketing__shine {
+    background: linear-gradient(125deg, rgb(255 255 255 / 0.06) 0%, transparent 40%, transparent 100%);
   }
 
   .ds-auth-form-aside {
@@ -1646,17 +1731,44 @@ html:not(.dark)[data-ui-accent="orange"] {
 
   .ds-settings-v0-stack {
     display: flex;
-    max-width: min(100%, 854px);
+    max-width: min(100%, 1100px);
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1.25rem;
     margin-left: auto;
     margin-right: auto;
   }
 
   @media (min-width: 768px) {
     .ds-settings-v0-stack {
-      gap: 2rem;
+      gap: 1.5rem;
     }
+  }
+
+  /** Десктоп: 2×2 карточки; мобилка — одна колонка */
+  .ds-settings-panels-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  @media (min-width: 1024px) {
+    .ds-settings-panels-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.25rem 1.25rem;
+      align-items: start;
+    }
+  }
+
+  /** Неактивные фильтры / техкнопки — серые на любом акценте */
+  .ds-neutral-pill {
+    background-color: var(--ds-neutral-chrome);
+    color: var(--ds-ink);
+    transition: background-color 0.15s ease;
+  }
+
+  .ds-neutral-pill:hover {
+    background-color: var(--ds-neutral-chrome-hover);
   }
 
   .ds-settings-page-title {
@@ -1681,6 +1793,12 @@ html:not(.dark)[data-ui-accent="orange"] {
     }
   }
 
+  @media (min-width: 1024px) {
+    .ds-settings-page-header .ds-settings-page-lead {
+      margin-bottom: 1rem;
+    }
+  }
+
   .ds-settings-panel {
     border-radius: 28px;
     background-color: #ffffff;
@@ -1690,7 +1808,18 @@ html:not(.dark)[data-ui-accent="orange"] {
 
   @media (min-width: 768px) {
     .ds-settings-panel {
-      padding: 1.5rem 1.5rem 1.75rem;
+      padding: 1.35rem 1.35rem 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .ds-settings-panel {
+      padding: 1.25rem 1.35rem 1.4rem;
+    }
+
+    .ds-settings-panel .ds-settings-section-head {
+      margin-bottom: var(--ds-space-4);
+      font-size: 1.05rem;
     }
   }
 
@@ -1721,6 +1850,177 @@ html:not(.dark)[data-ui-accent="orange"] {
     font-size: 0.8125rem;
     font-weight: 500;
     color: var(--ds-text-tertiary);
+  }
+
+  /** Шапка профиля куратора / преподавателя (как референс Figma) */
+  .ds-mentor-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  @media (min-width: 768px) {
+    .ds-mentor-hero {
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 2.5rem;
+    }
+  }
+
+  .ds-mentor-hero__photo-wrap {
+    position: relative;
+    margin-left: auto;
+    margin-right: auto;
+    height: 168px;
+    width: 168px;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-radius: var(--ds-radius-lg);
+    background-color: #f0f0f0;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  }
+
+  @media (min-width: 768px) {
+    .ds-mentor-hero__photo-wrap {
+      margin-left: 0;
+      margin-right: 0;
+      height: 176px;
+      width: 176px;
+    }
+  }
+
+  .ds-mentor-hero__stats-row {
+    display: none;
+    margin-top: 1.5rem;
+    width: 100%;
+    align-items: center;
+  }
+
+  @media (min-width: 768px) {
+    .ds-mentor-hero__stats-row {
+      display: flex;
+      margin-top: 1.75rem;
+    }
+  }
+
+  .ds-mentor-hero__stat-divider {
+    height: 2rem;
+    width: 1px;
+    flex-shrink: 0;
+    align-self: center;
+    background-color: rgb(0 0 0 / 0.1);
+  }
+
+  .dark .ds-mentor-hero__stat-divider {
+    background-color: rgb(255 255 255 / 0.12);
+  }
+
+  .ds-mentor-hero__stat-cell {
+    display: flex;
+    flex-direction: column;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  .ds-mentor-hero__stat-cell:first-of-type {
+    padding-left: 0;
+  }
+
+  .ds-mentor-hero__stat-cell:last-of-type {
+    padding-right: 0;
+  }
+
+  .ds-mentor-hero__stat-value {
+    font-size: var(--ds-text-2xl);
+    font-weight: var(--ds-font-bold);
+    line-height: 1;
+    color: var(--ds-ink);
+  }
+
+  .ds-mentor-hero__stat-label {
+    margin-top: 0.35rem;
+    font-size: var(--ds-text-sm-plus);
+    color: #666666;
+  }
+
+  .dark .ds-mentor-hero__stat-label {
+    color: var(--ds-text-tertiary);
+  }
+
+  .ds-mentor-hero__actions {
+    margin-top: 1.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  @media (min-width: 768px) {
+    .ds-mentor-hero__actions {
+      justify-content: flex-start;
+    }
+  }
+
+  /**
+   * Профиль преподавателя — блок «Предметы»: фон из палитры акцента (--ds-sage*),
+   * заголовок и пилюли в тёмном оттенке того же ряда (как референс Figma).
+   */
+  .ds-mentor-subjects-card {
+    border-radius: var(--ds-radius-lg);
+    background-color: color-mix(in srgb, var(--ds-sage) 78%, #ffffff);
+    padding: var(--ds-space-6);
+  }
+
+  @media (min-width: 768px) {
+    .ds-mentor-subjects-card {
+      padding: var(--ds-space-7);
+    }
+  }
+
+  .dark .ds-mentor-subjects-card {
+    background-color: color-mix(in srgb, var(--ds-sage) 55%, #0f0f0f);
+  }
+
+  .ds-mentor-subjects-card__head {
+    display: flex;
+    margin-bottom: var(--ds-space-4);
+    align-items: center;
+    gap: var(--ds-space-2);
+    font-size: var(--ds-text-lg);
+    font-weight: var(--ds-font-semibold);
+    /* тёмный «лесной» оттенок в ряду акцента */
+    color: color-mix(in srgb, var(--ds-sage-strong) 52%, #0f2912 48%);
+  }
+
+  .dark .ds-mentor-subjects-card__head {
+    color: color-mix(in srgb, var(--ds-sage-hover) 70%, #f0fdf4 30%);
+  }
+
+  .ds-mentor-subjects-card__head svg {
+    flex-shrink: 0;
+    color: inherit;
+  }
+
+  .ds-mentor-subjects-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ds-space-2);
+  }
+
+  .ds-mentor-subjects-pill {
+    border-radius: 9999px;
+    padding: 0.5rem 0.875rem;
+    font-size: var(--ds-text-sm-plus);
+    font-weight: var(--ds-font-medium);
+    /* пилюли светлее карточки, текст того же тёмного зелёного ряда */
+    background-color: color-mix(in srgb, var(--ds-sage) 22%, #ffffff 78%);
+    color: color-mix(in srgb, var(--ds-sage-strong) 52%, #0f2912 48%);
+  }
+
+  .dark .ds-mentor-subjects-pill {
+    background-color: color-mix(in srgb, var(--ds-sage) 35%, #ffffff 12%);
+    color: color-mix(in srgb, var(--ds-sage-hover) 65%, #ffffff 35%);
   }
 
   .ds-settings-label {
@@ -1853,12 +2153,12 @@ html:not(.dark)[data-ui-accent="orange"] {
     justify-content: center;
     border-radius: 9999px;
     background-color: rgb(255 255 255 / 0.95);
-    color: #166534;
+    color: var(--ds-sage-hover);
     box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
   }
 
   .ds-settings-panel .ds-figma-toggle--on {
-    background-color: #8ab84a;
+    background-color: var(--ds-sage-strong);
   }
 
   .ds-settings-panel .ds-figma-toggle--off {
@@ -1923,7 +2223,7 @@ html:not(.dark)[data-ui-accent="orange"] {
   }
 
   .ds-schedule-day-head--muted {
-    background-color: var(--ds-canvas);
+    background-color: var(--ds-neutral-chrome);
     color: var(--ds-text-tertiary);
   }
 
@@ -1942,7 +2242,7 @@ html:not(.dark)[data-ui-accent="orange"] {
     min-height: 60px;
     flex: 1;
     border-radius: var(--ds-radius-md);
-    border: 2px dashed var(--ds-sidebar);
+    border: 2px dashed var(--ds-neutral-chrome-hover);
   }
 
   .dark .ds-schedule-empty {
@@ -1989,12 +2289,12 @@ html:not(.dark)[data-ui-accent="orange"] {
 
   /* —— Classes list (Figmadasboard Classes.tsx) —— */
   .ds-class-card {
-    background-color: var(--ds-surface-muted);
+    background-color: var(--ds-neutral-row);
     color: inherit;
   }
 
   .ds-class-card:hover {
-    background-color: var(--ds-surface-hover);
+    background-color: var(--ds-neutral-row-hover);
   }
 
   /* —— Messages split layout —— */

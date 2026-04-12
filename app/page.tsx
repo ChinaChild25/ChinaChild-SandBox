@@ -24,14 +24,20 @@ export default function AuthPage() {
   return (
     <div className="ds-auth-root">
       <div className="ds-auth-marketing">
-        <Image
-          src="/illustrations/chinachild-auth-registration.svg"
-          alt=""
-          width={800}
-          height={900}
-          className="ds-auth-marketing__img ds-auth-marketing__float"
-          priority
-        />
+        <div className="ds-auth-marketing__logo-corner">
+          <Image
+            src="/brand/chinachild-ch-mark.png"
+            alt="ChinaChild"
+            width={52}
+            height={52}
+            className="ds-auth-marketing__logo-img"
+            priority
+            unoptimized
+          />
+        </div>
+        <div className="ds-auth-marketing__brand ds-auth-marketing__float">
+          <span className="ds-auth-marketing__brand-text">ChinaChild</span>
+        </div>
         <div className="ds-auth-marketing__shine" aria-hidden />
       </div>
 

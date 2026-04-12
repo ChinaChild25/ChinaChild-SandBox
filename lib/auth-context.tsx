@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react"
 import type { User } from "./types"
 import { mockUser } from "./mock-data"
+import { formatUiMessage, readStoredUiLocale } from "./ui-messages"
 
 export const LAST_LOGIN_STORAGE_KEY = "chinachild-last-login"
 
@@ -90,13 +91,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     await new Promise((r) => setTimeout(r, 600))
+    const loc = readStoredUiLocale()
     if (currentPassword.length < 6) {
-      return { ok: false, message: "Введите текущий пароль (не менее 6 символов)." }
+      return { ok: false, message: formatUiMessage(loc, "auth.pwdCurrentShort") }
     }
     if (newPassword.length < 6) {
-      return { ok: false, message: "Новый пароль — не менее 6 символов." }
+      return { ok: false, message: formatUiMessage(loc, "auth.pwdNewShort") }
     }
-    return { ok: true, message: "Пароль обновлён (демо, без сервера)." }
+    return { ok: true, message: formatUiMessage(loc, "auth.pwdUpdatedDemo") }
   }, [])
 
   return (

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { ArrowRight, ChevronRight, ClipboardList, Star, TrendingUp } from "lucide-react"
@@ -14,11 +14,12 @@ import {
 import { TelegramIcon, telegramProfileUrl } from "@/components/telegram-icon"
 import { FIGMA_CALENDAR, FIGMA_DASHBOARD_LESSONS } from "@/lib/figma-dashboard"
 import { curatorAndTeacherForUser } from "@/lib/student-staff"
-
-const weekdays = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"] as const
+import { localeToBcp47, useUiLocale } from "@/lib/ui-locale"
+import { cn } from "@/lib/utils"
 
 export default function DashboardPage() {
   const { user } = useAuth()
+  const { t, locale } = useUiLocale()
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(readNotificationPreferences)
 
   useEffect(() => {
@@ -47,15 +48,22 @@ export default function DashboardPage() {
     }
   })
 
+  const weekdays = useMemo(() => t("dashboard.weekdays").split(","), [t])
+  const calendarMonthTitle = useMemo(
+    () =>
+      new Date(FIGMA_CALENDAR.year, 3, 1).toLocaleDateString(localeToBcp47(locale), {
+        month: "long"
+      }),
+    [locale]
+  )
+
   return (
     <div className="ds-figma-page">
       <div className="ds-dashboard-page flex flex-col">
         {notifPrefs.news ? (
           <aside className="mb-6 rounded-[var(--ds-radius-xl)] border border-black/[0.06] bg-ds-sage/35 px-4 py-3 text-[14px] text-ds-ink dark:border-white/10 dark:bg-ds-sage/20 dark:text-white">
-            <span className="font-semibold">Новости и акции.</span>{" "}
-            <span className="text-ds-text-secondary dark:text-white/80">
-              Скидка 10% на следующий модуль при оплате до конца месяца — уточняйте у куратора.
-            </span>
+            <span className="font-semibold">{t("dashboard.newsTitle")}</span>{" "}
+            <span className="text-ds-text-secondary dark:text-white/80">{t("dashboard.newsBody")}</span>
           </aside>
         ) : null}
 
@@ -75,10 +83,10 @@ export default function DashboardPage() {
               <span className="text-[#888] dark:text-white/50">/{dashboardStats.lessonGoal}</span>
             </div>
             <div className="ds-stat-card__label text-[#555] dark:text-[var(--ds-text-secondary)]">
-              Посещено занятий
+              {t("dashboard.statLessons")}
             </div>
             <span className="ds-dashboard-stat-link">
-              Смотреть все
+              {t("dashboard.seeAll")}
               <ArrowRight className="h-4 w-4" aria-hidden />
             </span>
           </Link>
@@ -96,9 +104,9 @@ export default function DashboardPage() {
               {dashboardStats.completedHomework}
               <span className="text-white/55 dark:text-white/50">/{dashboardStats.homeworkGoal}</span>
             </div>
-            <div className="ds-stat-card__label text-[#aaa] dark:text-zinc-400">Выполнено домашних</div>
+            <div className="ds-stat-card__label text-[#aaa] dark:text-zinc-400">{t("dashboard.statHomework")}</div>
             <span className="ds-dashboard-stat-link">
-              История оценок
+              {t("dashboard.gradeHistory")}
               <ArrowRight className="h-4 w-4" aria-hidden />
             </span>
           </Link>
@@ -117,10 +125,10 @@ export default function DashboardPage() {
               <span className="text-[#666] dark:text-white/55">/100</span>
             </div>
             <div className="ds-stat-card__label text-[#555] dark:text-[var(--ds-text-secondary)]">
-              Средний балл теста
+              {t("dashboard.statAvg")}
             </div>
             <span className="ds-dashboard-stat-link">
-              Подробнее
+              {t("dashboard.more")}
               <ArrowRight className="h-4 w-4" aria-hidden />
             </span>
           </Link>
@@ -128,7 +136,7 @@ export default function DashboardPage() {
 
         <div className="ds-dashboard-grid">
           <div>
-            <h2 className="mb-4 text-[20px] font-semibold leading-none text-ds-ink">Предстоящие занятия</h2>
+            <h2 className="mb-4 text-[20px] font-semibold leading-none text-ds-ink">{t("dashboard.upcoming")}</h2>
             <ul className="flex list-none flex-col gap-6 p-0 sm:gap-7">
               {FIGMA_DASHBOARD_LESSONS.map((lesson) => (
                 <li key={lesson.id}>
@@ -169,7 +177,7 @@ export default function DashboardPage() {
 
             <div className="mt-6 text-center">
               <Link href="/classes" className="ds-dashboard-stat-link inline-flex justify-center">
-                Смотреть все
+                {t("dashboard.seeAll")}
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </Link>
             </div>
@@ -179,7 +187,7 @@ export default function DashboardPage() {
             <div className="mb-6">
               <div className="mb-3">
                 <span className="ds-calendar-title-bold capitalize text-ds-ink">
-                  {FIGMA_CALENDAR.monthTitle}{" "}
+                  {calendarMonthTitle}{" "}
                 </span>
                 <span className="ds-calendar-title-reg text-ds-ink">{FIGMA_CALENDAR.year}</span>
               </div>
@@ -205,7 +213,7 @@ export default function DashboardPage() {
                     >
                       <div className="text-[13px] text-ds-ink sm:text-[14px]">{item.day}</div>
                       <div className="mt-0.5 flex h-2 items-center justify-center" aria-hidden>
-                        {showDot ? <span className="h-1 w-1 rounded-full bg-[#8ab84a]" /> : null}
+                        {showDot ? <span className="h-1 w-1 rounded-full bg-ds-sage-strong" /> : null}
                       </div>
                     </Link>
                   )
@@ -214,15 +222,23 @@ export default function DashboardPage() {
             </div>
 
             <div>
-              <h3 className="mb-3 text-[17px] font-semibold leading-none text-ds-ink">Куратор и преподаватель</h3>
+              <h3 className="mb-3 text-[17px] font-semibold leading-none text-ds-ink">{t("dashboard.staffTitle")}</h3>
               <ul className="flex flex-col gap-4 p-0 list-none">
                 {(
                   [
-                    { slug: curatorSlug, m: curator, kind: "Куратор" as const },
-                    { slug: teacherSlug, m: teacher, kind: "Преподаватель" as const }
+                    { slug: curatorSlug, m: curator, kind: "curator" as const },
+                    { slug: teacherSlug, m: teacher, kind: "teacher" as const }
                   ] as const
                 ).map(({ slug, m, kind }) => (
-                  <li key={slug}>
+                  <li
+                    key={slug}
+                    className={cn(
+                      "rounded-[var(--ds-radius-md)] py-2 pl-3",
+                      kind === "curator"
+                        ? "border-l-[3px] border-l-indigo-500 bg-indigo-50/40 dark:border-l-indigo-400 dark:bg-indigo-950/25"
+                        : "border-l-[3px] border-l-ds-sage-strong bg-ds-sage/10 dark:border-l-ds-sage-strong dark:bg-ds-sage/10"
+                    )}
+                  >
                     <div className="flex items-center gap-2 sm:gap-3">
                       <Link
                         href={`/mentors/${slug}`}
@@ -240,7 +256,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="text-[11px] font-semibold uppercase tracking-wide text-[#888] dark:text-ds-text-tertiary">
-                            {kind}
+                            {kind === "curator" ? t("dashboard.roleCurator") : t("dashboard.roleTeacher")}
                           </div>
                           <div className="mb-0.5 text-[18px] font-semibold leading-none text-ds-ink">{m.name}</div>
                           <div className="text-[13px] text-[#666] dark:text-[var(--ds-text-secondary)]">{m.role}</div>
@@ -251,7 +267,7 @@ export default function DashboardPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="grid h-10 w-10 shrink-0 place-content-center rounded-[var(--ds-radius-md)] bg-[#2AABEE]/12 text-[#229ED9] transition-colors hover:bg-[#2AABEE]/20 dark:bg-[#2AABEE]/20 dark:text-[#54bdeb]"
-                        aria-label={`Написать в Telegram: @${m.telegramUsername}`}
+                        aria-label={t("dashboard.telegramWrite", { username: m.telegramUsername })}
                       >
                         <TelegramIcon className="h-[22px] w-[22px]" />
                       </a>
@@ -259,7 +275,7 @@ export default function DashboardPage() {
                         href={`/messages?mentor=${slug}`}
                         className="flex shrink-0 items-center gap-1 rounded-[var(--ds-radius-md)] bg-white px-3 py-2 text-[13px] font-medium text-ds-ink no-underline shadow-none transition-colors hover:bg-ds-surface-hover dark:bg-ds-surface dark:hover:bg-white/5"
                       >
-                        Написать
+                        {t("dashboard.write")}
                         <ChevronRight className="h-4 w-4 opacity-60" aria-hidden />
                       </Link>
                     </div>

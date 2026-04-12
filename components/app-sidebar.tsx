@@ -27,26 +27,28 @@ import {
   subscribeNotificationPreferences,
   type NotificationPreferences
 } from "@/lib/notification-preferences"
+import { useUiLocale } from "@/lib/ui-locale"
 
 type NavItem = {
   href: string
-  label: string
+  labelKey: string
   icon: LucideIcon
 }
 
 const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Главная", icon: LayoutGrid },
-  { href: "/classes", label: "Занятия", icon: GraduationCap },
-  { href: "/progress", label: "Мои оценки", icon: Award },
-  { href: "/schedule", label: "Расписание", icon: CalendarDays },
-  { href: "/messages", label: "Сообщения", icon: Mail },
-  { href: "/courses", label: "Мои курсы", icon: BookOpen },
-  { href: "/settings", label: "Настройки", icon: Settings }
+  { href: "/dashboard", labelKey: "nav.home", icon: LayoutGrid },
+  { href: "/classes", labelKey: "nav.classes", icon: GraduationCap },
+  { href: "/progress", labelKey: "nav.grades", icon: Award },
+  { href: "/schedule", labelKey: "nav.schedule", icon: CalendarDays },
+  { href: "/messages", labelKey: "nav.messages", icon: Mail },
+  { href: "/courses", labelKey: "nav.courses", icon: BookOpen },
+  { href: "/settings", labelKey: "nav.settings", icon: Settings }
 ]
 
 export function AppSidebar() {
   const pathname = usePathname()
   const { user, logout } = useAuth()
+  const { t } = useUiLocale()
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(readNotificationPreferences)
 
   useEffect(() => {
@@ -58,20 +60,21 @@ export function AppSidebar() {
   const messagesBadge =
     notifPrefs.messages && messagesUnread > 0 ? String(messagesUnread) : undefined
 
-  const levelLabel = {
-    Beginner: "1 степени",
-    Elementary: "2 степени",
-    Intermediate: "3 степени",
-    Advanced: "4 степени"
-  }[user?.level ?? "Beginner"]
+  const levelKey = {
+    Beginner: "profile.levelBeginner",
+    Elementary: "profile.levelElementary",
+    Intermediate: "profile.levelIntermediate",
+    Advanced: "profile.levelAdvanced"
+  }[user?.level ?? "Beginner"] as string
 
+  const levelLabel = t(levelKey)
   const firstName = user?.name?.split(" ")[0] ?? "Яна"
   const avatarSrc = user?.avatar ?? FIGMA_STUDENT_AVATAR
-  const subtitle = user?.profileSubtitle ?? `студентка ${levelLabel}`
+  const subtitle = user?.profileSubtitle ?? t("profile.subtitle", { level: levelLabel })
 
-  const isActive = (href: string, label: string) => {
+  const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard"
-    if (label === "Мои курсы") return pathname.startsWith("/courses")
+    if (href === "/courses") return pathname.startsWith("/courses")
     if (href === "/classes") return pathname === "/classes" || pathname.startsWith("/classes/")
     return pathname === href || pathname.startsWith(`${href}/`)
   }
@@ -82,7 +85,7 @@ export function AppSidebar() {
         <Link
           href="/dashboard"
           className="block w-[52px] rounded-lg outline-offset-2 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ds-ink/20"
-          aria-label="ChinaChild — главная"
+          aria-label={t("sidebar.logoAria")}
         >
           <ChinaChildSidebarLogo size={52} />
         </Link>
@@ -95,7 +98,7 @@ export function AppSidebar() {
         <div className="mb-3 h-[110px] w-[110px] overflow-hidden rounded-full bg-white ring-1 ring-black/8">
           <Image
             src={avatarSrc}
-            alt="Аватар ученика"
+            alt={t("sidebar.avatarAlt")}
             width={110}
             height={110}
             unoptimized={avatarSrc.startsWith("data:") || avatarSrc.startsWith("http")}
@@ -106,17 +109,18 @@ export function AppSidebar() {
         <div className="text-center text-[14px] text-ds-text-muted">{subtitle}</div>
       </Link>
 
-      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto" aria-label="Основное меню">
+      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto" aria-label={t("sidebar.navAria")}>
         {navItems.map((item) => {
-          const active = isActive(item.href, item.label)
+          const active = isActive(item.href)
+          const label = t(item.labelKey)
           return (
             <Link
-              key={`${item.label}-${item.href}`}
+              key={`${item.labelKey}-${item.href}`}
               href={item.href}
               className={cn("figma-nav-link", active && "figma-nav-link--active")}
             >
               <item.icon size={20} strokeWidth={2} aria-hidden />
-              <span className="flex-1">{item.label}</span>
+              <span className="flex-1">{label}</span>
               {item.href === "/messages" && messagesBadge ? (
                 <span
                   className={cn(
@@ -139,9 +143,9 @@ export function AppSidebar() {
           href="/courses"
           className="mt-4 flex flex-col gap-2 rounded-[20px] bg-ds-sage p-4 no-underline text-ds-ink transition-opacity hover:opacity-95"
         >
-          <div className="text-[14px] font-semibold">HSK 1 — Прогресс</div>
+          <div className="text-[14px] font-semibold">{t("sidebar.hskTitle")}</div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-white/50">
-            <div className="h-full w-[37%] rounded-full bg-[#5a7c3a]" />
+            <div className="h-full w-[37%] rounded-full bg-ds-sage-strong" />
           </div>
           <div className="flex items-center gap-1 text-[13px] font-medium text-ds-ink/80">
             <span>37%</span>
@@ -157,7 +161,7 @@ export function AppSidebar() {
           className="w-full justify-start rounded-2xl bg-white py-6 text-[15px] font-medium text-ds-ink shadow-none transition-colors hover:bg-ds-surface-hover dark:bg-[#262626] dark:text-ds-ink dark:hover:bg-[#333333]"
         >
           <LogOut className="mr-2 h-4 w-4" aria-hidden />
-          Выйти
+          {t("sidebar.logout")}
         </Button>
       </div>
     </div>

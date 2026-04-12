@@ -143,7 +143,7 @@ export default function SchedulePage() {
           <button
             type="button"
             onClick={() => setWeekOffset((w) => w - 1)}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ds-sidebar transition-colors hover:bg-ds-sidebar-hover sm:h-9 sm:w-9"
+            className="ds-neutral-pill flex h-10 w-10 shrink-0 items-center justify-center rounded-full sm:h-9 sm:w-9"
             aria-label="Предыдущая неделя"
           >
             <ChevronLeft size={18} aria-hidden />
@@ -154,7 +154,7 @@ export default function SchedulePage() {
           <button
             type="button"
             onClick={() => setWeekOffset((w) => w + 1)}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ds-sidebar transition-colors hover:bg-ds-sidebar-hover sm:h-9 sm:w-9"
+            className="ds-neutral-pill flex h-10 w-10 shrink-0 items-center justify-center rounded-full sm:h-9 sm:w-9"
             aria-label="Следующая неделя"
           >
             <ChevronRight size={18} aria-hidden />

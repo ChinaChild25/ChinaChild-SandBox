@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import { useTheme } from "next-themes"
 
 import { ThemeProvider } from "@/components/theme-provider"
+import { UiLocaleProvider } from "@/lib/ui-locale"
 
 const UI_ACCENT_KEY = "chinachild-ui-accent"
 export const THEME_STORAGE_KEY = "chinachild-theme"
@@ -66,9 +67,11 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       enableSystem={false}
       storageKey={THEME_STORAGE_KEY}
     >
-      <UiAccentHydration />
-      <ThemeAccentSync />
-      {children}
+      <UiLocaleProvider>
+        <UiAccentHydration />
+        <ThemeAccentSync />
+        {children}
+      </UiLocaleProvider>
     </ThemeProvider>
   )
 }

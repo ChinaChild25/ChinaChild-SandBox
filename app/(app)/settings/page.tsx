@@ -19,8 +19,8 @@ import {
   type NotificationPreferences
 } from "@/lib/notification-preferences"
 import { placeholderImages } from "@/lib/placeholders"
-
-const LANG_STORAGE_KEY = "chinachild-ui-lang"
+import type { UiLocale } from "@/lib/ui-messages"
+import { localeToBcp47, useUiLocale } from "@/lib/ui-locale"
 
 type AccentKey = "sage" | "pink" | "blue" | "orange"
 
@@ -37,20 +37,24 @@ function uiAccentFromKey(k: AccentKey): Exclude<UiAccent, "default"> {
   return k
 }
 
-function formatLastLogin(iso: string | null): string {
-  if (!iso) return "Последний вход: —"
+function formatLastLogin(
+  iso: string | null,
+  locale: UiLocale,
+  t: (k: string, p?: Record<string, string>) => string
+): string {
+  if (!iso) return t("settings.lastLoginNone")
   try {
     const d = new Date(iso)
-    const s = d.toLocaleString("ru-RU", {
+    const s = d.toLocaleString(localeToBcp47(locale), {
       day: "numeric",
       month: "long",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit"
     })
-    return `Последний вход: ${s} · Москва`
+    return t("settings.lastLoginLine", { date: s, tz: t("settings.lastLoginTz") })
   } catch {
-    return "Последний вход: —"
+    return t("settings.lastLoginNone")
   }
 }
 
@@ -100,22 +104,22 @@ function FigmaToggle({ checked, onChange }: { checked: boolean; onChange: (v: bo
   )
 }
 
-const ACCENT_TILES: { key: AccentKey; label: string; bg: string }[] = [
-  { key: "sage", label: "Зелёная", bg: "#d4e7b0" },
-  { key: "pink", label: "Розовая", bg: "#f4c4c4" },
-  { key: "blue", label: "Голубая", bg: "#c8dff4" },
-  { key: "orange", label: "Оранжевая", bg: "#fce4c4" }
+const ACCENT_TILES: { key: AccentKey; bg: string }[] = [
+  { key: "sage", bg: "#d4e7b0" },
+  { key: "pink", bg: "#f4c4c4" },
+  { key: "blue", bg: "#c8dff4" },
+  { key: "orange", bg: "#fce4c4" }
 ]
 
 export default function SettingsPage() {
   const { user, updateUser, changePassword } = useAuth()
   const { setTheme, resolvedTheme } = useTheme()
+  const { t, locale, setLocale } = useUiLocale()
   const avatarInputRef = useRef<HTMLInputElement>(null)
 
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
-  const [language, setLanguage] = useState("ru")
   const [notifications, setNotifications] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES)
   const [accentKey, setAccentKey] = useState<AccentKey>("sage")
   const [passwords, setPasswords] = useState({ cur: "", next: "", repeat: "" })
@@ -139,11 +143,6 @@ export default function SettingsPage() {
   useEffect(() => {
     if (typeof window === "undefined") return
     setNotifications(readNotificationPreferences())
-    const lang = window.localStorage.getItem(LANG_STORAGE_KEY)
-    if (lang === "ru" || lang === "en" || lang === "zh") {
-      setLanguage(lang)
-      document.documentElement.lang = lang === "zh" ? "zh" : lang
-    }
   }, [])
 
   useEffect(() => {
@@ -155,13 +154,12 @@ export default function SettingsPage() {
     persistNotificationPreferences(notifications)
   }, [notifications, mounted])
 
-  const applyLanguage = useCallback((code: "ru" | "en" | "zh") => {
-    setLanguage(code)
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(LANG_STORAGE_KEY, code)
-      document.documentElement.lang = code === "zh" ? "zh" : code
-    }
-  }, [])
+  const applyLanguage = useCallback(
+    (code: "ru" | "en" | "zh") => {
+      setLocale(code)
+    },
+    [setLocale]
+  )
 
   useEffect(() => {
     if (!mounted) return
@@ -202,7 +200,7 @@ export default function SettingsPage() {
     e.preventDefault()
     setPwdMsg(null)
     if (passwords.next !== passwords.repeat) {
-      setPwdMsg({ type: "err", text: "Новый пароль и повтор не совпадают." })
+      setPwdMsg({ type: "err", text: t("settings.pwdMismatch") })
       return
     }
     setPwdBusy(true)
@@ -219,21 +217,28 @@ export default function SettingsPage() {
   if (!user) return null
 
   const avatarSrc = user.avatar ?? placeholderImages.studentAvatar
-  const subtitle = user.profileSubtitle ?? "студентка 1 степени"
+  const levelKey = {
+    Beginner: "profile.levelBeginner",
+    Elementary: "profile.levelElementary",
+    Intermediate: "profile.levelIntermediate",
+    Advanced: "profile.levelAdvanced"
+  }[user.level ?? "Beginner"] as string
+  const subtitle = user.profileSubtitle ?? t("profile.subtitle", { level: t(levelKey) })
   const isDark = resolvedTheme === "dark"
 
   return (
     <div className="ds-figma-page ds-settings-page-bleed">
       <div className="ds-settings-v0-stack">
-        <header>
-          <h1 className="ds-settings-page-title">Настройки</h1>
-          <p className="ds-settings-page-lead">Управление профилем и предпочтениями</p>
+        <header className="ds-settings-page-header">
+          <h1 className="ds-settings-page-title">{t("settings.title")}</h1>
+          <p className="ds-settings-page-lead">{t("settings.lead")}</p>
         </header>
 
+        <div className="ds-settings-panels-grid">
         <section className="ds-settings-panel" aria-labelledby="settings-profile-heading">
           <h2 id="settings-profile-heading" className="ds-settings-section-head">
             <User size={22} strokeWidth={1.75} aria-hidden />
-            Профиль
+            {t("settings.profile")}
           </h2>
 
           <div className="mb-6 flex items-center gap-4">
@@ -241,7 +246,7 @@ export default function SettingsPage() {
               <div className="relative h-[88px] w-[88px] overflow-hidden rounded-full bg-[#f2f2f2] dark:bg-ds-surface-pill">
                 <Image
                   src={avatarSrc}
-                  alt="Аватар"
+                  alt={t("settings.avatarAlt")}
                   fill
                   className="object-cover"
                   sizes="88px"
@@ -268,7 +273,7 @@ export default function SettingsPage() {
               <button
                 type="button"
                 className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-black text-white dark:bg-white dark:text-black"
-                aria-label="Изменить фото"
+                aria-label={t("settings.changePhoto")}
                 onClick={() => avatarInputRef.current?.click()}
               >
                 <Camera size={15} aria-hidden />
@@ -281,45 +286,51 @@ export default function SettingsPage() {
           </div>
 
           <div className="space-y-4">
-            <SettingsField label="Имя" value={name} onChange={setName} />
-            <SettingsField label="Email" value={email} onChange={setEmail} type="email" />
-            <SettingsField label="Телефон" value={phone} onChange={setPhone} type="tel" placeholder="+7 999 123-45-67" />
+            <SettingsField label={t("settings.name")} value={name} onChange={setName} />
+            <SettingsField label={t("settings.email")} value={email} onChange={setEmail} type="email" />
+            <SettingsField
+              label={t("settings.phone")}
+              value={phone}
+              onChange={setPhone}
+              type="tel"
+              placeholder={t("settings.phonePlaceholder")}
+            />
           </div>
 
           <button
             type="button"
             onClick={handleSaveProfile}
             className={`mt-6 h-12 w-full rounded-[var(--ds-radius-md)] text-[15px] font-semibold transition-colors ${
-              profileSaved ? "bg-[#8ab84a] text-white" : "bg-black text-white hover:opacity-90 dark:bg-white dark:text-black"
+              profileSaved ? "bg-ds-sage-strong text-white" : "bg-black text-white hover:opacity-90 dark:bg-white dark:text-black"
             }`}
           >
-            {profileSaved ? "Сохранено" : "Сохранить профиль"}
+            {profileSaved ? t("settings.saved") : t("settings.saveProfile")}
           </button>
         </section>
 
         <section className="ds-settings-panel" aria-labelledby="settings-security-heading">
           <h2 id="settings-security-heading" className="ds-settings-section-head">
             <Lock size={22} strokeWidth={1.75} aria-hidden />
-            Безопасность
+            {t("settings.security")}
           </h2>
 
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
             <SettingsField
-              label="Текущий пароль"
+              label={t("settings.currentPassword")}
               value={passwords.cur}
               onChange={(v) => setPasswords((p) => ({ ...p, cur: v }))}
               type="password"
               placeholder="••••••••"
             />
             <SettingsField
-              label="Новый пароль"
+              label={t("settings.newPassword")}
               value={passwords.next}
               onChange={(v) => setPasswords((p) => ({ ...p, next: v }))}
               type="password"
               placeholder="••••••••"
             />
             <SettingsField
-              label="Повторите пароль"
+              label={t("settings.repeatPassword")}
               value={passwords.repeat}
               onChange={(v) => setPasswords((p) => ({ ...p, repeat: v }))}
               type="password"
@@ -344,20 +355,22 @@ export default function SettingsPage() {
               className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--ds-radius-md)] bg-black text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 dark:bg-white dark:text-black"
             >
               {pwdBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-              Обновить пароль
+              {t("settings.updatePassword")}
             </button>
           </form>
 
-          <p className="mt-5 text-[13px] text-[#a3a3a3] dark:text-ds-text-tertiary">{formatLastLogin(lastLoginIso)}</p>
+          <p className="mt-5 text-[13px] text-[#a3a3a3] dark:text-ds-text-tertiary">
+            {formatLastLogin(lastLoginIso, locale, t)}
+          </p>
         </section>
 
         <section className="ds-settings-panel" aria-labelledby="settings-appearance-heading">
           <h2 id="settings-appearance-heading" className="ds-settings-section-head">
             <Palette size={22} strokeWidth={1.75} aria-hidden />
-            Внешний вид
+            {t("settings.appearance")}
           </h2>
 
-          <p className="ds-settings-subtitle">Тема оформления</p>
+          <p className="ds-settings-subtitle">{t("settings.theme")}</p>
           <div className="ds-settings-segmented mb-6">
             <button
               type="button"
@@ -365,7 +378,7 @@ export default function SettingsPage() {
               className={`ds-settings-segmented__btn ${!isDark ? "ds-settings-segmented__btn--active" : ""}`}
             >
               <Sun size={16} strokeWidth={2} aria-hidden />
-              Светлая
+              {t("settings.themeLight")}
             </button>
             <button
               type="button"
@@ -373,32 +386,29 @@ export default function SettingsPage() {
               className={`ds-settings-segmented__btn ${isDark ? "ds-settings-segmented__btn--active" : ""}`}
             >
               <Moon size={16} strokeWidth={2} aria-hidden />
-              Тёмная
+              {t("settings.themeDark")}
             </button>
           </div>
 
-          <p className="ds-settings-subtitle">Акцентный цвет</p>
-          <p className="mb-3 text-[12px] leading-snug text-ds-text-tertiary">
-            В светлой теме сразу меняет фон сайдбара и холста. В тёмной теме выбор сохраняется и применится при возврате к
-            светлой.
-          </p>
+          <p className="ds-settings-subtitle">{t("settings.accent")}</p>
+          <p className="mb-3 text-[12px] leading-snug text-ds-text-tertiary">{t("settings.accentHelp")}</p>
           <div className="ds-settings-accent-grid">
-            {ACCENT_TILES.map((t) => {
-              const active = accentKey === t.key
+            {ACCENT_TILES.map((tile) => {
+              const active = accentKey === tile.key
               return (
                 <button
-                  key={t.key}
+                  key={tile.key}
                   type="button"
-                  onClick={() => handleAccentPick(t.key)}
+                  onClick={() => handleAccentPick(tile.key)}
                   className={`ds-settings-accent-tile ${active ? "ds-settings-accent-tile--active" : ""}`}
-                  style={{ backgroundColor: t.bg, color: "#1a1a1a" }}
+                  style={{ backgroundColor: tile.bg, color: "#1a1a1a" }}
                 >
                   {active ? (
                     <span className="ds-settings-accent-check" aria-hidden>
                       <Check className="h-3.5 w-3.5" strokeWidth={3} />
                     </span>
                   ) : null}
-                  {t.label}
+                  {t(`accent.${tile.key}`)}
                 </button>
               )
             })}
@@ -408,25 +418,22 @@ export default function SettingsPage() {
         <section className="ds-settings-panel" aria-labelledby="settings-notifications-heading">
           <h2 id="settings-notifications-heading" className="ds-settings-section-head">
             <Bell size={22} strokeWidth={1.75} aria-hidden />
-            Уведомления
+            {t("settings.notifications")}
           </h2>
 
-          <p className="mb-4 text-[12px] leading-snug text-ds-text-tertiary">
-            Переключатели сохраняются на устройстве и сразу влияют на интерфейс: счётчик «Сообщения», блок прогресса HSK,
-            напоминание на странице оценок и блок новостей на главной.
-          </p>
+          <p className="mb-4 text-[12px] leading-snug text-ds-text-tertiary">{t("settings.notificationsHelp")}</p>
 
           <div className="space-y-4">
             {(
               [
-                ["lessons", "Напоминания о занятиях"],
-                ["homework", "Дедлайны домашних заданий"],
-                ["messages", "Новые сообщения"],
-                ["news", "Новости и акции"]
+                ["lessons", "settings.notifyLessons"],
+                ["homework", "settings.notifyHomework"],
+                ["messages", "settings.notifyMessages"],
+                ["news", "settings.notifyNews"]
               ] as const
-            ).map(([key, label]) => (
+            ).map(([key, labelKey]) => (
               <div key={key} className="flex items-center justify-between gap-3">
-                <span className="text-[15px] text-ds-ink">{label}</span>
+                <span className="text-[15px] text-ds-ink">{t(labelKey)}</span>
                 <FigmaToggle
                   checked={notifications[key]}
                   onChange={(v) => setNotifications((n) => ({ ...n, [key]: v }))}
@@ -438,28 +445,29 @@ export default function SettingsPage() {
           <div className="mt-8 border-t border-[#ebebeb] pt-6 dark:border-white/10">
             <h3 className="ds-settings-section-head mb-4 mt-0 text-[1.05rem]">
               <Globe size={22} strokeWidth={1.75} className="text-ds-text-tertiary" aria-hidden />
-              Язык интерфейса
+              {t("settings.interfaceLanguage")}
             </h3>
             <div className="ds-settings-segmented">
               {(
                 [
-                  ["ru", "Русский"],
-                  ["en", "English"],
-                  ["zh", "中文"]
+                  ["ru", "settings.langRu"],
+                  ["en", "settings.langEn"],
+                  ["zh", "settings.langZh"]
                 ] as const
-              ).map(([code, lab]) => (
+              ).map(([code, labKey]) => (
                 <button
                   key={code}
                   type="button"
                   onClick={() => applyLanguage(code)}
-                  className={`ds-settings-segmented__btn ${language === code ? "ds-settings-segmented__btn--active" : ""}`}
+                  className={`ds-settings-segmented__btn ${locale === code ? "ds-settings-segmented__btn--active" : ""}`}
                 >
-                  {lab}
+                  {t(labKey)}
                 </button>
               ))}
             </div>
           </div>
         </section>
+        </div>
       </div>
     </div>
   )
