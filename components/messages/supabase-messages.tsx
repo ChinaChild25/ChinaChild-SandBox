@@ -7,11 +7,9 @@ import { ArrowLeft, Mail, Send, Search } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import {
-  conversationPeerRoleLabel,
-  conversationPeerTitle,
-  loadConversationSummaries,
+  formatListPeerRole,
   loadMessagesForConversation,
-  loadMyConversationIds,
+  loadMyConversationList,
   sendChatMessage,
   formatChatTimeLabel,
   type ChatBubble,
@@ -50,26 +48,18 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
   const active = useMemo(() => items.find((c) => c.id === activeId), [items, activeId])
 
   const refreshList = useCallback(async () => {
-    if (!myId) return
     setListLoading(true)
     setListError(null)
     const supabase = createBrowserSupabaseClient()
-    const { ids, error: idErr } = await loadMyConversationIds(supabase, myId)
-    if (idErr) {
-      setListError(idErr.message)
-      setItems([])
-      setListLoading(false)
-      return
-    }
-    const { items: next, error: sumErr } = await loadConversationSummaries(supabase, myId, ids)
-    if (sumErr) {
-      setListError(sumErr.message)
+    const { items: next, error } = await loadMyConversationList(supabase)
+    if (error) {
+      setListError(error.message)
       setItems([])
     } else {
       setItems(next)
     }
     setListLoading(false)
-  }, [myId])
+  }, [])
 
   useEffect(() => {
     void refreshList()
@@ -121,9 +111,14 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
     const q = query.trim().toLowerCase()
     if (!q) return items
     return items.filter((c) => {
-      const title = conversationPeerTitle(c.peer).toLowerCase()
-      const role = conversationPeerRoleLabel(c.peer).toLowerCase()
-      return title.includes(q) || role.includes(q) || c.lastMessage.toLowerCase().includes(q)
+      const name = c.peer.name.toLowerCase()
+      const role = c.peer.role.toLowerCase()
+      return (
+        name.includes(q) ||
+        role.includes(q) ||
+        c.peer.id.toLowerCase().includes(q) ||
+        c.lastMessage.toLowerCase().includes(q)
+      )
     })
   }, [query, items])
 
@@ -168,9 +163,8 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
   const showChat = wide || mobilePanel === "chat"
   const empty = !listLoading && !listError && items.length === 0
 
-  const avatarSrc =
-    active?.peer.avatar_url && active.peer.avatar_url.trim() ? active.peer.avatar_url.trim() : null
-  const peerInitial = active ? (conversationPeerTitle(active.peer)[0] ?? "?") : "?"
+  const peerInitial = active ? (active.peer.name.trim()[0] ?? "?") : "?"
+  const activeRoleLine = active ? formatListPeerRole(active.peer.role) : ""
 
   return (
     <div className="ds-figma-page ds-messages-page flex min-h-0 w-full flex-1 flex-col">
@@ -225,10 +219,10 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
               ) : (
                 filteredItems.map((row) => {
                   const selected = row.id === activeId
-                  const title = conversationPeerTitle(row.peer)
-                  const role = conversationPeerRoleLabel(row.peer)
-                  const av = row.peer.avatar_url?.trim() || null
+                  const { peer } = row
+                  const roleLine = formatListPeerRole(peer.role)
                   const timeLabel = row.lastMessageAt ? formatChatTimeLabel(row.lastMessageAt) : ""
+                  const initial = peer.name.trim()[0] ?? "?"
                   return (
                     <button
                       key={row.id}
@@ -240,19 +234,27 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
                       )}
                     >
                       <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-ds-sidebar">
-                        {av ? (
-                          <Image src={av} alt={title} fill className="object-cover" sizes="44px" />
+                        {peer.avatarUrl ? (
+                          <Image
+                            src={peer.avatarUrl}
+                            alt={peer.name}
+                            fill
+                            className="object-cover"
+                            sizes="44px"
+                          />
                         ) : (
-                          <span className="text-[16px] font-bold text-ds-text-tertiary">{title[0]}</span>
+                          <span className="text-[16px] font-bold text-ds-text-tertiary">{initial}</span>
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-baseline justify-between gap-2">
-                          <span className="truncate text-[14px] font-medium text-ds-ink">{title}</span>
+                          <span className="truncate text-[14px] font-medium text-ds-ink">{peer.name}</span>
                           <span className="shrink-0 text-[11px] text-ds-text-placeholder">{timeLabel}</span>
                         </div>
                         <p className="truncate text-[12px] text-ds-text-tertiary">{row.lastMessage}</p>
-                        <p className="truncate text-[11px] text-ds-text-placeholder">{role}</p>
+                        {roleLine ? (
+                          <p className="truncate text-[11px] text-ds-text-placeholder">{roleLine}</p>
+                        ) : null}
                       </div>
                     </button>
                   )
@@ -294,10 +296,10 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
                     </button>
                   ) : null}
                   <div className="relative mt-0.5 h-10 w-10 shrink-0 overflow-hidden rounded-full bg-ds-sidebar sm:mt-0">
-                    {avatarSrc ? (
+                    {active.peer.avatarUrl ? (
                       <Image
-                        src={avatarSrc}
-                        alt={conversationPeerTitle(active.peer)}
+                        src={active.peer.avatarUrl}
+                        alt={active.peer.name}
                         fill
                         className="object-cover"
                         sizes="40px"
@@ -310,11 +312,13 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
                   </div>
                   <div className="min-w-0 flex-1 pr-1">
                     <p className="text-[15px] font-semibold leading-snug text-ds-ink sm:text-[16px]">
-                      {conversationPeerTitle(active.peer)}
+                      {active.peer.name}
                     </p>
-                    <p className="mt-0.5 text-[12px] leading-snug text-ds-text-tertiary sm:text-[13px]">
-                      {conversationPeerRoleLabel(active.peer)}
-                    </p>
+                    {activeRoleLine ? (
+                      <p className="mt-0.5 text-[12px] leading-snug text-ds-text-tertiary sm:text-[13px]">
+                        {activeRoleLine}
+                      </p>
+                    ) : null}
                   </div>
                 </header>
 

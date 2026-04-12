@@ -27,9 +27,17 @@ export type MessageRow = {
   created_at: string
 }
 
+/** Собеседник в списке чатов (после отдельного запроса к profiles). */
+export type ConversationListPeer = {
+  id: string
+  name: string
+  avatarUrl: string | null
+  role: string
+}
+
 export type ConversationListItem = {
   id: string
-  peer: ChatProfileSnippet
+  peer: ConversationListPeer
   lastMessage: string
   lastMessageAt: string | null
 }
@@ -77,34 +85,6 @@ export function formatChatTimeLabel(iso: string): string {
   })
 }
 
-function peerFromProfiles(
-  peerRow: ChatProfileSnippet | null | undefined,
-  peerUserId: string
-): ChatProfileSnippet {
-  if (peerRow?.id) return peerRow
-  return {
-    id: peerUserId,
-    first_name: null,
-    last_name: null,
-    full_name: null,
-    role: "student",
-    avatar_url: null
-  }
-}
-
-type ParticipantWithProfile = {
-  conversation_id: string
-  user_id: string
-  profiles: ChatProfileSnippet | ChatProfileSnippet[] | null
-}
-
-function normalizeEmbeddedProfile(
-  raw: ChatProfileSnippet | ChatProfileSnippet[] | null | undefined
-): ChatProfileSnippet | null {
-  if (raw == null) return null
-  return Array.isArray(raw) ? (raw[0] ?? null) : raw
-}
-
 export async function loadMyConversationIds(
   supabase: SupabaseClient,
   myUserId: string
@@ -119,27 +99,102 @@ export async function loadMyConversationIds(
   return { ids, error: null }
 }
 
-export async function loadConversationSummaries(
-  supabase: SupabaseClient,
-  myUserId: string,
-  conversationIds: string[]
-): Promise<{ items: ConversationListItem[]; error: Error | null }> {
-  if (conversationIds.length === 0) return { items: [], error: null }
+type PeerProfileRow = {
+  id: string
+  first_name: string | null
+  last_name: string | null
+  full_name: string | null
+  avatar_url: string | null
+  role: string
+}
+
+function conversationPeerFromProfile(peerUserId: string, profile: PeerProfileRow | undefined): ConversationListPeer {
+  if (!profile) {
+    return { id: peerUserId, name: "User", avatarUrl: null, role: "" }
+  }
+
+  const fn = profile.first_name?.trim() ?? ""
+  const ln = profile.last_name?.trim() ?? ""
+  const name =
+    fn && ln ? `${fn} ${ln}` : profile.full_name?.trim() || "User"
+
+  const rawUrl = profile.avatar_url?.trim()
+  return {
+    id: peerUserId,
+    name,
+    avatarUrl: rawUrl ? rawUrl : null,
+    role: profile.role ?? ""
+  }
+}
+
+/**
+ * Список чатов: getUser → участия → conversations → участники (без join) → отдельно profiles по id → превью сообщений.
+ */
+export async function loadMyConversationList(
+  supabase: SupabaseClient
+): Promise<{ items: ConversationListItem[]; error: Error | null; authUserId: string | null }> {
+  const {
+    data: { user },
+    error: authErr
+  } = await supabase.auth.getUser()
+
+  if (authErr) {
+    return { items: [], error: new Error(authErr.message), authUserId: null }
+  }
+  if (!user) {
+    return { items: [], error: null, authUserId: null }
+  }
+
+  const myUserId = user.id
+
+  const { data: partRows, error: p0 } = await supabase
+    .from("conversation_participants")
+    .select("conversation_id")
+    .eq("user_id", myUserId)
+
+  if (p0) {
+    return { items: [], error: new Error(p0.message), authUserId: myUserId }
+  }
+
+  const conversationIds = [...new Set((partRows ?? []).map((r) => (r as { conversation_id: string }).conversation_id))]
+  if (conversationIds.length === 0) {
+    return { items: [], error: null, authUserId: myUserId }
+  }
+
+  const { data: conversations, error: cErr } = await supabase
+    .from("conversations")
+    .select("*")
+    .in("id", conversationIds)
+
+  if (cErr) {
+    return { items: [], error: new Error(cErr.message), authUserId: myUserId }
+  }
+
+  const convById = new Map((conversations ?? []).map((c) => [(c as Conversation).id, c as Conversation]))
+
+  const allowedIds = conversationIds.filter((id) => convById.has(id))
+  if (allowedIds.length === 0) {
+    return { items: [], error: null, authUserId: myUserId }
+  }
 
   const { data: parts, error: pErr } = await supabase
     .from("conversation_participants")
-    .select("conversation_id, user_id, profiles ( id, first_name, last_name, full_name, role, avatar_url )")
-    .in("conversation_id", conversationIds)
+    .select("conversation_id, user_id")
+    .in("conversation_id", allowedIds)
 
-  if (pErr) return { items: [], error: new Error(pErr.message) }
+  if (pErr) {
+    return { items: [], error: new Error(pErr.message), authUserId: myUserId }
+  }
 
   const { data: msgs, error: mErr } = await supabase
     .from("messages")
     .select("conversation_id, content, created_at")
-    .in("conversation_id", conversationIds)
+    .in("conversation_id", allowedIds)
     .order("created_at", { ascending: false })
 
-  if (mErr) return { items: [], error: new Error(mErr.message) }
+  if (mErr) {
+    return { items: [], error: new Error(mErr.message), authUserId: myUserId }
+  }
 
   const lastByConv = new Map<string, { content: string; created_at: string }>()
   for (const row of msgs ?? []) {
@@ -149,24 +204,51 @@ export async function loadConversationSummaries(
     }
   }
 
-  const byConv = new Map<string, ParticipantWithProfile[]>()
+  const byConv = new Map<string, { conversation_id: string; user_id: string }[]>()
   for (const raw of parts ?? []) {
-    const row = raw as ParticipantWithProfile
+    const row = raw as { conversation_id: string; user_id: string }
     const list = byConv.get(row.conversation_id) ?? []
     list.push(row)
     byConv.set(row.conversation_id, list)
   }
 
-  const items: ConversationListItem[] = []
-  for (const convId of conversationIds) {
+  const convPeerPairs: { conversationId: string; peerUserId: string }[] = []
+  for (const convId of allowedIds) {
     const rows = byConv.get(convId) ?? []
     const peerRow = rows.find((r) => r.user_id !== myUserId)
     if (!peerRow) continue
-    const peer = peerFromProfiles(normalizeEmbeddedProfile(peerRow.profiles), peerRow.user_id)
-    const last = lastByConv.get(convId)
+    convPeerPairs.push({ conversationId: convId, peerUserId: peerRow.user_id })
+  }
+
+  const peerIds = [...new Set(convPeerPairs.map((p) => p.peerUserId))]
+
+  if (!peerIds.length) {
+    return { items: [], error: null, authUserId: myUserId }
+  }
+
+  const { data: profiles, error: profErr } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, full_name, avatar_url, role")
+    .in("id", peerIds)
+
+  if (profErr) {
+    return { items: [], error: new Error(profErr.message), authUserId: myUserId }
+  }
+
+  const safeProfiles = profiles ?? []
+  const profileMap = new Map<string, PeerProfileRow>(
+    safeProfiles.map((p) => {
+      const row = p as PeerProfileRow
+      return [row.id, row]
+    })
+  )
+
+  const items: ConversationListItem[] = []
+  for (const { conversationId, peerUserId } of convPeerPairs) {
+    const last = lastByConv.get(conversationId)
     items.push({
-      id: convId,
-      peer,
+      id: conversationId,
+      peer: conversationPeerFromProfile(peerUserId, profileMap.get(peerUserId)),
       lastMessage: last?.content?.trim() ? last.content.trim() : "Нет сообщений",
       lastMessageAt: last?.created_at ?? null
     })
@@ -178,7 +260,7 @@ export async function loadConversationSummaries(
     return tb - ta
   })
 
-  return { items, error: null }
+  return { items, error: null, authUserId: myUserId }
 }
 
 export async function loadMessagesForConversation(
@@ -388,4 +470,11 @@ export function conversationPeerTitle(peer: ChatProfileSnippet): string {
 
 export function conversationPeerRoleLabel(peer: ChatProfileSnippet): string {
   return roleLabelRu(peer.role)
+}
+
+/** Подпись роли в UI списка/шапки чата по строке `profiles.role`. */
+export function formatListPeerRole(role: string): string {
+  const r = role.trim()
+  if (!r) return ""
+  return roleLabelRu(r)
 }
