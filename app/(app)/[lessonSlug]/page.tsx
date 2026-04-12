@@ -44,7 +44,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
         </Link>
 
         <div
-          className="mb-6 inline-block rounded-full px-3 py-1 text-[12px] text-ds-ink"
+          className="mb-6 inline-block rounded-[var(--ds-radius-md)] px-3 py-1 text-[12px] text-ds-ink"
           style={{ backgroundColor: coursePillBg }}
         >
           {catalog.courseName}

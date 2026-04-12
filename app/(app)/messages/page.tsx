@@ -236,7 +236,7 @@ function MessagesPageInner() {
               {mentorSlugs.includes(active.id) ? (
                 <Link
                   href={`/mentors/${active.id}`}
-                  className="ml-auto hidden shrink-0 rounded-full border border-black/10 px-3 py-1.5 text-[13px] font-medium text-ds-ink no-underline transition-colors hover:bg-ds-surface-hover sm:inline dark:border-white/12"
+                  className="ml-auto hidden shrink-0 rounded-[var(--ds-radius-md)] border border-black/10 px-3 py-1.5 text-[13px] font-medium text-ds-ink no-underline transition-colors hover:bg-ds-surface-hover sm:inline dark:border-white/12"
                 >
                   Профиль
                 </Link>

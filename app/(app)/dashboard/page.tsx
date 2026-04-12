@@ -105,21 +105,21 @@ export default function DashboardPage() {
         <div className="ds-dashboard-grid">
           <div>
             <h2 className="mb-4 text-[20px] font-semibold leading-none text-ds-ink">Предстоящие занятия</h2>
-            <ul className="list-none p-0">
+            <ul className="flex list-none flex-col gap-6 p-0 sm:gap-7">
               {FIGMA_DASHBOARD_LESSONS.map((lesson) => (
                 <li key={lesson.id}>
                   <Link
                     href={lesson.href}
-                    className="group mb-4 flex items-center gap-4 no-underline last:mb-0"
+                    className="group flex items-center gap-4 no-underline"
                   >
                     <div
-                      className="flex h-[76px] w-[76px] shrink-0 flex-col items-center justify-center rounded-full text-center sm:h-[88px] sm:w-[88px]"
+                      className="flex h-[92px] w-[92px] shrink-0 flex-col items-center justify-center rounded-full text-center sm:h-[104px] sm:w-[104px]"
                       style={{ backgroundColor: lesson.bgColor, color: lesson.textColor }}
                     >
-                      <span className="mb-0.5 text-[22px] font-normal leading-none sm:mb-1 sm:text-[26px]">
+                      <span className="mb-1 text-[30px] font-normal leading-none sm:mb-1.5 sm:text-[36px]">
                         {lesson.date}
                       </span>
-                      <span className="text-[10px] leading-tight sm:text-[11px]">{lesson.time}</span>
+                      <span className="text-[12px] leading-tight sm:text-[13px]">{lesson.time}</span>
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="mb-1 text-[17px] font-normal leading-snug text-ds-ink sm:text-[20px] sm:leading-none">
@@ -133,7 +133,8 @@ export default function DashboardPage() {
                       </p>
                     </div>
                     <ChevronRight
-                      size={26}
+                      size={34}
+                      strokeWidth={2.25}
                       className="shrink-0 text-[#ccc] opacity-0 transition-opacity group-hover:opacity-100 dark:text-zinc-500"
                       aria-hidden
                     />
@@ -168,22 +169,23 @@ export default function DashboardPage() {
                 {Array.from({ length: FIGMA_CALENDAR.startOffset }).map((_, i) => (
                   <div key={`pad-${i}`} />
                 ))}
-                {calendarDays.map((item) => (
-                  <Link
-                    key={item.day}
-                    href="/schedule"
-                    className={`flex min-h-[44px] flex-col items-center justify-center rounded-lg py-1 text-center no-underline outline-offset-1 focus-visible:ring-2 focus-visible:ring-ds-ink/20 sm:min-h-0 sm:py-1.5 ${
-                      item.isToday ? "bg-ds-sage" : "hover:bg-ds-surface-hover"
-                    }`}
-                  >
-                    <div className="text-[13px] text-ds-ink sm:text-[14px]">{item.day}</div>
-                    {item.hasEvent || item.isToday ? (
-                      <div className="mt-0.5 flex justify-center">
-                        <span className="h-1 w-1 rounded-full bg-[#8ab84a]" />
+                {calendarDays.map((item) => {
+                  const showDot = item.hasEvent || item.isToday
+                  return (
+                    <Link
+                      key={item.day}
+                      href="/schedule"
+                      className={`flex min-h-[44px] flex-col items-center justify-center rounded-[var(--ds-radius-md)] py-1 text-center no-underline outline-offset-1 focus-visible:ring-2 focus-visible:ring-ds-ink/20 sm:min-h-[2.75rem] sm:py-1.5 ${
+                        item.isToday ? "bg-ds-sage" : "hover:bg-ds-surface-hover"
+                      }`}
+                    >
+                      <div className="text-[13px] text-ds-ink sm:text-[14px]">{item.day}</div>
+                      <div className="mt-0.5 flex h-2 items-center justify-center" aria-hidden>
+                        {showDot ? <span className="h-1 w-1 rounded-full bg-[#8ab84a]" /> : null}
                       </div>
-                    ) : null}
-                  </Link>
-                ))}
+                    </Link>
+                  )
+                })}
               </div>
             </div>
 
@@ -214,7 +216,7 @@ export default function DashboardPage() {
                       </Link>
                       <Link
                         href={`/messages?mentor=${t.slug}`}
-                        className="flex shrink-0 items-center gap-1 rounded-full border border-[#e8e8e8] bg-white px-3 py-2 text-[13px] font-medium text-ds-ink no-underline transition-colors hover:bg-[#f5f5f5] dark:border-white/15 dark:bg-ds-surface dark:hover:bg-white/5"
+                        className="flex shrink-0 items-center gap-1 rounded-[var(--ds-radius-md)] border border-[#e8e8e8] bg-white px-3 py-2 text-[13px] font-medium text-ds-ink no-underline transition-colors hover:bg-[#f5f5f5] dark:border-white/15 dark:bg-ds-surface dark:hover:bg-white/5"
                       >
                         Написать
                         <ChevronRight className="h-4 w-4 opacity-60" aria-hidden />

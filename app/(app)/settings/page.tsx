@@ -295,7 +295,7 @@ export default function SettingsPage() {
           <button
             type="button"
             onClick={handleSaveProfile}
-            className={`mt-6 h-12 w-full rounded-full text-[15px] font-semibold transition-colors ${
+            className={`mt-6 h-12 w-full rounded-[var(--ds-radius-md)] text-[15px] font-semibold transition-colors ${
               profileSaved ? "bg-[#8ab84a] text-white" : "bg-black text-white hover:opacity-90 dark:bg-white dark:text-black"
             }`}
           >
@@ -439,7 +439,7 @@ export default function SettingsPage() {
 
             {pwdMsg ? (
               <p
-                className={`rounded-full px-4 py-2 text-[14px] ${
+                className={`rounded-[var(--ds-radius-md)] px-4 py-2 text-[14px] ${
                   pwdMsg.type === "ok" ? "bg-green-50 text-green-800 dark:bg-green-950/40 dark:text-green-200" : "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-200"
                 }`}
               >
@@ -450,7 +450,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={pwdBusy}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-black text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 dark:bg-white dark:text-black"
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--ds-radius-md)] bg-black text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 dark:bg-white dark:text-black"
             >
               {pwdBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
               Обновить пароль

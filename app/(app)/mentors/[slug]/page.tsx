@@ -73,14 +73,14 @@ export default async function MentorPage({ params }: Props) {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center md:justify-start">
               <Link
                 href={`/messages?mentor=${mentor.slug}`}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-black px-6 text-[15px] font-semibold text-white no-underline transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-[var(--ds-radius-md)] bg-black px-6 text-[15px] font-semibold text-white no-underline transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
               >
                 <MessageCircle className="h-5 w-5" strokeWidth={2} aria-hidden />
                 Написать
               </Link>
               <Link
                 href="/schedule"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-black/10 bg-white px-6 text-[15px] font-semibold text-ds-ink no-underline shadow-sm transition-colors hover:bg-[#fafafa] dark:border-white/15 dark:bg-ds-surface dark:hover:bg-white/5"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-[var(--ds-radius-md)] border border-black/10 bg-white px-6 text-[15px] font-semibold text-ds-ink no-underline shadow-sm transition-colors hover:bg-[#fafafa] dark:border-white/15 dark:bg-ds-surface dark:hover:bg-white/5"
               >
                 <CalendarDays className="h-5 w-5" strokeWidth={2} aria-hidden />
                 Расписание
@@ -131,7 +131,7 @@ export default async function MentorPage({ params }: Props) {
                 {mentor.subjects.map((tag) => (
                   <span
                     key={tag}
-                    className="rounded-full bg-white px-3.5 py-2 text-[13px] font-medium text-ds-ink shadow-sm dark:bg-white/15 dark:text-white"
+                    className="rounded-[var(--ds-radius-md)] bg-white px-3.5 py-2 text-[13px] font-medium text-ds-ink shadow-sm dark:bg-white/15 dark:text-white"
                   >
                     {tag}
                   </span>
