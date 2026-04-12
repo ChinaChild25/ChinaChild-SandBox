@@ -387,14 +387,6 @@ export async function sendChatMessage(
   }
 }
 
-function parseProfileRole(raw: string | null | undefined): "student" | "teacher" | null {
-  const r = String(raw ?? "")
-    .trim()
-    .toLowerCase()
-  if (r === "student" || r === "teacher") return r
-  return null
-}
-
 export type ConversationIdResult = { conversationId: string } | { error: string }
 
 /**
@@ -478,51 +470,6 @@ export async function getOrCreateConversation(
   )
   if (findErr) return { error: findErr }
   if (existing) return { conversationId: existing }
-
-  return insertDirectConversation(supabase, currentUserId, peerId)
-}
-
-/**
- * То же, что `getOrCreateConversation`, плюс проверка ролей (student + teacher) только если чата ещё нет.
- */
-export async function createStudentTeacherConversation(
-  supabase: SupabaseClient,
-  currentUserId: string,
-  peerId: string
-): Promise<ConversationIdResult> {
-  if (currentUserId === peerId) return { error: "Нельзя создать чат с самим собой." }
-
-  const { conversationId: existing, error: findErr } = await findConversationBetweenUsers(
-    supabase,
-    currentUserId,
-    peerId
-  )
-  if (findErr) return { error: findErr }
-  if (existing) return { conversationId: existing }
-
-  const { data: rows, error: profErr } = await supabase
-    .from("profiles")
-    .select("id, role")
-    .in("id", [currentUserId, peerId])
-
-  if (profErr) return { error: profErr.message }
-
-  const roleById = new Map<string, "student" | "teacher">()
-  for (const r of rows ?? []) {
-    const pr = r as { id: string; role: string }
-    const role = parseProfileRole(pr.role)
-    if (!role) return { error: `Неподдерживаемая роль в профиле (${pr.role}).` }
-    roleById.set(pr.id, role)
-  }
-
-  const a = roleById.get(currentUserId)
-  const b = roleById.get(peerId)
-  if (!a || !b) return { error: "Не удалось загрузить роли обоих пользователей." }
-
-  const pair = new Set([a, b])
-  if (!pair.has("student") || !pair.has("teacher")) {
-    return { error: "Чат доступен только между учеником и преподавателем." }
-  }
 
   return insertDirectConversation(supabase, currentUserId, peerId)
 }

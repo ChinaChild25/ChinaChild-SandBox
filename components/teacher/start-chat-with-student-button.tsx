@@ -6,7 +6,7 @@ import { Loader2, MessageSquarePlus } from "lucide-react"
 
 import { useAuth } from "@/lib/auth-context"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
-import { createStudentTeacherConversation } from "@/lib/supabase/chat"
+import { getOrCreateConversation } from "@/lib/supabase/chat"
 import { Button } from "@/components/ui/button"
 
 type Props = {
@@ -26,7 +26,7 @@ export function StartChatWithStudentButton({ studentProfileId, className }: Prop
     setError(null)
     setWorking(true)
     const supabase = createBrowserSupabaseClient()
-    const res = await createStudentTeacherConversation(supabase, user.id, studentProfileId.trim())
+    const res = await getOrCreateConversation(supabase, user.id, studentProfileId.trim())
     setWorking(false)
     if ("error" in res) {
       setError(res.error)
