@@ -1788,6 +1788,15 @@ html.dark[data-ui-accent="orange"] {
     box-shadow: 0 0 0 3px rgb(26 26 26 / 0.2);
   }
 
+  .dark .ds-btn-primary-solid {
+    background-color: #fafafa;
+    color: #141414;
+  }
+
+  .dark .ds-btn-primary-solid:focus-visible {
+    box-shadow: 0 0 0 3px rgb(255 255 255 / 0.25);
+  }
+
   .ds-btn-social {
     display: inline-flex;
     height: 44px;

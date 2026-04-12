@@ -154,7 +154,7 @@ export function MessagesView({
                         <p className="truncate text-[12px] text-ds-text-tertiary">{conv.lastMessage}</p>
                       </div>
                       {conv.unread > 0 ? (
-                        <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-ds-ink px-1 text-[10px] font-bold text-white dark:bg-white dark:text-ds-ink">
+                        <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-ds-ink px-1 text-[10px] font-bold text-white dark:bg-white dark:text-[#1a1a1a]">
                           {conv.unread}
                         </span>
                       ) : null}
@@ -257,7 +257,7 @@ export function MessagesView({
                   <button
                     type="button"
                     onClick={handleSend}
-                    className="grid h-10 w-10 shrink-0 place-content-center rounded-full bg-[#1a1a1a] text-white transition-colors hover:bg-[#333] dark:bg-white dark:text-ds-ink dark:hover:bg-neutral-200"
+                    className="grid h-10 w-10 shrink-0 place-content-center rounded-full bg-[#1a1a1a] text-white transition-colors hover:bg-[#333] dark:bg-white dark:text-[#1a1a1a] dark:hover:bg-neutral-200"
                     aria-label="Отправить"
                   >
                     <Send size={16} />

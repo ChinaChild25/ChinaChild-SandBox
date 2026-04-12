@@ -115,7 +115,7 @@ export default function TeacherStudentsPage() {
                 <div className="mt-auto border-t border-black/[0.06] p-4 dark:border-white/10">
                   <Link
                     href={`/teacher/students/${s.id}`}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--ds-radius-md)] bg-ds-ink py-3 text-[14px] font-semibold text-white no-underline transition-opacity hover:opacity-90 dark:bg-white dark:text-ds-ink"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-[var(--ds-radius-md)] bg-ds-ink py-3 text-[14px] font-semibold text-white no-underline transition-opacity hover:opacity-90 dark:bg-white dark:text-[#1a1a1a]"
                   >
                     Полная карточка
                     <ArrowRight className="h-4 w-4 opacity-80" aria-hidden />

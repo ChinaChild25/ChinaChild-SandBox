@@ -101,7 +101,7 @@ function SharedHero({
           <Link
             href={`/messages?mentor=${mentor.slug}`}
             className={cn(
-              "inline-flex h-12 min-w-[8.5rem] items-center justify-center gap-2 bg-ds-ink px-5 text-[15px] font-semibold text-white no-underline transition-opacity hover:opacity-90 dark:bg-white dark:text-ds-ink",
+              "inline-flex h-12 min-w-[8.5rem] items-center justify-center gap-2 bg-ds-ink px-5 text-[15px] font-semibold text-white no-underline transition-opacity hover:opacity-90 dark:bg-white dark:text-[#1a1a1a]",
               actionRadius
             )}
           >
@@ -203,7 +203,7 @@ function CuratorPageBody({ mentor, t }: { mentor: MentorProfile; t: (k: string, 
             <Link
               href={`/messages?mentor=${mentor.slug}`}
               className={cn(
-                "inline-flex h-12 min-w-[8.5rem] items-center justify-center gap-2 bg-ds-ink px-5 text-[15px] font-semibold text-white no-underline transition-opacity hover:opacity-90 dark:bg-white dark:text-ds-ink",
+                "inline-flex h-12 min-w-[8.5rem] items-center justify-center gap-2 bg-ds-ink px-5 text-[15px] font-semibold text-white no-underline transition-opacity hover:opacity-90 dark:bg-white dark:text-[#1a1a1a]",
                 actionRadius
               )}
             >

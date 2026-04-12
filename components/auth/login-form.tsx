@@ -46,7 +46,7 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }: LoginFormPro
             onClick={() => setAccountType("student")}
             className={`rounded-[14px] border px-3 py-2.5 text-[15px] font-medium transition-colors ${
               accountType === "student"
-                ? "border-ds-ink bg-ds-ink text-white dark:border-white dark:bg-white dark:text-ds-ink"
+                ? "border-ds-ink bg-ds-ink text-white dark:border-white dark:bg-white dark:text-[#1a1a1a]"
                 : "border-black/15 bg-white/60 text-ds-ink hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
             }`}
           >
@@ -57,7 +57,7 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }: LoginFormPro
             onClick={() => setAccountType("teacher")}
             className={`rounded-[14px] border px-3 py-2.5 text-[15px] font-medium transition-colors ${
               accountType === "teacher"
-                ? "border-ds-ink bg-ds-ink text-white dark:border-white dark:bg-white dark:text-ds-ink"
+                ? "border-ds-ink bg-ds-ink text-white dark:border-white dark:bg-white dark:text-[#1a1a1a]"
                 : "border-black/15 bg-white/60 text-ds-ink hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
             }`}
           >
