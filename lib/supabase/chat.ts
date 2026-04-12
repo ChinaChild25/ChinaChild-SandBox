@@ -127,6 +127,9 @@ function conversationPeerFromProfile(peerUserId: string, profile: PeerProfileRow
   }
 }
 
+/** Временная отладка списка чатов — удалить после диагностики. */
+const DEBUG_CHAT_LIST = "[loadMyConversationList]"
+
 /**
  * Список чатов: getUser → участия → conversations → участники (без join) → отдельно profiles по id → превью сообщений.
  */
@@ -139,41 +142,82 @@ export async function loadMyConversationList(
   } = await supabase.auth.getUser()
 
   if (authErr) {
+    console.warn(DEBUG_CHAT_LIST, "EARLY_RETURN authErr", authErr.message)
     return { items: [], error: new Error(authErr.message), authUserId: null }
   }
   if (!user) {
+    console.warn(DEBUG_CHAT_LIST, "EARLY_RETURN no user session")
     return { items: [], error: null, authUserId: null }
   }
 
   const myUserId = user.id
+  console.log(DEBUG_CHAT_LIST, "1 auth user id", myUserId)
 
   const { data: partRows, error: p0 } = await supabase
     .from("conversation_participants")
     .select("conversation_id")
     .eq("user_id", myUserId)
 
+  console.log(DEBUG_CHAT_LIST, "2 conversation_participants (by user_id)", {
+    count: partRows?.length ?? 0,
+    rows: partRows,
+    error: p0?.message ?? null
+  })
+
   if (p0) {
+    console.warn(DEBUG_CHAT_LIST, "EARLY_RETURN participants query error", p0.message)
     return { items: [], error: new Error(p0.message), authUserId: myUserId }
   }
 
   const conversationIds = [...new Set((partRows ?? []).map((r) => (r as { conversation_id: string }).conversation_id))]
+  console.log(DEBUG_CHAT_LIST, "3 conversationIds (deduped)", {
+    length: conversationIds.length,
+    ids: conversationIds
+  })
+
   if (conversationIds.length === 0) {
+    console.warn(DEBUG_CHAT_LIST, "EARLY_RETURN empty conversationIds")
     return { items: [], error: null, authUserId: myUserId }
   }
+
+  console.log(DEBUG_CHAT_LIST, "4 calling conversations.in('id', conversationIds)", {
+    sameArrayRef: true,
+    inClauseIds: conversationIds
+  })
 
   const { data: conversations, error: cErr } = await supabase
     .from("conversations")
     .select("*")
     .in("id", conversationIds)
 
+  console.log(DEBUG_CHAT_LIST, "5 conversations rows", {
+    count: conversations?.length ?? 0,
+    rows: conversations,
+    error: cErr?.message ?? null
+  })
+
   if (cErr) {
+    console.warn(DEBUG_CHAT_LIST, "EARLY_RETURN conversations query error", cErr.message)
     return { items: [], error: new Error(cErr.message), authUserId: myUserId }
   }
 
   const convById = new Map((conversations ?? []).map((c) => [(c as Conversation).id, c as Conversation]))
 
   const allowedIds = conversationIds.filter((id) => convById.has(id))
+  const droppedIds = conversationIds.filter((id) => !convById.has(id))
+  console.log(DEBUG_CHAT_LIST, "6 allowedIds vs RLS/missing rows", {
+    allowedCount: allowedIds.length,
+    allowedIds,
+    droppedCount: droppedIds.length,
+    droppedIds,
+    hint:
+      droppedIds.length > 0
+        ? "Some participant conversation_ids have no matching row in conversations (deleted or RLS hides them)."
+        : "All participant ids matched conversations rows."
+  })
+
   if (allowedIds.length === 0) {
+    console.warn(DEBUG_CHAT_LIST, "EARLY_RETURN allowedIds empty (no conversation rows visible)")
     return { items: [], error: null, authUserId: myUserId }
   }
 
@@ -182,7 +226,14 @@ export async function loadMyConversationList(
     .select("conversation_id, user_id")
     .in("conversation_id", allowedIds)
 
+  console.log(DEBUG_CHAT_LIST, "7 conversation_participants (full, by conversation_id in allowedIds)", {
+    count: parts?.length ?? 0,
+    rows: parts,
+    error: pErr?.message ?? null
+  })
+
   if (pErr) {
+    console.warn(DEBUG_CHAT_LIST, "EARLY_RETURN participants second query error", pErr.message)
     return { items: [], error: new Error(pErr.message), authUserId: myUserId }
   }
 
@@ -192,7 +243,14 @@ export async function loadMyConversationList(
     .in("conversation_id", allowedIds)
     .order("created_at", { ascending: false })
 
+  console.log(DEBUG_CHAT_LIST, "8 messages rows", {
+    count: msgs?.length ?? 0,
+    rows: msgs,
+    error: mErr?.message ?? null
+  })
+
   if (mErr) {
+    console.warn(DEBUG_CHAT_LIST, "EARLY_RETURN messages query error", mErr.message)
     return { items: [], error: new Error(mErr.message), authUserId: myUserId }
   }
 
@@ -216,13 +274,28 @@ export async function loadMyConversationList(
   for (const convId of allowedIds) {
     const rows = byConv.get(convId) ?? []
     const peerRow = rows.find((r) => r.user_id !== myUserId)
-    if (!peerRow) continue
+    if (!peerRow) {
+      console.log(DEBUG_CHAT_LIST, "9 skip conv (no peer row !== current user)", {
+        convId,
+        participantUserIds: rows.map((r) => r.user_id)
+      })
+      continue
+    }
     convPeerPairs.push({ conversationId: convId, peerUserId: peerRow.user_id })
   }
 
   const peerIds = [...new Set(convPeerPairs.map((p) => p.peerUserId))]
+  console.log(DEBUG_CHAT_LIST, "10 convPeerPairs & peerIds", {
+    convPeerPairs,
+    peerIds,
+    peerIdsLength: peerIds.length
+  })
 
   if (!peerIds.length) {
+    console.warn(
+      DEBUG_CHAT_LIST,
+      "EARLY_RETURN peerIds empty — no second participant in any visible conversation (solo membership or only self in participants list)"
+    )
     return { items: [], error: null, authUserId: myUserId }
   }
 
@@ -231,7 +304,14 @@ export async function loadMyConversationList(
     .select("id, first_name, last_name, full_name, avatar_url, role")
     .in("id", peerIds)
 
+  console.log(DEBUG_CHAT_LIST, "11 profiles rows", {
+    count: profiles?.length ?? 0,
+    rows: profiles,
+    error: profErr?.message ?? null
+  })
+
   if (profErr) {
+    console.warn(DEBUG_CHAT_LIST, "EARLY_RETURN profiles query error", profErr.message)
     return { items: [], error: new Error(profErr.message), authUserId: myUserId }
   }
 
@@ -259,6 +339,8 @@ export async function loadMyConversationList(
     const tb = b.lastMessageAt ? Date.parse(b.lastMessageAt) : 0
     return tb - ta
   })
+
+  console.log(DEBUG_CHAT_LIST, "12 final items", { count: items.length, items })
 
   return { items, error: null, authUserId: myUserId }
 }
