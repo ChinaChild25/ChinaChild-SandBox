@@ -17,7 +17,7 @@ const GROUP_ID = "group-hsk1"
 
 function buildConversations(): Conversation[] {
   const curator = mentorsBySlug["eo-mi-ran"]
-  const teacher = mentorsBySlug["kim-ji-hun"]
+  const teacher = mentorsBySlug["zhao-li"]
   return [
     {
       id: curator.slug,

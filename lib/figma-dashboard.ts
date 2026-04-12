@@ -15,11 +15,10 @@ export const FIGMA_TEACHERS = [
     photo: "/staff/denis-gasenko-curator.png"
   },
   {
-    slug: "kim-ji-hun" as const,
-    name: "Ли Вэй",
+    slug: "zhao-li" as const,
+    name: "Чжао Ли",
     role: "преподаватель",
-    photo:
-      "https://images.unsplash.com/photo-1544168190-79c17527004f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhc2lhbiUyMG1hbGUlMjB0ZWFjaGVyJTIwcG9ydHJhaXR8ZW58MXx8fHwxNzc1Nzg3NjAwfDA&ixlib=rb-4.1.0&q=80&w=200"
+    photo: "/staff/zhao-li.png"
   }
 ] as const
 

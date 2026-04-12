@@ -2,7 +2,7 @@
 
 import { getAppNow } from "@/lib/app-time"
 
-export const SCHEDULE_DEFAULT_TEACHER = "Анастасия Пономарева"
+export const SCHEDULE_DEFAULT_TEACHER = "Чжао Ли"
 
 export const SCHEDULE_YEAR = 2026
 export const SCHEDULE_MONTH_APRIL = 3 // 0-based

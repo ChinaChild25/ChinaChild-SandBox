@@ -5,7 +5,7 @@ export const mockUser: User = {
   email: "yana@example.com",
   name: "Яна",
   assignedCuratorSlug: "eo-mi-ran",
-  assignedTeacherSlug: "kim-ji-hun",
+  assignedTeacherSlug: "zhao-li",
   phone: "+7 999 123-45-67",
   profileSubtitle: "студентка 1 степени",
   avatar: "/students/yana.png",
@@ -33,7 +33,7 @@ export const mockCourses: Course[] = [
     totalLessons: 24,
     completedLessons: 24,
     progress: 100,
-    instructor: "Ли Вэй",
+    instructor: "Чжао Ли",
     thumbnail: "/courses/fundamentals.jpg",
     category: "Speaking",
     enrolled: true

@@ -2,7 +2,7 @@ import { mentorsBySlug } from "@/lib/mentors"
 import type { User } from "@/lib/types"
 
 export const DEFAULT_CURATOR_SLUG = "eo-mi-ran"
-export const DEFAULT_TEACHER_SLUG = "kim-ji-hun"
+export const DEFAULT_TEACHER_SLUG = "zhao-li"
 
 /** Закреплённые куратор и преподаватель ученика (разные люди). */
 export function curatorAndTeacherForUser(user: User | null) {

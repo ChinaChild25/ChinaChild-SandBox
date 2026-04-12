@@ -100,14 +100,14 @@ export const mentorsBySlug: Record<string, MentorProfile> = {
       ctaHref: "/classes"
     }
   },
-  "kim-ji-hun": {
-    slug: "kim-ji-hun",
+  "zhao-li": {
+    slug: "zhao-li",
     name: FIGMA_TEACHERS[1].name,
     staffKind: "teacher",
     telegramUsername: "chinachild_teacher_demo",
     role: FIGMA_TEACHERS[1].role,
     titleLine: "Преподаватель · Методист",
-    initials: "ЛВ",
+    initials: "ЧЛ",
     photo: FIGMA_TEACHERS[1].photo,
     stats: {
       rating: "4,8",
@@ -116,12 +116,12 @@ export const mentorsBySlug: Record<string, MentorProfile> = {
       yearsExperience: 8
     },
     about:
-      "Выпускник Шанхайского университета иностранных языков, специализируется на подготовке к HSK и развитии навыков аудирования. Объясняет грамматику через примеры из повседневной жизни и медиа; на уроках много практики с таймингом, как на реальном экзамене.",
+      "Выпускница Шанхайского университета иностранных языков, специализируется на подготовке к HSK и развитии навыков аудирования. Объясняет грамматику через примеры из повседневной жизни и медиа; на уроках много практики с таймингом, как на реальном экзамене.",
     education: "Шанхайский университет иностранных языков, магистратура",
     reviews: [
       {
         author: "Дмитрий Р.",
-        text: "С Ли Вэем разобрали аудирование HSK4 — стало заметно легче улавливать цифры и даты в диалогах.",
+        text: "С Чжао Ли разобрали аудирование HSK4 — стало заметно легче улавливать цифры и даты в диалогах.",
         stars: 5
       },
       {

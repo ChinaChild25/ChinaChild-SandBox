@@ -18,7 +18,7 @@ export type ClassListItem = {
   slug?: string
 }
 
-const ONLINE_TEACHER = "Анастасия Пономарева"
+const ONLINE_TEACHER = "Чжао Ли"
 
 function lessonTitleToType(title: string, lessonType: string): ClassDisplayType {
   if (title.includes("Тест") || title.toLowerCase().includes("тест")) return "Тест"
