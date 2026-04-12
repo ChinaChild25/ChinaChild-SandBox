@@ -23,7 +23,7 @@ export type MessageRow = {
   id: string
   conversation_id: string
   sender_id: string
-  body: string
+  content: string
   created_at: string
 }
 
@@ -135,17 +135,17 @@ export async function loadConversationSummaries(
 
   const { data: msgs, error: mErr } = await supabase
     .from("messages")
-    .select("conversation_id, body, created_at")
+    .select("conversation_id, content, created_at")
     .in("conversation_id", conversationIds)
     .order("created_at", { ascending: false })
 
   if (mErr) return { items: [], error: new Error(mErr.message) }
 
-  const lastByConv = new Map<string, { body: string; created_at: string }>()
+  const lastByConv = new Map<string, { content: string; created_at: string }>()
   for (const row of msgs ?? []) {
-    const m = row as { conversation_id: string; body: string; created_at: string }
+    const m = row as { conversation_id: string; content: string; created_at: string }
     if (!lastByConv.has(m.conversation_id)) {
-      lastByConv.set(m.conversation_id, { body: m.body, created_at: m.created_at })
+      lastByConv.set(m.conversation_id, { content: m.content, created_at: m.created_at })
     }
   }
 
@@ -167,7 +167,7 @@ export async function loadConversationSummaries(
     items.push({
       id: convId,
       peer,
-      lastMessage: last?.body?.trim() ? last.body.trim() : "Нет сообщений",
+      lastMessage: last?.content?.trim() ? last.content.trim() : "Нет сообщений",
       lastMessageAt: last?.created_at ?? null
     })
   }
@@ -188,18 +188,18 @@ export async function loadMessagesForConversation(
 ): Promise<{ messages: ChatBubble[]; error: Error | null }> {
   const { data, error } = await supabase
     .from("messages")
-    .select("id, sender_id, body, created_at")
+    .select("id, sender_id, content, created_at")
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true })
 
   if (error) return { messages: [], error: new Error(error.message) }
 
   const messages: ChatBubble[] = (data ?? []).map((row) => {
-    const r = row as Pick<MessageRow, "id" | "sender_id" | "body" | "created_at">
+    const r = row as Pick<MessageRow, "id" | "sender_id" | "content" | "created_at">
     return {
       id: r.id,
       from: r.sender_id === myUserId ? "me" : "them",
-      text: r.body,
+      text: r.content,
       createdAt: r.created_at,
       timeLabel: formatChatTimeLabel(r.created_at)
     }
@@ -212,29 +212,29 @@ export async function sendChatMessage(
   supabase: SupabaseClient,
   conversationId: string,
   senderId: string,
-  body: string
+  messageText: string
 ): Promise<{ message: ChatBubble | null; error: Error | null }> {
-  const trimmed = body.trim()
-  if (!trimmed) return { message: null, error: new Error("Пустое сообщение") }
+  const messageTextTrimmed = messageText.trim()
+  if (!messageTextTrimmed) return { message: null, error: new Error("Пустое сообщение") }
 
   const { data, error } = await supabase
     .from("messages")
     .insert({
       conversation_id: conversationId,
       sender_id: senderId,
-      body: trimmed
+      content: messageTextTrimmed
     })
-    .select("id, sender_id, body, created_at")
+    .select("id, sender_id, content, created_at")
     .single()
 
   if (error) return { message: null, error: new Error(error.message) }
 
-  const row = data as Pick<MessageRow, "id" | "sender_id" | "body" | "created_at">
+  const row = data as Pick<MessageRow, "id" | "sender_id" | "content" | "created_at">
   return {
     message: {
       id: row.id,
       from: row.sender_id === senderId ? "me" : "them",
-      text: row.body,
+      text: row.content,
       createdAt: row.created_at,
       timeLabel: formatChatTimeLabel(row.created_at)
     },
