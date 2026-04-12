@@ -134,10 +134,10 @@ export default function CourseDetailsPage() {
             const rowClass = active
               ? "cursor-pointer bg-ds-ink text-white"
               : done
-                ? "cursor-pointer bg-ds-canvas hover:bg-[#eeeeee]"
+                ? "cursor-pointer bg-[var(--ds-neutral-row)] hover:bg-[var(--ds-neutral-row-hover)]"
                 : locked
-                  ? "cursor-not-allowed bg-ds-canvas opacity-50"
-                  : "cursor-pointer bg-ds-canvas hover:bg-[#eeeeee]"
+                  ? "cursor-not-allowed bg-[var(--ds-neutral-row)] opacity-50"
+                  : "cursor-pointer bg-[var(--ds-neutral-row)] hover:bg-[var(--ds-neutral-row-hover)]"
 
             const inner = (
               <>

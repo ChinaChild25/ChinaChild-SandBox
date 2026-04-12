@@ -434,6 +434,13 @@ html:not(.dark)[data-ui-accent="orange"] {
     }
   }
 
+  /** Сообщения: меньше зазор слева от колонки main, без «второго левого поля» от max-width */
+  @media (min-width: 1024px) {
+    .ds-figma-shell-page-pad:has(.ds-messages-page) {
+      padding-left: 1.25rem;
+    }
+  }
+
   /** Корень страницы без собственных полей — поля даёт shell */
   .ds-figma-page {
     box-sizing: border-box;
@@ -1830,6 +1837,98 @@ html:not(.dark)[data-ui-accent="orange"] {
     background-color: var(--ds-surface);
     box-shadow: none;
     border: 1px solid rgb(255 255 255 / 0.12);
+  }
+
+  /* —— Оплата: варианты карточек (светлая / тёмная тема) —— */
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--neutral {
+    background-color: var(--ds-neutral-row);
+    border: 1px solid rgb(0 0 0 / 0.06);
+    box-shadow: none;
+  }
+
+  .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--neutral {
+    background-color: var(--ds-surface-muted);
+    border-color: rgb(255 255 255 / 0.1);
+  }
+
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--sage {
+    background-color: #e8f0df;
+    border: 1px solid rgb(138 184 74 / 0.28);
+    box-shadow: none;
+  }
+
+  .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--sage {
+    background-color: rgb(61 77 46 / 0.45);
+    border-color: rgb(155 196 92 / 0.35);
+  }
+
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--ink {
+    background-color: var(--ds-ink);
+    color: #ffffff;
+    border: 1px solid rgb(0 0 0 / 0.08);
+    box-shadow: 0 8px 28px rgb(0 0 0 / 0.14);
+  }
+
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-settings-section-head {
+    color: #ffffff;
+  }
+
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-settings-section-head svg {
+    color: rgb(255 255 255 / 0.78);
+  }
+
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-settings-subtitle {
+    color: rgb(255 255 255 / 0.92);
+  }
+
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .text-ds-ink {
+    color: #ffffff;
+  }
+
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .text-ds-text-tertiary {
+    color: rgb(255 255 255 / 0.68);
+  }
+
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-payment-panel--ink-cta {
+    border: none;
+    background-color: #ffffff;
+    color: var(--ds-ink);
+  }
+
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-payment-panel--ink-cta:hover {
+    opacity: 0.92;
+  }
+
+  .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink {
+    background-color: #ececec;
+    color: var(--ds-ink);
+    border-color: rgb(255 255 255 / 0.14);
+    box-shadow: 0 10px 36px rgb(0 0 0 / 0.45);
+  }
+
+  .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-settings-section-head {
+    color: var(--ds-ink);
+  }
+
+  .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-settings-section-head svg {
+    color: var(--ds-text-tertiary);
+  }
+
+  .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-settings-subtitle {
+    color: var(--ds-text-secondary);
+  }
+
+  .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .text-ds-ink {
+    color: var(--ds-ink);
+  }
+
+  .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .text-ds-text-tertiary {
+    color: var(--ds-text-tertiary);
+  }
+
+  .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-payment-panel--ink-cta {
+    background-color: var(--ds-ink);
+    color: #ffffff;
   }
 
   .ds-settings-section-head {

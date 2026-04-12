@@ -231,7 +231,7 @@ export default function DashboardPage() {
                 ).map(({ slug, m, kind }) => (
                   <li
                     key={slug}
-                    className="rounded-[var(--ds-radius-xl)] bg-ds-sidebar px-4 py-3"
+                    className="rounded-[var(--ds-radius-xl)] bg-transparent px-4 py-3 transition-colors duration-200 hover:bg-[var(--ds-neutral-row)] dark:hover:bg-[var(--ds-neutral-row-hover)]"
                   >
                     <div className="flex items-center gap-2 sm:gap-3">
                       <Link

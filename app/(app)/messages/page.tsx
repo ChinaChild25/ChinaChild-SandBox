@@ -78,9 +78,9 @@ function MessagesPageInner() {
   const showChat = wide || mobilePanel === "chat"
 
   return (
-    <div className="ds-figma-page flex min-h-0 flex-1 flex-col">
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col min-h-0">
-        <div className="ds-messages-shell min-h-0 flex-1 flex-col lg:flex-row">
+    <div className="ds-figma-page ds-messages-page flex min-h-0 flex-1 flex-col">
+      <div className="flex w-full min-h-0 flex-1 flex-col lg:h-[calc(100dvh-10rem)] lg:max-h-[calc(100dvh-10rem)]">
+        <div className="ds-messages-shell min-h-0 flex-1 flex-col lg:flex-row lg:min-h-0">
           <div
             className={cn(
               "ds-messages-sidebar max-h-[min(40dvh,340px)] shrink-0 lg:max-h-none lg:min-h-0",
@@ -230,8 +230,8 @@ export default function MessagesPage() {
   return (
     <Suspense
       fallback={
-        <div className="ds-figma-page flex min-h-0 flex-1 flex-col">
-          <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-10 text-ds-text-tertiary">
+        <div className="ds-figma-page ds-messages-page flex min-h-0 flex-1 flex-col">
+          <div className="flex w-full flex-1 flex-col px-1 py-10 text-ds-text-tertiary md:px-0">
             Загрузка…
           </div>
         </div>

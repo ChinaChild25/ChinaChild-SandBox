@@ -72,7 +72,7 @@ export default function PaymentPage() {
 
   if (!billing) {
     return (
-      <div className="ds-figma-page ds-settings-page-bleed">
+      <div className="ds-figma-page ds-payment-page ds-settings-page-bleed">
         <div className="ds-settings-v0-stack">
           <p className="text-[14px] text-ds-text-tertiary">{t("app.loading")}</p>
         </div>
@@ -81,7 +81,7 @@ export default function PaymentPage() {
   }
 
   return (
-    <div className="ds-figma-page ds-settings-page-bleed">
+    <div className="ds-figma-page ds-payment-page ds-settings-page-bleed">
       <div className="ds-settings-v0-stack">
         <header className="ds-settings-page-header">
           <h1 className="ds-settings-page-title">{t("payment.title")}</h1>
@@ -89,7 +89,10 @@ export default function PaymentPage() {
         </header>
 
         <div className="ds-settings-panels-grid">
-          <section className="ds-settings-panel" aria-labelledby="payment-module-heading">
+          <section
+            className="ds-settings-panel ds-payment-panel ds-payment-panel--neutral"
+            aria-labelledby="payment-module-heading"
+          >
             <h2 id="payment-module-heading" className="ds-settings-section-head">
               <BookOpen size={22} strokeWidth={1.75} aria-hidden />
               {t("payment.moduleSection")}
@@ -121,19 +124,22 @@ export default function PaymentPage() {
             </div>
           </section>
 
-          <section className="ds-settings-panel" aria-labelledby="payment-balance-heading">
+          <section
+            className="ds-settings-panel ds-payment-panel ds-payment-panel--sage"
+            aria-labelledby="payment-balance-heading"
+          >
             <h2 id="payment-balance-heading" className="ds-settings-section-head">
               <Wallet size={22} strokeWidth={1.75} aria-hidden />
               {t("payment.balanceSection")}
             </h2>
             <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3 rounded-[var(--ds-radius-md)] bg-[var(--ds-neutral-row)] px-4 py-3 dark:bg-white/5">
+              <div className="flex items-center justify-between gap-3 rounded-[var(--ds-radius-md)] bg-white/70 px-4 py-3 dark:bg-black/25">
                 <span className="text-[15px] text-ds-ink">{t("payment.balanceRub")}</span>
                 <span className="text-[17px] font-semibold tabular-nums text-ds-ink">
                   {formatRub(bcp47, balanceRub)}
                 </span>
               </div>
-              <div className="flex items-center justify-between gap-3 rounded-[var(--ds-radius-md)] border border-[#ebebeb] px-4 py-3 dark:border-white/10">
+              <div className="flex items-center justify-between gap-3 rounded-[var(--ds-radius-md)] border border-black/[0.08] bg-white/50 px-4 py-3 dark:border-white/15 dark:bg-black/20">
                 <span className="text-[15px] text-ds-ink">{t("payment.deductedTitle")}</span>
                 <span className="text-[17px] font-semibold tabular-nums text-ds-ink">
                   {t("payment.deductedCount", { n: String(consumed) })}
@@ -142,7 +148,10 @@ export default function PaymentPage() {
             </div>
           </section>
 
-          <section className="ds-settings-panel" aria-labelledby="payment-pay-heading">
+          <section
+            className="ds-settings-panel ds-payment-panel ds-payment-panel--ink"
+            aria-labelledby="payment-pay-heading"
+          >
             <h2 id="payment-pay-heading" className="ds-settings-section-head">
               <CreditCard size={22} strokeWidth={1.75} aria-hidden />
               {t("payment.paySection")}
@@ -152,13 +161,16 @@ export default function PaymentPage() {
             <button
               type="button"
               onClick={openYooKassa}
-              className="flex h-12 w-full items-center justify-center rounded-[var(--ds-radius-md)] bg-black text-[15px] font-semibold text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+              className="ds-payment-panel--ink-cta flex h-12 w-full items-center justify-center rounded-[var(--ds-radius-md)] text-[15px] font-semibold transition-opacity hover:opacity-90"
             >
               {t("payment.payYooKassa")}
             </button>
           </section>
 
-          <section className="ds-settings-panel lg:col-span-2" aria-labelledby="payment-history-heading">
+          <section
+            className="ds-settings-panel ds-payment-panel ds-payment-panel--neutral lg:col-span-2"
+            aria-labelledby="payment-history-heading"
+          >
             <h2 id="payment-history-heading" className="ds-settings-section-head">
               <Receipt size={22} strokeWidth={1.75} aria-hidden />
               {t("payment.historySection")}
