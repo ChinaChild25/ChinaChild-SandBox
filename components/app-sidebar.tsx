@@ -97,17 +97,16 @@ export function AppSidebar({ variant = "sidebar" }: AppSidebarProps) {
         href={item.href}
         className={cn(
           "figma-nav-link",
-          drawer && "figma-nav-link--compact relative flex-col items-stretch gap-1.5 py-2.5 text-center",
+          drawer && "figma-nav-link--drawer-list relative",
           active && "figma-nav-link--active"
         )}
       >
-        <item.icon size={drawer ? 18 : 20} strokeWidth={2} className={drawer ? "mx-auto shrink-0" : ""} aria-hidden />
-        <span className={cn("flex-1", drawer && "block text-center text-[12px] font-medium leading-tight")}>{label}</span>
+        <item.icon size={20} strokeWidth={2} className="shrink-0" aria-hidden />
+        <span className="min-w-0 flex-1 leading-snug">{label}</span>
         {item.href === "/messages" && messagesBadge ? (
           <span
             className={cn(
               "flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-bold",
-              drawer && "absolute right-1 top-1 h-5 min-w-5 text-[10px]",
               active
                 ? "bg-white text-ds-ink dark:bg-[#141414] dark:text-white"
                 : "bg-ds-ink text-white dark:bg-[#e8e8e8] dark:text-[#141414]"
@@ -127,14 +126,19 @@ export function AppSidebar({ variant = "sidebar" }: AppSidebarProps) {
         className={cn(
           "flex no-underline text-ds-ink transition-opacity hover:opacity-95",
           drawer
-            ? "col-span-2 flex-row items-center gap-3 rounded-xl bg-ds-sage px-3 py-2.5"
+            ? "w-full flex-row items-center gap-3 rounded-xl bg-ds-sage px-3 py-2.5"
             : "mt-4 flex-col gap-2 rounded-[20px] bg-ds-sage p-4"
         )}
       >
         <div className={cn("font-semibold", drawer ? "min-w-0 flex-1 text-[13px] leading-snug" : "text-[14px]")}>
           {t("sidebar.hskTitle")}
         </div>
-        <div className={cn("overflow-hidden rounded-full bg-white/50", drawer ? "h-1.5 w-20 shrink-0" : "h-2 w-full")}>
+        <div
+          className={cn(
+            "overflow-hidden rounded-full bg-white/50",
+            drawer ? "h-1.5 min-w-0 flex-1" : "h-2 w-full"
+          )}
+        >
           <div className="h-full w-[37%] rounded-full bg-ds-sage-strong" />
         </div>
         {!drawer ? (
@@ -197,8 +201,8 @@ export function AppSidebar({ variant = "sidebar" }: AppSidebarProps) {
       </Link>
 
       {drawer ? (
-        <div className="grid min-h-0 flex-1 grid-cols-2 gap-1.5 content-start auto-rows-min">
-          <nav className="contents" aria-label={t("sidebar.navAria")}>
+        <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+          <nav className="flex flex-col gap-1.5" aria-label={t("sidebar.navAria")}>
             {navLinkNodes}
           </nav>
           {hskCard}
@@ -220,7 +224,7 @@ export function AppSidebar({ variant = "sidebar" }: AppSidebarProps) {
           variant="outline"
           onClick={logout}
           className={cn(
-            "w-full justify-start rounded-2xl bg-white font-medium text-ds-ink shadow-none transition-colors hover:bg-ds-surface-hover dark:bg-[#262626] dark:text-ds-ink dark:hover:bg-[#333333]",
+            "w-full justify-start rounded-2xl border border-black/10 bg-white font-medium text-ds-ink !shadow-none shadow-none ring-0 transition-colors hover:bg-ds-surface-hover hover:!shadow-none dark:border-white/10 dark:bg-[#262626] dark:text-ds-ink dark:hover:bg-[#333333]",
             drawer ? "py-3 text-[14px]" : "py-6 text-[15px]"
           )}
         >

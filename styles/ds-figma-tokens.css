@@ -539,26 +539,31 @@ html.dark[data-ui-accent="orange"] {
     align-items: center;
     justify-content: center;
     border-radius: 0.875rem;
-    border: 1px solid rgb(0 0 0 / 0.08);
-    background-color: rgb(255 255 255 / 0.55);
-    color: var(--ds-ink);
+    border: 1px solid #111111;
+    background-color: #111111;
+    color: #ffffff;
     transition:
       background-color 0.15s ease,
-      border-color 0.15s ease;
+      border-color 0.15s ease,
+      color 0.15s ease;
   }
 
   .ds-mobile-top-chrome__menu-btn:hover {
-    background-color: rgb(255 255 255 / 0.92);
+    border-color: #000000;
+    background-color: #000000;
+    color: #ffffff;
   }
 
   .dark .ds-mobile-top-chrome__menu-btn {
-    border-color: rgb(255 255 255 / 0.12);
-    background-color: rgb(255 255 255 / 0.08);
-    color: #fafafa;
+    border-color: #111111;
+    background-color: #111111;
+    color: #ffffff;
   }
 
   .dark .ds-mobile-top-chrome__menu-btn:hover {
-    background-color: rgb(255 255 255 / 0.14);
+    border-color: #000000;
+    background-color: #000000;
+    color: #ffffff;
   }
 
   /** Резервируем место под fixed-бар, чтобы контент не уезжал под него */
@@ -981,12 +986,17 @@ html.dark[data-ui-accent="orange"] {
   .ds-dashboard-grid {
     display: grid;
     gap: var(--ds-gutter);
-    grid-template-columns: minmax(0, 1fr) var(--ds-dashboard-aside);
+    grid-template-columns: minmax(0, 1fr) minmax(0, var(--ds-dashboard-aside));
+  }
+
+  /** Иначе flex внутри ячейки не сжимается и уезжает вправо на мобилке */
+  .ds-dashboard-grid > * {
+    min-width: 0;
   }
 
   @media (max-width: 1279px) {
     .ds-dashboard-grid {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 

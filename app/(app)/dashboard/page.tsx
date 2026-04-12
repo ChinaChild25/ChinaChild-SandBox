@@ -226,9 +226,9 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div>
+            <div className="min-w-0 w-full max-w-full">
               <h3 className="mb-3 text-[17px] font-semibold leading-none text-ds-ink">{t("dashboard.staffTitle")}</h3>
-              <ul className="flex flex-col gap-4 p-0 list-none">
+              <ul className="flex list-none flex-col gap-4 p-0">
                 {(
                   [
                     { slug: curatorSlug, m: curator, kind: "curator" as const },
@@ -237,12 +237,12 @@ export default function DashboardPage() {
                 ).map(({ slug, m, kind }) => (
                   <li
                     key={slug}
-                    className="rounded-[var(--ds-radius-xl)] bg-transparent px-4 py-3 transition-colors duration-200 hover:bg-[var(--ds-neutral-row)] dark:hover:bg-[var(--ds-neutral-row-hover)]"
+                    className="min-w-0 max-w-full rounded-[var(--ds-radius-xl)] bg-transparent px-3 py-3 transition-colors duration-200 hover:bg-[var(--ds-neutral-row)] sm:px-4 dark:hover:bg-[var(--ds-neutral-row-hover)]"
                   >
-                    <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
                       <Link
                         href={`/mentors/${slug}`}
-                        className="flex min-w-0 flex-1 items-center gap-3 no-underline"
+                        className="flex min-w-0 w-full flex-1 items-center gap-3 no-underline sm:min-w-0"
                       >
                         <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-gray-200 dark:bg-neutral-700">
                           <Image
@@ -254,30 +254,36 @@ export default function DashboardPage() {
                             unoptimized
                           />
                         </div>
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 overflow-hidden">
                           <div className="text-[11px] font-semibold uppercase tracking-wide text-[#888] dark:text-ds-text-tertiary">
                             {kind === "curator" ? t("dashboard.roleCurator") : t("dashboard.roleTeacher")}
                           </div>
-                          <div className="mb-0.5 text-[18px] font-semibold leading-none text-ds-ink">{m.name}</div>
-                          <div className="text-[13px] text-[#666] dark:text-[var(--ds-text-secondary)]">{m.role}</div>
+                          <div className="mb-0.5 break-words text-[18px] font-semibold leading-snug text-ds-ink">
+                            {m.name}
+                          </div>
+                          <div className="break-words text-[13px] leading-snug text-[#666] dark:text-[var(--ds-text-secondary)]">
+                            {m.role}
+                          </div>
                         </div>
                       </Link>
-                      <a
-                        href={telegramProfileUrl(m.telegramUsername)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="grid h-10 w-10 shrink-0 place-content-center rounded-[var(--ds-radius-md)] bg-[#2AABEE]/12 text-[#229ED9] transition-colors hover:bg-[#2AABEE]/20 dark:bg-[#2AABEE]/20 dark:text-[#54bdeb]"
-                        aria-label={t("dashboard.telegramWrite", { username: m.telegramUsername })}
-                      >
-                        <TelegramIcon className="h-[22px] w-[22px]" />
-                      </a>
-                      <Link
-                        href={`/messages?mentor=${slug}`}
-                        className="flex shrink-0 items-center gap-1 rounded-[var(--ds-radius-md)] bg-white px-3 py-2 text-[13px] font-medium text-ds-ink no-underline shadow-none transition-colors hover:bg-ds-surface-hover dark:bg-ds-surface dark:hover:bg-white/5"
-                      >
-                        {t("dashboard.write")}
-                        <ChevronRight className="h-4 w-4 opacity-60" aria-hidden />
-                      </Link>
+                      <div className="flex w-full min-w-0 shrink-0 items-center justify-end gap-2 sm:w-auto sm:justify-start">
+                        <a
+                          href={telegramProfileUrl(m.telegramUsername)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="grid h-10 w-10 shrink-0 place-content-center rounded-[var(--ds-radius-md)] bg-[#2AABEE]/12 text-[#229ED9] transition-colors hover:bg-[#2AABEE]/20 dark:bg-[#2AABEE]/20 dark:text-[#54bdeb]"
+                          aria-label={t("dashboard.telegramWrite", { username: m.telegramUsername })}
+                        >
+                          <TelegramIcon className="h-[22px] w-[22px]" />
+                        </a>
+                        <Link
+                          href={`/messages?mentor=${slug}`}
+                          className="flex min-w-0 items-center gap-1 rounded-[var(--ds-radius-md)] bg-white px-3 py-2 text-[13px] font-medium text-ds-ink no-underline shadow-none transition-colors hover:bg-ds-surface-hover dark:bg-ds-surface dark:hover:bg-white/5"
+                        >
+                          <span className="truncate">{t("dashboard.write")}</span>
+                          <ChevronRight className="h-4 w-4 shrink-0 opacity-60" aria-hidden />
+                        </Link>
+                      </div>
                     </div>
                   </li>
                 ))}

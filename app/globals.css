@@ -81,4 +81,9 @@
   .figma-nav-link--compact {
     @apply px-2 py-2.5;
   }
+
+  /** Drawer: один столбец; выравнивание текста слева (ряд уже в .figma-nav-link) */
+  .figma-nav-link--drawer-list {
+    @apply px-3 py-2.5 text-left;
+  }
 }
