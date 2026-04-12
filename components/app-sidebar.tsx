@@ -11,6 +11,7 @@ import {
   CalendarDays,
   Mail,
   BookOpen,
+  CreditCard,
   Settings,
   LogOut,
   ChevronRight,
@@ -42,6 +43,7 @@ const navItems: NavItem[] = [
   { href: "/schedule", labelKey: "nav.schedule", icon: CalendarDays },
   { href: "/messages", labelKey: "nav.messages", icon: Mail },
   { href: "/courses", labelKey: "nav.courses", icon: BookOpen },
+  { href: "/payment", labelKey: "nav.payment", icon: CreditCard },
   { href: "/settings", labelKey: "nav.settings", icon: Settings }
 ]
 

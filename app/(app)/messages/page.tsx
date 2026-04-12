@@ -78,12 +78,12 @@ function MessagesPageInner() {
   const showChat = wide || mobilePanel === "chat"
 
   return (
-    <div className="ds-figma-page">
-      <div className="mx-auto flex min-h-[min(720px,calc(100dvh-9rem))] w-full max-w-[var(--ds-shell-max-width)] flex-col">
+    <div className="ds-figma-page flex min-h-0 flex-1 flex-col">
+      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col min-h-0">
         <div className="ds-messages-shell min-h-0 flex-1 flex-col lg:flex-row">
           <div
             className={cn(
-              "ds-messages-sidebar max-h-[min(40dvh,340px)] shrink-0 lg:max-h-none",
+              "ds-messages-sidebar max-h-[min(40dvh,340px)] shrink-0 lg:max-h-none lg:min-h-0",
               !showList && "hidden",
               "lg:flex"
             )}
@@ -140,12 +140,12 @@ function MessagesPageInner() {
 
           <div
             className={cn(
-              "flex min-h-[min(58dvh,520px)] min-w-0 flex-1 flex-col lg:min-h-0",
+              "flex min-h-0 min-w-0 flex-1 flex-col",
               !showChat && "hidden",
               "lg:flex"
             )}
           >
-            <header className="flex items-center gap-3 border-b border-[#e8e8e8] p-4 md:p-5 dark:border-[#333333]">
+            <header className="flex shrink-0 items-center gap-3 border-b border-[#e8e8e8] p-4 md:p-5 dark:border-[#333333]">
               {!wide ? (
                 <button
                   type="button"
@@ -202,7 +202,7 @@ function MessagesPageInner() {
               ))}
             </div>
 
-            <div className="flex items-center gap-3 border-t border-[#e8e8e8] p-4 dark:border-[#333333]">
+            <div className="flex shrink-0 items-center gap-3 border-t border-[#e8e8e8] bg-ds-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-[#333333]">
               <input
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
@@ -230,8 +230,8 @@ export default function MessagesPage() {
   return (
     <Suspense
       fallback={
-        <div className="ds-figma-page">
-          <div className="mx-auto max-w-[var(--ds-shell-max-width)] px-4 py-10 text-ds-text-tertiary">
+        <div className="ds-figma-page flex min-h-0 flex-1 flex-col">
+          <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-10 text-ds-text-tertiary">
             Загрузка…
           </div>
         </div>

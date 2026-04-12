@@ -40,11 +40,11 @@ export function ChinaChildCircleMark({ className }: { className?: string }) {
   )
 }
 
-const MARK_LIGHT = "/brand/chinachild-mark-light.svg"
-const MARK_DARK = "/brand/chinachild-mark-dark.svg"
+/** Круглый знак Ch — один PNG; в тёмной теме инверсия (светлый круг + тёмные буквы). */
+const CHINA_CHILD_MARK_PNG = "/brand/chinachild-ch-mark.png"
 
 /**
- * Логотип как в v0: 52×52, отдельные SVG для светлой (#FEFEFE круг) и тёмной (#1A1A1A круг) темы.
+ * Круглый марк ChinaChild (PNG). Светлая тема — как файл; тёмная — `invert`, как на экране входа.
  */
 export function ChinaChildSidebarLogo({
   className,
@@ -57,23 +57,13 @@ export function ChinaChildSidebarLogo({
   return (
     <span className={cn("relative inline-block shrink-0 leading-none", className)} style={{ width: size, height: size }}>
       <Image
-        src={MARK_LIGHT}
+        src={CHINA_CHILD_MARK_PNG}
         alt="ChinaChild"
         width={size}
         height={size}
-        className="h-full w-full dark:hidden"
+        className="h-full w-full dark:invert"
         unoptimized
         priority
-      />
-      <Image
-        src={MARK_DARK}
-        alt=""
-        width={size}
-        height={size}
-        className="hidden h-full w-full dark:block"
-        unoptimized
-        priority
-        aria-hidden
       />
     </span>
   )

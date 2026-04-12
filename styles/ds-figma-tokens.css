@@ -419,6 +419,9 @@ html:not(.dark)[data-ui-accent="orange"] {
   /** Как в превью v0: p-4 md:p-10 */
   .ds-figma-shell-page-pad {
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
     flex: 1;
     min-height: 0;
     width: 100%;
@@ -2034,7 +2037,7 @@ html:not(.dark)[data-ui-accent="orange"] {
     box-sizing: border-box;
     width: 100%;
     height: 48px;
-    border-radius: var(--ds-radius-sm);
+    border-radius: var(--ds-radius-md);
     border: none;
     background-color: #f2f2f2;
     padding: 0 var(--ds-space-5);
@@ -2301,7 +2304,8 @@ html:not(.dark)[data-ui-accent="orange"] {
   /* Плоская вёрстка как Figmadasboard Messages.tsx (без рамки вокруг всего чата) */
   .ds-messages-shell {
     display: flex;
-    min-height: min(calc(100dvh - 8rem), 720px);
+    flex: 1;
+    min-height: 0;
     overflow: hidden;
     border-radius: 0;
     background-color: var(--ds-surface);

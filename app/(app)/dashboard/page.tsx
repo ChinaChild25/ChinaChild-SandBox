@@ -15,7 +15,6 @@ import { TelegramIcon, telegramProfileUrl } from "@/components/telegram-icon"
 import { FIGMA_CALENDAR, FIGMA_DASHBOARD_LESSONS } from "@/lib/figma-dashboard"
 import { curatorAndTeacherForUser } from "@/lib/student-staff"
 import { localeToBcp47, useUiLocale } from "@/lib/ui-locale"
-import { cn } from "@/lib/utils"
 
 export default function DashboardPage() {
   const { user } = useAuth()
@@ -232,12 +231,7 @@ export default function DashboardPage() {
                 ).map(({ slug, m, kind }) => (
                   <li
                     key={slug}
-                    className={cn(
-                      "rounded-[var(--ds-radius-md)] py-2 pl-3",
-                      kind === "curator"
-                        ? "border-l-[3px] border-l-indigo-500 bg-indigo-50/40 dark:border-l-indigo-400 dark:bg-indigo-950/25"
-                        : "border-l-[3px] border-l-ds-sage-strong bg-ds-sage/10 dark:border-l-ds-sage-strong dark:bg-ds-sage/10"
-                    )}
+                    className="rounded-[var(--ds-radius-xl)] bg-ds-sidebar px-4 py-3"
                   >
                     <div className="flex items-center gap-2 sm:gap-3">
                       <Link
