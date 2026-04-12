@@ -1,5 +1,7 @@
 /** Модель переносимых занятий в расписании (апрель 2026, демо + localStorage). */
 
+import { getAppNow } from "@/lib/app-time"
+
 export const SCHEDULE_DEFAULT_TEACHER = "Анастасия Пономарева"
 
 export const SCHEDULE_YEAR = 2026
@@ -37,10 +39,20 @@ export function parseLessonStart(day: number, timeHHMM: string): Date {
   return d
 }
 
-/** Перенос разрешён только если до начала занятия строго больше 24 часов */
+/** Уже началось или прошло (по времени приложения) */
+export function isLessonPastOrStarted(day: number, timeStr: string): boolean {
+  const start = parseLessonStart(day, timeStr)
+  return getAppNow().getTime() >= start.getTime()
+}
+
+/**
+ * Перенос разрешён только для будущих занятий и если до начала строго больше 24 часов.
+ */
 export function canRescheduleLesson(day: number, timeStr: string): boolean {
   const start = parseLessonStart(day, timeStr)
-  return Date.now() < start.getTime() - MS_24H
+  const now = getAppNow().getTime()
+  if (now >= start.getTime()) return false
+  return now < start.getTime() - MS_24H
 }
 
 /** Пн и пт в 19:00 — стартовое расписание */

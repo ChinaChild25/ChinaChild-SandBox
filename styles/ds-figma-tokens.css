@@ -436,7 +436,7 @@ html.dark[data-ui-accent="orange"] {
     min-height: 100%;
     overflow-x: hidden;
     overflow-y: auto;
-    background-color: #e8e8e8;
+    background-color: var(--ds-sidebar);
     /* Как v0: px-7 pt-7 по сути — отступы зоны лого и навигации */
     padding: 28px 28px 24px;
     border-radius: 0;
@@ -1892,11 +1892,11 @@ html.dark[data-ui-accent="orange"] {
     }
   }
 
-  /* Секции: заливка без обводки; поля ввода светлее карточки (см. .ds-settings-input) */
+  /* Секции: тот же серый, что у сайдбара (--ds-sidebar); поля светлее карточки */
   .ds-settings-panel {
     border-radius: 28px;
     border: none;
-    background-color: #e4e5ea;
+    background-color: var(--ds-sidebar);
     padding: 1.25rem 1.25rem 1.5rem;
     box-shadow: 0 2px 14px rgb(0 0 0 / 0.045);
   }
@@ -1919,8 +1919,6 @@ html.dark[data-ui-accent="orange"] {
   }
 
   .dark .ds-settings-panel {
-    border: none;
-    background-color: #1a1a1f;
     box-shadow: 0 12px 40px rgb(0 0 0 / 0.35);
   }
 

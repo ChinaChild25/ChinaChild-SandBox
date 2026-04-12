@@ -8,7 +8,7 @@ export const mockUser: User = {
   assignedTeacherSlug: "kim-ji-hun",
   phone: "+7 999 123-45-67",
   profileSubtitle: "студентка 1 степени",
-  avatar: undefined,
+  avatar: "/students/yana.png",
   dashboardStats: {
     attendedLessons: 9,
     lessonGoal: 48,

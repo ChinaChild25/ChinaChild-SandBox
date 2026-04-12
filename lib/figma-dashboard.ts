@@ -2,8 +2,10 @@
  * Копирайт и данные как на https://chinachild.figma.site/ (светлый макет).
  */
 
-export const FIGMA_STUDENT_AVATAR =
-  "https://images.unsplash.com/photo-1758270705555-015de348a48a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMGFzaWFuJTIwd29tYW4lMjBzdHVkZW50JTIwcG9ydHJhaXR8ZW58MXx8fHwxNzc1ODM4NjkzfDA&ixlib=rb-4.1.0&q=80&w=400"
+import { APP_REFERENCE_DAY } from "@/lib/app-time"
+
+/** Фото ученицы Яны (локальный ассет) */
+export const FIGMA_STUDENT_AVATAR = "/students/yana.png" as const
 
 export const FIGMA_TEACHERS = [
   {
@@ -65,7 +67,8 @@ export const FIGMA_CALENDAR = {
   startOffset: 3,
   /** Пн/пт с занятиями в апреле */
   eventDays: [3, 7, 10, 14, 17, 21, 24, 28] as const,
-  today: 12
+  /** Синхронно с lib/app-time «сегодня» в апреле 2026 */
+  today: APP_REFERENCE_DAY
 } as const
 
 /** Первые 4 пункта в блоке «Предстоящие занятия» на главной */

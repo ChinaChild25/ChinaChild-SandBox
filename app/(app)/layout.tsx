@@ -65,7 +65,7 @@ export default function AppLayout({
                 </SheetTrigger>
                 <SheetContent
                   side="left"
-                  className="h-full w-[280px] max-w-[280px] overflow-hidden border-r border-black/10 bg-[#e8e8e8] p-6 dark:border-white/10 dark:bg-[#1a1a1a] sm:max-w-[280px]"
+                  className="h-full w-[280px] max-w-[280px] overflow-hidden border-r border-black/10 bg-[var(--ds-sidebar)] p-6 dark:border-white/10 sm:max-w-[280px]"
                 >
                   <AppSidebar />
                 </SheetContent>

@@ -14,11 +14,13 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
+import { getAppNow, getAppTodayStart } from "@/lib/app-time"
 import {
   buildInitialAprilLessons,
   canRescheduleLesson,
   findLessonAt,
   isApril2026,
+  isLessonPastOrStarted,
   parseLessonStart,
   readStoredLessons,
   SCHEDULE_DEFAULT_TEACHER,
@@ -32,6 +34,12 @@ import {
 const weekDays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"] as const
 
 const DRAG_MIME = "application/x-chinachild-lesson"
+
+function dragHintsActive(lessons: ScheduledLesson[], draggingLessonId: string | null): boolean {
+  if (!draggingLessonId) return false
+  const L = lessons.find((l) => l.id === draggingLessonId)
+  return L ? canRescheduleLesson(L.day, L.time) : false
+}
 
 function addDays(d: Date, n: number) {
   const x = new Date(d)
@@ -55,7 +63,7 @@ const WEEK_COUNT =
   Math.round((LAST_WEEK_MONDAY.getTime() - FIRST_WEEK_MONDAY.getTime()) / MS_7D) + 1
 
 function initialWeekOffset(): number {
-  const now = new Date()
+  const now = getAppNow()
   if (now.getFullYear() === SCHEDULE_YEAR && now.getMonth() === SCHEDULE_MONTH_APRIL) {
     const mon = startOfWeekMonday(now)
     const raw = Math.round((mon.getTime() - FIRST_WEEK_MONDAY.getTime()) / MS_7D)
@@ -116,20 +124,31 @@ type PendingReschedule = {
 type ScheduleLessonCardProps = {
   lesson: ScheduledLesson
   selected: boolean
+  movable: boolean
+  isPast: boolean
   onSelect: () => void
   onDragStart: (e: React.DragEvent) => void
   onDragEnd: () => void
 }
 
-function ScheduleLessonCard({ lesson, selected, onSelect, onDragStart, onDragEnd }: ScheduleLessonCardProps) {
+function ScheduleLessonCard({
+  lesson,
+  selected,
+  movable,
+  isPast,
+  onSelect,
+  onDragStart,
+  onDragEnd
+}: ScheduleLessonCardProps) {
   const ignoreClick = useRef(false)
 
   return (
     <div
       role="button"
-      tabIndex={0}
-      draggable
-      onDragStart={onDragStart}
+      tabIndex={movable ? 0 : -1}
+      draggable={movable}
+      aria-disabled={!movable}
+      onDragStart={movable ? onDragStart : undefined}
       onDragEnd={() => {
         ignoreClick.current = true
         onDragEnd()
@@ -139,31 +158,40 @@ function ScheduleLessonCard({ lesson, selected, onSelect, onDragStart, onDragEnd
       }}
       onClick={(e) => {
         e.preventDefault()
-        if (ignoreClick.current) return
+        if (ignoreClick.current || !movable) return
         onSelect()
       }}
       onKeyDown={(e) => {
+        if (!movable) return
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault()
           onSelect()
         }
       }}
       className={cn(
-        `ds-schedule-slot min-w-0 ds-schedule-slot--lesson cursor-grab active:cursor-grabbing`,
-        selected && "ring-2 ring-ds-sage ring-offset-2 ring-offset-white dark:ring-offset-[#0a0a0a]"
+        "ds-schedule-slot min-w-0 ds-schedule-slot--lesson",
+        movable && "cursor-grab active:cursor-grabbing",
+        !movable && "cursor-not-allowed opacity-[0.56] grayscale-[0.42]",
+        selected && movable && "ring-2 ring-ds-sage ring-offset-2 ring-offset-white dark:ring-offset-[#0a0a0a]"
       )}
     >
       <div className="flex items-start justify-between gap-1">
         <div className="min-w-0 flex-1">
-          <div className="text-[10px] opacity-80">Онлайн-урок</div>
+          <div className="text-[10px] opacity-80">
+            {isPast ? "Прошло" : "Онлайн-урок"}
+          </div>
           <div className="text-[13px] font-semibold leading-snug sm:text-[12px]">{lesson.title}</div>
           <div className="text-[11px] opacity-80">{lesson.time}</div>
           {lesson.teacher ? <div className="mt-0.5 text-[11px] text-ds-text-secondary">{lesson.teacher}</div> : null}
         </div>
-        <GripVertical className="mt-0.5 h-4 w-4 shrink-0 opacity-35" aria-hidden />
+        {movable ? <GripVertical className="mt-0.5 h-4 w-4 shrink-0 opacity-35" aria-hidden /> : null}
       </div>
       <p className="mt-2 border-t border-black/[0.08] pt-2 text-[10px] leading-snug text-ds-text-tertiary dark:border-white/10">
-        Перетащите на другой слот или нажмите слот ниже
+        {isPast
+          ? "Занятие уже прошло — перенос недоступен."
+          : movable
+            ? "Перетащите на другой слот или нажмите слот ниже."
+            : "Перенос недоступен: до начала меньше 24 часов."}
       </p>
     </div>
   )
@@ -278,6 +306,7 @@ function DayColumn({
 }) {
   const inApril = isApril2026(cellDate)
   const dayNum = cellDate.getDate()
+  const showDropHints = dragHintsActive(lessons, draggingLessonId)
 
   return (
     <div className="flex min-w-0 flex-col gap-2">
@@ -297,13 +326,23 @@ function DayColumn({
           {SCHEDULE_SLOT_TIMES.map((time) => {
             const lesson = findLessonAt(lessons, dayNum, time)
             if (lesson) {
+              const movable = canRescheduleLesson(lesson.day, lesson.time)
+              const isPast = isLessonPastOrStarted(lesson.day, lesson.time)
               return (
                 <ScheduleLessonCard
                   key={`${lesson.id}-${time}`}
                   lesson={lesson}
                   selected={selectedLessonId === lesson.id}
+                  movable={movable}
+                  isPast={isPast}
                   onSelect={() => onSelectLesson(lesson.id)}
-                  onDragStart={(e) => onDragStart(e, lesson)}
+                  onDragStart={(e) => {
+                    if (!canRescheduleLesson(lesson.day, lesson.time)) {
+                      e.preventDefault()
+                      return
+                    }
+                    onDragStart(e, lesson)
+                  }}
                   onDragEnd={onDragEnd}
                 />
               )
@@ -314,11 +353,9 @@ function DayColumn({
                 day={dayNum}
                 time={time}
                 tapSelectActive={!!selectedLessonId}
-                dragActive={!!draggingLessonId}
+                dragActive={showDropHints}
                 isDragHoverTarget={
-                  !!draggingLessonId &&
-                  dropHover?.day === dayNum &&
-                  dropHover?.time === time
+                  showDropHints && dropHover?.day === dayNum && dropHover?.time === time
                 }
                 onDragHoverSlot={onDragHoverSlot}
                 onDropLesson={(lessonId) => onSlotDrop(lessonId, dayNum, time)}
@@ -363,11 +400,7 @@ export default function SchedulePage() {
     return { monday: monday0, cells }
   }, [weekOffset])
 
-  const today = useMemo(() => {
-    const t = new Date()
-    t.setHours(0, 0, 0, 0)
-    return t
-  }, [])
+  const today = useMemo(() => getAppTodayStart(), [])
 
   const weekTitle = formatWeekLabel(monday)
   const atMin = weekOffset <= 0
@@ -379,6 +412,15 @@ export default function SchedulePage() {
       if (!lesson) return
 
       if (lesson.day === toDay && lesson.time === toTime) {
+        setSelectedLessonId(null)
+        return
+      }
+
+      if (isLessonPastOrStarted(lesson.day, lesson.time)) {
+        toast({
+          title: "Занятие уже прошло",
+          description: "Перенос прошедших занятий недоступен."
+        })
         setSelectedLessonId(null)
         return
       }
@@ -412,9 +454,14 @@ export default function SchedulePage() {
     [lessons]
   )
 
-  const onSelectLesson = useCallback((id: string) => {
-    setSelectedLessonId((prev) => (prev === id ? null : id))
-  }, [])
+  const onSelectLesson = useCallback(
+    (id: string) => {
+      const lesson = lessons.find((l) => l.id === id)
+      if (!lesson || !canRescheduleLesson(lesson.day, lesson.time)) return
+      setSelectedLessonId((prev) => (prev === id ? null : id))
+    },
+    [lessons]
+  )
 
   const onEmptyClick = useCallback(
     (day: number, time: string) => {
@@ -477,9 +524,10 @@ export default function SchedulePage() {
             {SCHEDULE_DEFAULT_TEACHER}.
           </p>
           <p className="mt-1 text-[13px] text-ds-text-tertiary">
-            Перетащите урок на другой день и время или выберите карточку, затем нажмите свободный слот. Пока вы
-            тянете урок, свободные ячейки подсвечиваются зелёным; под курсором слот выделяется сильнее. Перенос
-            возможен только если до начала занятия осталось больше 24 часов.
+            «Сегодня» в расписании — 12 апреля {SCHEDULE_YEAR}, время суток как на вашем устройстве. Прошедшие
+            занятия не переносятся. Перетащите урок на другой слот или выберите карточку, затем нажмите свободный
+            слот; при перетаскивании ячейки подсвечиваются зелёным. Перенос будущих занятий — только если до начала
+            больше 24 часов.
           </p>
         </div>
 
@@ -533,6 +581,7 @@ export default function SchedulePage() {
             const inApril = isApril2026(cellDate)
             const isToday = isSameDay(cellDate, today)
             const dayNum = cellDate.getDate()
+            const showDropHints = dragHintsActive(lessons, draggingLessonId)
 
             return (
               <section
@@ -559,13 +608,23 @@ export default function SchedulePage() {
                     {SCHEDULE_SLOT_TIMES.map((time) => {
                       const lesson = findLessonAt(lessons, dayNum, time)
                       if (lesson) {
+                        const movable = canRescheduleLesson(lesson.day, lesson.time)
+                        const isPast = isLessonPastOrStarted(lesson.day, lesson.time)
                         return (
                           <ScheduleLessonCard
                             key={`${lesson.id}-${time}`}
                             lesson={lesson}
                             selected={selectedLessonId === lesson.id}
+                            movable={movable}
+                            isPast={isPast}
                             onSelect={() => onSelectLesson(lesson.id)}
-                            onDragStart={(e) => onDragStart(e, lesson)}
+                            onDragStart={(e) => {
+                              if (!canRescheduleLesson(lesson.day, lesson.time)) {
+                                e.preventDefault()
+                                return
+                              }
+                              onDragStart(e, lesson)
+                            }}
                             onDragEnd={onDragEnd}
                           />
                         )
@@ -576,11 +635,9 @@ export default function SchedulePage() {
                           day={dayNum}
                           time={time}
                           tapSelectActive={!!selectedLessonId}
-                          dragActive={!!draggingLessonId}
+                          dragActive={showDropHints}
                           isDragHoverTarget={
-                            !!draggingLessonId &&
-                            dropHover?.day === dayNum &&
-                            dropHover?.time === time
+                            showDropHints && dropHover?.day === dayNum && dropHover?.time === time
                           }
                           onDragHoverSlot={onDragHoverSlot}
                           onDropLesson={(lessonId) => onSlotDrop(lessonId, dayNum, time)}
