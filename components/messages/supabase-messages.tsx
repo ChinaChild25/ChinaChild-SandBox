@@ -19,6 +19,16 @@ import { cn } from "@/lib/utils"
 
 const CHAT_BREAKPOINT = 1024
 
+/** Пока список ещё не подтянул новую беседу после `?conversation=`, показываем строку в сайдбаре. */
+function pendingListItem(conversationId: string): ConversationListItem {
+  return {
+    id: conversationId,
+    peer: { id: conversationId, name: "Диалог", avatarUrl: null, role: "" },
+    lastMessage: "",
+    lastMessageAt: null
+  }
+}
+
 export type SupabaseMessagesProps = {
   /** Query `?conversation=<uuid>` для открытия диалога после загрузки списка. */
   initialConversationId?: string | null
@@ -27,6 +37,8 @@ export type SupabaseMessagesProps = {
 export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProps) {
   const { user } = useAuth()
   const myId = user?.id ?? null
+
+  const urlConversationId = (initialConversationId ?? "").trim() || null
 
   const [wide, setWide] = useState(true)
   const [mobilePanel, setMobilePanel] = useState<"list" | "chat">("list")
@@ -45,7 +57,17 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
   const [inputText, setInputText] = useState("")
   const [sendError, setSendError] = useState<string | null>(null)
 
-  const active = useMemo(() => items.find((c) => c.id === activeId), [items, activeId])
+  const sidebarItems = useMemo(() => {
+    if (!urlConversationId) return items
+    const has = items.some((c) => c.id === urlConversationId)
+    if (has) return items
+    return [pendingListItem(urlConversationId), ...items]
+  }, [items, urlConversationId])
+
+  const active = useMemo(
+    () => sidebarItems.find((c) => c.id === activeId) ?? null,
+    [sidebarItems, activeId]
+  )
 
   const refreshList = useCallback(async () => {
     setListLoading(true)
@@ -63,7 +85,7 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
 
   useEffect(() => {
     void refreshList()
-  }, [refreshList, initialConversationId])
+  }, [refreshList, urlConversationId])
 
   useEffect(() => {
     const mq = window.matchMedia(`(min-width: ${CHAT_BREAKPOINT}px)`)
@@ -73,14 +95,12 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
     return () => mq.removeEventListener("change", sync)
   }, [])
 
+  /** Сразу открываем чат из URL, не дожидаясь списка (новая беседа появится после refreshList). */
   useEffect(() => {
-    if (!initialConversationId || items.length === 0) return
-    const hit = items.some((c) => c.id === initialConversationId)
-    if (hit) {
-      setActiveId(initialConversationId)
-      setMobilePanel("chat")
-    }
-  }, [initialConversationId, items])
+    if (!urlConversationId) return
+    setActiveId(urlConversationId)
+    setMobilePanel("chat")
+  }, [urlConversationId])
 
   useEffect(() => {
     if (!myId || !activeId) {
@@ -109,8 +129,8 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
 
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return items
-    return items.filter((c) => {
+    if (!q) return sidebarItems
+    return sidebarItems.filter((c) => {
       const name = c.peer.name.toLowerCase()
       const role = c.peer.role.toLowerCase()
       return (
@@ -120,7 +140,7 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
         c.lastMessage.toLowerCase().includes(q)
       )
     })
-  }, [query, items])
+  }, [query, sidebarItems])
 
   const handleSwitch = useCallback(
     (id: string) => {
@@ -144,8 +164,26 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
     }
     if (message) {
       setMessages((prev) => [...prev, message])
-      setItems((prev) =>
-        prev.map((row) =>
+      setItems((prev) => {
+        const idx = prev.findIndex((row) => row.id === activeId)
+        if (idx === -1) {
+          const peer = active?.peer ?? {
+            id: "",
+            name: "Диалог",
+            avatarUrl: null,
+            role: ""
+          }
+          return [
+            {
+              id: activeId,
+              peer,
+              lastMessage: message.text,
+              lastMessageAt: message.createdAt
+            },
+            ...prev
+          ]
+        }
+        return prev.map((row) =>
           row.id === activeId
             ? {
                 ...row,
@@ -154,14 +192,14 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
               }
             : row
         )
-      )
+      })
     }
     setInputText("")
   }, [myId, activeId, active, inputText])
 
   const showList = wide || mobilePanel === "list"
   const showChat = wide || mobilePanel === "chat"
-  const empty = !listLoading && !listError && items.length === 0
+  const empty = !listLoading && !listError && sidebarItems.length === 0
 
   const peerInitial = active ? (active.peer.name.trim()[0] ?? "?") : "?"
   const activeRoleLine = active ? formatListPeerRole(active.peer.role) : ""
