@@ -63,7 +63,7 @@ export function TeacherStartChatComposer() {
   }, [user?.id])
 
   const openChat = useCallback(
-    async (peerUserId: string) => {
+    async (peerUserId: string, peerLabel: string) => {
       const trimmed = peerUserId.trim()
       if (!trimmed || !user?.id) return
       if (!UUID_RE.test(trimmed)) {
@@ -80,7 +80,10 @@ export function TeacherStartChatComposer() {
         return
       }
       setOpen(false)
-      router.replace(`/teacher/messages?conversation=${res.conversationId}`)
+      const label = encodeURIComponent(peerLabel.trim() || "Ученик")
+      router.replace(
+        `/teacher/messages?conversation=${res.conversationId}&peerId=${trimmed}&peerName=${label}`
+      )
     },
     [router, user?.id]
   )
@@ -132,7 +135,7 @@ export function TeacherStartChatComposer() {
                     <button
                       type="button"
                       disabled={!!workingId}
-                      onClick={() => void openChat(s.id)}
+                      onClick={() => void openChat(s.id, s.label)}
                       className={cn(
                         "flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-[14px] text-ds-ink transition-colors",
                         "hover:bg-black/[0.04] disabled:opacity-60 dark:hover:bg-white/[0.06]"

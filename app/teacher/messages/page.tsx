@@ -17,14 +17,24 @@ const TEACHER_NO_SELECTION = {
   subtitle: "Выберите существующий чат или начните новый."
 }
 
+const PEER_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 function TeacherMessagesSupabase() {
   const searchParams = useSearchParams()
   const conversation = searchParams.get("conversation")
+  const peerId = searchParams.get("peerId")
+  const peerName = searchParams.get("peerName")
+  const newChatPeerHint =
+    peerId && peerName && PEER_ID_RE.test(peerId.trim())
+      ? { id: peerId.trim(), name: peerName.trim() }
+      : null
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <SupabaseMessages
         initialConversationId={conversation}
+        newChatPeerHint={newChatPeerHint}
         listToolbarEnd={<TeacherStartChatComposer />}
         listEmptyCopy={TEACHER_LIST_EMPTY}
         noSelectionCopy={TEACHER_NO_SELECTION}

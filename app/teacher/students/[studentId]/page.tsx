@@ -61,7 +61,11 @@ export default function TeacherStudentDetailPage() {
                     Уровень: {s.levelLabel}
                   </span>
                   {s.chatProfileId ? (
-                    <StartChatWithStudentButton studentProfileId={s.chatProfileId} className="rounded-full" />
+                    <StartChatWithStudentButton
+                      studentProfileId={s.chatProfileId}
+                      studentDisplayName={s.name}
+                      className="rounded-full"
+                    />
                   ) : null}
                 </div>
                 <div className="mt-5 grid max-w-xl grid-cols-3 gap-3 sm:gap-4">

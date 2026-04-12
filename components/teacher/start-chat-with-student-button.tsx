@@ -12,10 +12,12 @@ import { Button } from "@/components/ui/button"
 type Props = {
   /** `profiles.id` ученика в Supabase */
   studentProfileId: string
+  /** Подпись в URL для шапки чата до загрузки профиля */
+  studentDisplayName?: string
   className?: string
 }
 
-export function StartChatWithStudentButton({ studentProfileId, className }: Props) {
+export function StartChatWithStudentButton({ studentProfileId, studentDisplayName, className }: Props) {
   const router = useRouter()
   const { user } = useAuth()
   const [working, setWorking] = useState(false)
@@ -32,7 +34,9 @@ export function StartChatWithStudentButton({ studentProfileId, className }: Prop
       setError(res.error)
       return
     }
-    router.push(`/teacher/messages?conversation=${res.conversationId}`)
+    const id = studentProfileId.trim()
+    const label = encodeURIComponent((studentDisplayName ?? "").trim() || "Ученик")
+    router.push(`/teacher/messages?conversation=${res.conversationId}&peerId=${id}&peerName=${label}`)
   }
 
   return (

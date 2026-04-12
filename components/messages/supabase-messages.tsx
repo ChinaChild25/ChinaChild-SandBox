@@ -39,16 +39,33 @@ function peerInitialLetter(name: string): string {
   return (t[0] ?? "U").toUpperCase()
 }
 
-/** Строка до появления беседы в списке; peer — из `loadConversationPeerProfile` или «User». */
-function pendingListItem(conversationId: string, resolved: ConversationListPeer | null): ConversationListItem {
-  const peer: ConversationListPeer =
-    resolved ??
-    ({
-      id: conversationId,
-      name: "User",
-      avatarUrl: null,
-      role: ""
-    } satisfies ConversationListPeer)
+/** Строка до появления беседы в списке: профиль из БД, подсказка из picker или «User». */
+function pendingListItem(
+  conversationId: string,
+  resolved: ConversationListPeer | null,
+  hint: { id: string; name: string } | null
+): ConversationListItem {
+  const peer: ConversationListPeer = (() => {
+    if (resolved && resolved.name.trim() && resolved.name !== "User") {
+      return resolved
+    }
+    if (hint) {
+      return {
+        id: hint.id,
+        name: hint.name,
+        avatarUrl: resolved?.avatarUrl?.trim() ? resolved.avatarUrl : null,
+        role: resolved?.role?.trim() ? resolved.role : ""
+      }
+    }
+    return (
+      resolved ?? {
+        id: conversationId,
+        name: "User",
+        avatarUrl: null,
+        role: ""
+      }
+    )
+  })()
   return {
     id: conversationId,
     peer,
@@ -63,6 +80,8 @@ export type ChatCopyBlock = { title: string; subtitle: string }
 export type SupabaseMessagesProps = {
   /** Query `?conversation=<uuid>` для открытия диалога после загрузки списка. */
   initialConversationId?: string | null
+  /** Имя/id собеседника из URL после «Новый диалог», пока грузится profiles. */
+  newChatPeerHint?: { id: string; name: string } | null
   /** Кнопки справа от поиска (например «Новый диалог» у преподавателя). */
   listToolbarEnd?: ReactNode
   /** Текст пустого списка диалогов (сайдбар и панель при отсутствии выбранного чата). */
@@ -73,6 +92,7 @@ export type SupabaseMessagesProps = {
 
 export function SupabaseMessages({
   initialConversationId,
+  newChatPeerHint = null,
   listToolbarEnd,
   listEmptyCopy,
   noSelectionCopy
@@ -105,12 +125,18 @@ export function SupabaseMessages({
 
   const sortedItems = useMemo(() => sortConversationListItems(items), [items])
 
+  const pendingPeerHint = useMemo(() => {
+    if (!urlConversationId || !newChatPeerHint) return null
+    if (sortedItems.some((c) => c.id === urlConversationId)) return null
+    return newChatPeerHint
+  }, [urlConversationId, newChatPeerHint, sortedItems])
+
   const sidebarItems = useMemo(() => {
     if (!urlConversationId) return sortedItems
     const has = sortedItems.some((c) => c.id === urlConversationId)
     if (has) return sortedItems
-    return [pendingListItem(urlConversationId, pendingPeerOverride), ...sortedItems]
-  }, [sortedItems, urlConversationId, pendingPeerOverride])
+    return [pendingListItem(urlConversationId, pendingPeerOverride, pendingPeerHint), ...sortedItems]
+  }, [sortedItems, urlConversationId, pendingPeerOverride, pendingPeerHint])
 
   const active = useMemo(
     () => sidebarItems.find((c) => c.id === activeId) ?? null,
