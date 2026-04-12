@@ -90,9 +90,8 @@ export const mentorsBySlug: Record<string, MentorProfile> = {
     subjects: ["Разговорный клуб", "Произношение", "Культура Китая", "HSK1", "HSK2"],
     languages: ["Китайский", "Русский", "Английский"],
     scheduleSlots: [
-      { day: "Вторник", time: "16:00–18:00" },
-      { day: "Четверг", time: "18:00–20:00" },
-      { day: "Суббота", time: "11:00–13:00" }
+      { day: "Понедельник", time: "09:00–22:00 (МСК)" },
+      { day: "Пятница", time: "09:00–22:00 (МСК)" }
     ],
     group: {
       name: "Группа HSK1",
