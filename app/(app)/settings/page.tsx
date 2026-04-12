@@ -13,8 +13,9 @@ import {
 } from "@/components/app-providers"
 import { LAST_LOGIN_STORAGE_KEY, useAuth } from "@/lib/auth-context"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
+import { AvatarCropDialog, type AvatarCropApplyResult } from "@/components/settings/avatar-crop-dialog"
 import { updateProfileFields } from "@/lib/supabase/profile"
-import { uploadUserAvatar } from "@/lib/supabase/upload-avatar"
+import { AVATAR_MAX_FILE_BYTES, uploadUserAvatar, validateAvatarInputFile } from "@/lib/supabase/upload-avatar"
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   persistNotificationPreferences,
@@ -121,6 +122,8 @@ const ACCENT_TILES: { key: AccentKey; bg: string }[] = [
   { key: "orange", bg: "#fce4c4" }
 ]
 
+const AVATAR_MAX_MB = String(Math.round(AVATAR_MAX_FILE_BYTES / (1024 * 1024)))
+
 export default function SettingsPage() {
   const { user, updateUser, changePassword, usesSupabase, refreshProfile } = useAuth()
   const { setTheme, resolvedTheme } = useTheme()
@@ -140,6 +143,9 @@ export default function SettingsPage() {
   const [profileBannerErr, setProfileBannerErr] = useState<string | null>(null)
   const [avatarBusy, setAvatarBusy] = useState(false)
   const [avatarErr, setAvatarErr] = useState<string | null>(null)
+  const [avatarOk, setAvatarOk] = useState(false)
+  const [avatarCropSrc, setAvatarCropSrc] = useState<string | null>(null)
+  const avatarCropUrlRef = useRef<string | null>(null)
   const [pwdBusy, setPwdBusy] = useState(false)
   const [pwdMsg, setPwdMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
   const [mounted, setMounted] = useState(false)
@@ -147,6 +153,15 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (avatarCropUrlRef.current) {
+        URL.revokeObjectURL(avatarCropUrlRef.current)
+        avatarCropUrlRef.current = null
+      }
+    }
   }, [])
 
   useEffect(() => {
@@ -284,6 +299,72 @@ export default function SettingsPage() {
     }
   }
 
+  const handleAvatarCropped = useCallback(
+    async (blob: Blob): Promise<AvatarCropApplyResult> => {
+      const u = user
+      if (!u) {
+        return { ok: false, message: t("settings.avatarUploadFailed") }
+      }
+      const file = new File([blob], "avatar.jpg", { type: "image/jpeg" })
+
+      if (usesSupabase) {
+        setAvatarBusy(true)
+        setAvatarErr(null)
+        setAvatarOk(false)
+        try {
+          const supabase = createBrowserSupabaseClient()
+          const up = await uploadUserAvatar(supabase, u.id, file)
+          if (!up.ok) {
+            const msg = up.message || t("settings.avatarUploadFailed")
+            setAvatarErr(msg)
+            return { ok: false, message: msg }
+          }
+          const { error } = await updateProfileFields(supabase, u.id, {
+            avatar_url: up.publicUrl
+          })
+          if (error) {
+            const msg = error.message || t("settings.avatarUploadFailed")
+            setAvatarErr(msg)
+            return { ok: false, message: msg }
+          }
+          updateUser({ avatar: up.publicUrl })
+          const r = await refreshProfile()
+          if (!r.ok) {
+            const msg = r.message ?? t("settings.avatarUploadFailed")
+            setAvatarErr(msg)
+            return { ok: false, message: msg }
+          }
+          setAvatarOk(true)
+          window.setTimeout(() => setAvatarOk(false), 4000)
+          return { ok: true }
+        } finally {
+          setAvatarBusy(false)
+        }
+      }
+
+      try {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(String(reader.result ?? ""))
+          reader.onerror = () => reject(new Error("read"))
+          reader.readAsDataURL(file)
+        })
+        if (dataUrl) {
+          updateUser({ avatar: dataUrl })
+        }
+        setAvatarErr(null)
+        setAvatarOk(true)
+        window.setTimeout(() => setAvatarOk(false), 4000)
+        return { ok: true }
+      } catch {
+        const msg = t("settings.avatarUploadFailed")
+        setAvatarErr(msg)
+        return { ok: false, message: msg }
+      }
+    },
+    [user, usesSupabase, t, updateUser, refreshProfile]
+  )
+
   if (!user) return null
 
   const avatarSrc = user.avatar ?? placeholderImages.studentAvatar
@@ -324,91 +405,114 @@ export default function SettingsPage() {
               </div>
             ) : null}
 
-            <div className="mb-6 flex items-center gap-4">
-            <div className="relative">
-              <div className="relative h-[88px] w-[88px] overflow-hidden rounded-full bg-white shadow-[0_1px_2px_rgb(0_0_0/0.06)] dark:bg-[#2c2c32] dark:shadow-[0_1px_2px_rgb(0_0_0/0.25)]">
-                <Image
-                  src={avatarSrc}
-                  alt={t("settings.avatarAlt")}
-                  fill
-                  className="object-cover"
-                  sizes="88px"
-                  unoptimized={
-                    avatarSrc.startsWith("data:") ||
-                    avatarSrc.startsWith("http") ||
-                    avatarSrc.includes("supabase.co")
-                  }
-                />
-              </div>
-              <input
-                ref={avatarInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
-                className="sr-only"
-                disabled={avatarBusy}
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (!file || !user) return
-                  setAvatarErr(null)
-                  if (usesSupabase) {
-                    void (async () => {
-                      setAvatarBusy(true)
-                      const supabase = createBrowserSupabaseClient()
-                      const up = await uploadUserAvatar(supabase, user.id, file)
-                      if (!up.ok) {
-                        setAvatarErr(up.message)
-                        setAvatarBusy(false)
-                        e.target.value = ""
-                        return
-                      }
-                      const { error } = await updateProfileFields(supabase, user.id, {
-                        avatar_url: up.publicUrl
-                      })
-                      if (error) {
-                        setAvatarErr(error.message)
-                        setAvatarBusy(false)
-                        e.target.value = ""
-                        return
-                      }
-                      const r = await refreshProfile()
-                      if (!r.ok) setAvatarErr(r.message ?? "Аватар загружен, но профиль не обновился.")
-                      setAvatarBusy(false)
-                      e.target.value = ""
-                    })()
-                  } else {
-                    const reader = new FileReader()
-                    reader.onload = () => {
-                      const url = String(reader.result ?? "")
-                      if (url) updateUser({ avatar: url })
-                    }
-                    reader.readAsDataURL(file)
+            <div className="mb-6 flex items-start gap-4">
+              <div className="flex flex-col items-center gap-2 sm:items-start">
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                  className="sr-only"
+                  disabled={avatarBusy}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
                     e.target.value = ""
-                  }
-                }}
-              />
-              <button
-                type="button"
-                className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-black text-white dark:bg-white dark:text-black"
-                aria-label={t("settings.changePhoto")}
-                onClick={() => avatarInputRef.current?.click()}
-              >
-                <Camera size={15} aria-hidden />
-              </button>
-            </div>
-            <div>
-              <div className="text-[17px] font-semibold text-ds-ink">
-                {displayFullName.trim() || `${firstName} ${lastName}`.trim() || user.name}
+                    if (!file || !user) return
+                    setAvatarErr(null)
+                    setAvatarOk(false)
+                    const invalid = validateAvatarInputFile(file)
+                    if (invalid === "invalid_type") {
+                      setAvatarErr(t("settings.avatarInvalidType"))
+                      return
+                    }
+                    if (invalid === "too_large") {
+                      setAvatarErr(t("settings.avatarTooLarge", { maxMb: AVATAR_MAX_MB }))
+                      return
+                    }
+                    if (avatarCropUrlRef.current) {
+                      URL.revokeObjectURL(avatarCropUrlRef.current)
+                      avatarCropUrlRef.current = null
+                    }
+                    const url = URL.createObjectURL(file)
+                    avatarCropUrlRef.current = url
+                    setAvatarCropSrc(url)
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={avatarBusy}
+                  aria-label={t("settings.changePhoto")}
+                  onClick={() => avatarInputRef.current?.click()}
+                  className="group relative h-[88px] w-[88px] shrink-0 cursor-pointer rounded-full border-0 bg-transparent p-0 text-left shadow-none outline-none transition-transform focus-visible:ring-2 focus-visible:ring-ds-ink focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus-visible:ring-white dark:focus-visible:ring-offset-[#141414]"
+                >
+                  <div className="relative h-full w-full overflow-hidden rounded-full bg-white shadow-[0_1px_2px_rgb(0_0_0/0.06)] ring-1 ring-black/[0.06] dark:bg-[#2c2c32] dark:shadow-[0_1px_2px_rgb(0_0_0/0.25)] dark:ring-white/10">
+                    <Image
+                      src={avatarSrc}
+                      alt={t("settings.avatarAlt")}
+                      fill
+                      className="object-cover transition-[filter] duration-200 group-hover:brightness-[0.92]"
+                      sizes="88px"
+                      unoptimized={
+                        avatarSrc.startsWith("data:") ||
+                        avatarSrc.startsWith("http") ||
+                        avatarSrc.includes("supabase.co")
+                      }
+                    />
+                    <div
+                      className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-black/0 transition-colors duration-200 group-hover:bg-black/45"
+                      aria-hidden
+                    >
+                      <span className="max-w-[76px] px-1 text-center text-[10px] font-semibold uppercase leading-tight tracking-wide text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                        {t("settings.avatarOverlay")}
+                      </span>
+                    </div>
+                  </div>
+                  <span
+                    className="pointer-events-none absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-black text-white shadow-md ring-2 ring-white transition-transform duration-200 group-hover:scale-105 group-disabled:group-hover:scale-100 dark:bg-white dark:text-black dark:ring-[#2c2c32]"
+                    aria-hidden
+                  >
+                    <Camera size={15} />
+                  </span>
+                </button>
+                <p className="max-w-[100px] text-center text-[11px] leading-snug text-ds-text-tertiary sm:max-w-none sm:text-left">
+                  {t("settings.avatarFileHint", { maxMb: AVATAR_MAX_MB })}
+                </p>
               </div>
-              <div className="text-[14px] text-[#737373] dark:text-ds-text-tertiary">{subtitle}</div>
-              {usesSupabase ? (
-                <p className="mt-2 text-[12px] text-ds-text-tertiary">Роль в системе: {user.role === "teacher" ? "преподаватель" : "ученик"}</p>
-              ) : null}
+              <div className="min-w-0 flex-1 pt-1">
+                <div className="text-[17px] font-semibold text-ds-ink">
+                  {displayFullName.trim() || `${firstName} ${lastName}`.trim() || user.name}
+                </div>
+                <div className="text-[14px] text-[#737373] dark:text-ds-text-tertiary">{subtitle}</div>
+                {usesSupabase ? (
+                  <p className="mt-2 text-[12px] text-ds-text-tertiary">
+                    Роль в системе: {user.role === "teacher" ? "преподаватель" : "ученик"}
+                  </p>
+                ) : null}
+              </div>
             </div>
-          </div>
+
+            <AvatarCropDialog
+              open={Boolean(avatarCropSrc)}
+              imageSrc={avatarCropSrc ?? ""}
+              onOpenChange={(open) => {
+                if (!open) {
+                  if (avatarCropUrlRef.current) {
+                    URL.revokeObjectURL(avatarCropUrlRef.current)
+                    avatarCropUrlRef.current = null
+                  }
+                  setAvatarCropSrc(null)
+                }
+              }}
+              onApply={handleAvatarCropped}
+            />
 
           {avatarErr ? (
             <p className="mb-3 text-[13px] text-red-600 dark:text-red-300" role="alert">
               {avatarErr}
+            </p>
+          ) : null}
+          {avatarOk ? (
+            <p className="mb-3 text-[13px] text-ds-sage-strong dark:text-green-300" role="status">
+              {t("settings.avatarUpdated")}
             </p>
           ) : null}
 

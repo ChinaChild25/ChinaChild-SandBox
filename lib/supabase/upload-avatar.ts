@@ -1,15 +1,42 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 const BUCKET = "avatars"
-const MAX_BYTES = 5 * 1024 * 1024
-const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"])
+
+/** Лимит исходного файла до обрезки (выбор в диалоге). */
+export const AVATAR_MAX_FILE_BYTES = 5 * 1024 * 1024
+
+const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"])
 
 function extFromMime(mime: string): string {
   if (mime === "image/jpeg") return "jpg"
   if (mime === "image/png") return "png"
   if (mime === "image/webp") return "webp"
-  if (mime === "image/gif") return "gif"
   return "bin"
+}
+
+function extFromFile(file: File): string {
+  if (file.type && ALLOWED_TYPES.has(file.type)) {
+    return extFromMime(file.type)
+  }
+  const n = file.name.toLowerCase()
+  if (n.endsWith(".png")) return "png"
+  if (n.endsWith(".webp")) return "webp"
+  return "jpg"
+}
+
+function fileLooksLikeAllowedImage(file: File): boolean {
+  if (ALLOWED_TYPES.has(file.type)) return true
+  const name = file.name.toLowerCase()
+  if (!/\.(jpe?g|png|webp)$/.test(name)) return false
+  return !file.type || file.type.startsWith("image/")
+}
+
+export type AvatarInputValidationError = "invalid_type" | "too_large"
+
+export function validateAvatarInputFile(file: File): AvatarInputValidationError | null {
+  if (!fileLooksLikeAllowedImage(file)) return "invalid_type"
+  if (file.size > AVATAR_MAX_FILE_BYTES) return "too_large"
+  return null
 }
 
 /**
@@ -21,20 +48,29 @@ export async function uploadUserAvatar(
   userId: string,
   file: File
 ): Promise<{ ok: true; publicUrl: string } | { ok: false; message: string }> {
-  if (!ALLOWED_TYPES.has(file.type)) {
-    return { ok: false, message: "Допустимы только изображения: JPEG, PNG, WebP, GIF." }
+  const v = validateAvatarInputFile(file)
+  if (v === "invalid_type") {
+    return { ok: false, message: "Допустимы только изображения: JPEG, PNG, WebP." }
   }
-  if (file.size > MAX_BYTES) {
+  if (v === "too_large") {
     return { ok: false, message: "Файл больше 5 МБ." }
   }
 
-  const ext = extFromMime(file.type)
+  const ext = extFromFile(file)
   const path = `${userId}/${Date.now()}.${ext}`
+  const contentType =
+    file.type && ALLOWED_TYPES.has(file.type)
+      ? file.type
+      : ext === "png"
+        ? "image/png"
+        : ext === "webp"
+          ? "image/webp"
+          : "image/jpeg"
 
   const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, {
     cacheControl: "3600",
     upsert: true,
-    contentType: file.type
+    contentType
   })
 
   if (upErr) {
