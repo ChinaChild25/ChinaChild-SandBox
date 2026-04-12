@@ -1,16 +1,18 @@
 "use client"
 
 import Image from "next/image"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import { ArrowLeft, Mail, Send, Search } from "lucide-react"
 
 import { useAuth } from "@/lib/auth-context"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
+import { Textarea } from "@/components/ui/textarea"
 import {
   formatListPeerRole,
   loadMessagesForConversation,
   loadMyConversationList,
   sendChatMessage,
+  sortConversationListItems,
   formatChatTimeLabel,
   type ChatBubble,
   type ConversationListItem
@@ -19,22 +21,51 @@ import { cn } from "@/lib/utils"
 
 const CHAT_BREAKPOINT = 1024
 
-/** Пока список ещё не подтянул новую беседу после `?conversation=`, показываем строку в сайдбаре. */
+const DEFAULT_LIST_EMPTY = {
+  title: "У вас пока нет диалогов",
+  subtitle: "Когда преподаватель начнёт с вами переписку, диалог появится здесь."
+}
+
+const DEFAULT_NO_SELECTION = {
+  title: "Выберите диалог",
+  subtitle: "Откройте беседу в списке слева."
+}
+
+/** Строка до прихода беседы из `loadMyConversationList` (без «Загрузка…» в шапке). */
 function pendingListItem(conversationId: string): ConversationListItem {
   return {
     id: conversationId,
-    peer: { id: conversationId, name: "Диалог", avatarUrl: null, role: "" },
+    peer: {
+      id: conversationId,
+      name: "Новый чат",
+      avatarUrl: null,
+      role: ""
+    },
     lastMessage: "",
-    lastMessageAt: null
+    lastMessageAt: null,
+    conversationCreatedAt: new Date().toISOString()
   }
 }
+
+export type ChatCopyBlock = { title: string; subtitle: string }
 
 export type SupabaseMessagesProps = {
   /** Query `?conversation=<uuid>` для открытия диалога после загрузки списка. */
   initialConversationId?: string | null
+  /** Кнопки справа от поиска (например «Новый диалог» у преподавателя). */
+  listToolbarEnd?: ReactNode
+  /** Текст пустого списка диалогов (сайдбар и панель при отсутствии выбранного чата). */
+  listEmptyCopy?: ChatCopyBlock
+  /** Панель справа, когда диалоги есть, но ни один не выбран. */
+  noSelectionCopy?: ChatCopyBlock
 }
 
-export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProps) {
+export function SupabaseMessages({
+  initialConversationId,
+  listToolbarEnd,
+  listEmptyCopy,
+  noSelectionCopy
+}: SupabaseMessagesProps) {
   const { user } = useAuth()
   const myId = user?.id ?? null
 
@@ -57,12 +88,17 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
   const [inputText, setInputText] = useState("")
   const [sendError, setSendError] = useState<string | null>(null)
 
+  const emptyCopy = listEmptyCopy ?? DEFAULT_LIST_EMPTY
+  const idleCopy = noSelectionCopy ?? DEFAULT_NO_SELECTION
+
+  const sortedItems = useMemo(() => sortConversationListItems(items), [items])
+
   const sidebarItems = useMemo(() => {
-    if (!urlConversationId) return items
-    const has = items.some((c) => c.id === urlConversationId)
-    if (has) return items
-    return [pendingListItem(urlConversationId), ...items]
-  }, [items, urlConversationId])
+    if (!urlConversationId) return sortedItems
+    const has = sortedItems.some((c) => c.id === urlConversationId)
+    if (has) return sortedItems
+    return [pendingListItem(urlConversationId), ...sortedItems]
+  }, [sortedItems, urlConversationId])
 
   const active = useMemo(
     () => sidebarItems.find((c) => c.id === activeId) ?? null,
@@ -169,21 +205,20 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
         if (idx === -1) {
           const peer = active?.peer ?? {
             id: "",
-            name: "Диалог",
+            name: "Собеседник",
             avatarUrl: null,
             role: ""
           }
-          return [
-            {
-              id: activeId,
-              peer,
-              lastMessage: message.text,
-              lastMessageAt: message.createdAt
-            },
-            ...prev
-          ]
+          const row: ConversationListItem = {
+            id: activeId,
+            peer,
+            lastMessage: message.text,
+            lastMessageAt: message.createdAt,
+            conversationCreatedAt: new Date().toISOString()
+          }
+          return sortConversationListItems([row, ...prev])
         }
-        return prev.map((row) =>
+        const next = prev.map((row) =>
           row.id === activeId
             ? {
                 ...row,
@@ -192,6 +227,7 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
               }
             : row
         )
+        return sortConversationListItems(next)
       })
     }
     setInputText("")
@@ -203,6 +239,8 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
 
   const peerInitial = active ? (active.peer.name.trim()[0] ?? "?") : "?"
   const activeRoleLine = active ? formatListPeerRole(active.peer.role) : ""
+  const canSend =
+    !!inputText.trim() && !messagesLoading && !messagesError && !!myId && !!activeId && !!active
 
   return (
     <div className="ds-figma-page ds-messages-page flex min-h-0 w-full flex-1 flex-col">
@@ -215,17 +253,20 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
               "lg:flex"
             )}
           >
-            <div className="ds-messages-search-wrap border-b border-[#e8e8e8] p-4">
-              <div className="ds-messages-search-glass flex items-center gap-2 rounded-2xl bg-[#f5f5f5] px-4 py-3 dark:bg-transparent">
-                <Search size={15} className="shrink-0 text-[#aaa] dark:text-ds-text-placeholder" aria-hidden />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Поиск..."
-                  aria-label="Поиск диалогов"
-                  disabled={empty || !!listError}
-                  className="min-w-0 flex-1 border-0 bg-transparent text-[14px] text-ds-ink outline-none placeholder:text-[#aaa] disabled:opacity-50 dark:placeholder:text-ds-text-placeholder"
-                />
+            <div className="ds-messages-search-wrap border-b border-[#e8e8e8] p-3 sm:p-4 dark:border-[#333333]">
+              <div className="flex items-center gap-2">
+                <div className="ds-messages-search-glass flex min-w-0 flex-1 items-center gap-2 rounded-2xl bg-[#f5f5f5] px-3.5 py-2.5 dark:bg-white/[0.06]">
+                  <Search size={16} className="shrink-0 text-ds-text-placeholder" aria-hidden />
+                  <input
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Поиск"
+                    aria-label="Поиск диалогов"
+                    disabled={empty || !!listError}
+                    className="min-w-0 flex-1 border-0 bg-transparent text-[14px] text-ds-ink outline-none placeholder:text-ds-text-placeholder disabled:opacity-50"
+                  />
+                </div>
+                {listToolbarEnd ? <div className="shrink-0">{listToolbarEnd}</div> : null}
               </div>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
@@ -244,55 +285,61 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
                   </button>
                 </div>
               ) : empty ? (
-                <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#f0f0f0] dark:bg-white/10">
-                    <Mail className="h-7 w-7 text-ds-text-tertiary" aria-hidden />
+                <div className="flex flex-col items-center gap-2.5 px-6 py-14 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-black/[0.05] dark:bg-white/10">
+                    <Mail className="h-6 w-6 text-ds-text-tertiary" aria-hidden />
                   </div>
-                  <p className="text-[15px] font-semibold text-ds-ink">Пока нет диалогов</p>
-                  <p className="max-w-[280px] text-[13px] leading-snug text-ds-text-secondary">
-                    Когда администратор или преподаватель создаст беседу с вами, она появится здесь. Для проверки
-                    можно создать строки вручную в SQL (см. документацию миграции).
+                  <p className="text-[16px] font-semibold tracking-tight text-ds-ink">{emptyCopy.title}</p>
+                  <p className="max-w-[260px] text-[13px] leading-relaxed text-ds-text-secondary">
+                    {emptyCopy.subtitle}
                   </p>
                 </div>
               ) : (
                 filteredItems.map((row) => {
                   const selected = row.id === activeId
                   const { peer } = row
-                  const roleLine = formatListPeerRole(peer.role)
                   const timeLabel = row.lastMessageAt ? formatChatTimeLabel(row.lastMessageAt) : ""
                   const initial = peer.name.trim()[0] ?? "?"
+                  const preview = row.lastMessage.trim() || "Нет сообщений"
                   return (
                     <button
                       key={row.id}
                       type="button"
                       onClick={() => handleSwitch(row.id)}
                       className={cn(
-                        "flex w-full cursor-pointer items-center gap-3 border-b border-[#f0f0f0] p-4 text-left transition-colors dark:border-[#333333]",
-                        selected ? "bg-[#f5f5f5] dark:bg-[#262626]" : "hover:bg-[#fafafa] dark:hover:bg-[#2a2a2a]"
+                        "flex w-full cursor-pointer items-center gap-3 border-b border-[#f0f0f0] py-3 pl-[calc(1rem-3px)] pr-4 text-left transition-[background-color,border-color] duration-150 dark:border-[#333333]",
+                        selected
+                          ? "border-l-[3px] border-l-ds-ink bg-black/[0.07] dark:border-l-neutral-200 dark:bg-white/[0.08]"
+                          : "border-l-[3px] border-l-transparent hover:bg-black/[0.05] active:bg-black/[0.07] dark:hover:bg-white/[0.06] dark:active:bg-white/[0.08]"
                       )}
                     >
-                      <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-ds-sidebar">
+                      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/10">
                         {peer.avatarUrl ? (
                           <Image
                             src={peer.avatarUrl}
                             alt={peer.name}
                             fill
                             className="object-cover"
-                            sizes="44px"
+                            sizes="48px"
                           />
                         ) : (
-                          <span className="text-[16px] font-bold text-ds-text-tertiary">{initial}</span>
+                          <span className="text-[15px] font-semibold text-ds-text-secondary">{initial}</span>
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="truncate text-[14px] font-medium text-ds-ink">{peer.name}</span>
-                          <span className="shrink-0 text-[11px] text-ds-text-placeholder">{timeLabel}</span>
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="truncate text-[15px] font-semibold leading-tight text-ds-ink">
+                            {peer.name}
+                          </span>
+                          {timeLabel ? (
+                            <span className="shrink-0 pt-0.5 text-[11px] tabular-nums text-ds-text-placeholder">
+                              {timeLabel}
+                            </span>
+                          ) : null}
                         </div>
-                        <p className="truncate text-[12px] text-ds-text-tertiary">{row.lastMessage}</p>
-                        {roleLine ? (
-                          <p className="truncate text-[11px] text-ds-text-placeholder">{roleLine}</p>
-                        ) : null}
+                        <p className="mt-0.5 truncate text-[13px] leading-snug text-ds-text-secondary">
+                          {preview}
+                        </p>
                       </div>
                     </button>
                   )
@@ -309,53 +356,47 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
             )}
           >
             {!active ? (
-              <div className="flex min-h-[280px] flex-1 flex-col items-center justify-center gap-3 p-8 text-center lg:row-span-3">
-                <Mail className="h-10 w-10 text-ds-text-tertiary" aria-hidden />
-                <p className="text-[15px] font-medium text-ds-ink">
-                  {empty ? "Сообщения" : "Выберите диалог"}
+              <div className="flex min-h-[280px] flex-1 flex-col items-center justify-center gap-2.5 p-8 text-center lg:row-span-3">
+                <Mail className="h-9 w-9 text-ds-text-tertiary" aria-hidden />
+                <p className="text-[16px] font-semibold text-ds-ink">
+                  {empty ? emptyCopy.title : idleCopy.title}
                 </p>
-                <p className="max-w-sm text-[14px] text-ds-text-secondary">
-                  {empty
-                    ? "Здесь будут переписки с преподавателем или учеником."
-                    : "Откройте диалог в списке слева."}
+                <p className="max-w-sm text-[13px] leading-relaxed text-ds-text-secondary">
+                  {empty ? emptyCopy.subtitle : idleCopy.subtitle}
                 </p>
               </div>
             ) : (
               <>
-                <header className="flex shrink-0 items-start gap-2 border-b border-[#e8e8e8] p-3 sm:items-center sm:gap-3 sm:p-4 md:p-5 dark:border-[#333333] lg:row-start-1">
+                <header className="flex shrink-0 items-center gap-3 border-b border-[#e8e8e8] px-3 py-3 sm:px-5 sm:py-4 dark:border-[#333333] lg:row-start-1">
                   {!wide ? (
                     <button
                       type="button"
-                      className="mt-0.5 grid h-10 w-10 shrink-0 place-content-center rounded-full border border-black/10 bg-ds-surface text-ds-ink sm:mt-0 dark:border-white/15"
+                      className="grid h-10 w-10 shrink-0 place-content-center rounded-full border border-black/10 bg-ds-surface text-ds-ink dark:border-white/15"
                       onClick={() => setMobilePanel("list")}
                       aria-label="Назад к списку"
                     >
                       <ArrowLeft className="h-5 w-5" />
                     </button>
                   ) : null}
-                  <div className="relative mt-0.5 h-10 w-10 shrink-0 overflow-hidden rounded-full bg-ds-sidebar sm:mt-0">
+                  <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/10">
                     {active.peer.avatarUrl ? (
                       <Image
                         src={active.peer.avatarUrl}
                         alt={active.peer.name}
                         fill
                         className="object-cover"
-                        sizes="40px"
+                        sizes="44px"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center text-[14px] font-bold text-ds-text-tertiary">
+                      <div className="flex h-full w-full items-center justify-center text-[15px] font-semibold text-ds-text-secondary">
                         {peerInitial}
                       </div>
                     )}
                   </div>
-                  <div className="min-w-0 flex-1 pr-1">
-                    <p className="text-[15px] font-semibold leading-snug text-ds-ink sm:text-[16px]">
-                      {active.peer.name}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[16px] font-semibold leading-tight text-ds-ink">{active.peer.name}</p>
                     {activeRoleLine ? (
-                      <p className="mt-0.5 text-[12px] leading-snug text-ds-text-tertiary sm:text-[13px]">
-                        {activeRoleLine}
-                      </p>
+                      <p className="mt-0.5 truncate text-[13px] text-ds-text-secondary">{activeRoleLine}</p>
                     ) : null}
                   </div>
                 </header>
@@ -369,6 +410,13 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
                     <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 text-center">
                       <p className="text-[14px] font-medium text-destructive">Не удалось загрузить сообщения</p>
                       <p className="text-[13px] text-ds-text-secondary">{messagesError}</p>
+                    </div>
+                  ) : messages.length === 0 ? (
+                    <div className="flex flex-1 flex-col items-center justify-center gap-1.5 px-6 text-center">
+                      <p className="text-[17px] font-semibold tracking-tight text-ds-ink">Начните диалог</p>
+                      <p className="max-w-[240px] text-[14px] leading-relaxed text-ds-text-secondary">
+                        Напишите первое сообщение
+                      </p>
                     </div>
                   ) : (
                     messages.map((msg) => (
@@ -397,27 +445,33 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
                   )}
                 </div>
 
-                <div className="flex shrink-0 flex-col gap-2 border-t border-[#e8e8e8] bg-ds-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-[#333333] lg:row-start-3">
+                <div className="flex shrink-0 flex-col gap-2 border-t border-[#e8e8e8] bg-ds-surface px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4 dark:border-[#333333] lg:row-start-3">
                   {sendError ? (
                     <p className="text-center text-[12px] text-destructive">{sendError}</p>
                   ) : null}
-                  <div className="flex items-center gap-3">
-                    <input
+                  <div className="flex items-end gap-2 sm:gap-3">
+                    <Textarea
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && void handleSend()}
-                      placeholder="Напишите сообщение..."
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault()
+                          void handleSend()
+                        }
+                      }}
+                      placeholder="Сообщение…"
+                      rows={1}
                       disabled={messagesLoading || !!messagesError}
-                      className="min-h-[44px] flex-1 rounded-2xl border-0 bg-[#f5f5f5] px-4 py-2.5 text-[14px] text-ds-ink outline-none placeholder:text-[#aaa] focus-visible:ring-2 focus-visible:ring-ds-ink/20 disabled:opacity-60 dark:bg-white/5 dark:placeholder:text-ds-text-placeholder"
+                      className="min-h-[44px] max-h-[9rem] flex-1 resize-none rounded-2xl border-0 bg-[#f5f5f5] px-4 py-3 text-[14px] leading-snug text-ds-ink shadow-none outline-none ring-0 placeholder:text-ds-text-placeholder focus-visible:border-0 focus-visible:ring-2 focus-visible:ring-ds-ink/15 disabled:opacity-50 dark:bg-white/[0.06]"
                     />
                     <button
                       type="button"
                       onClick={() => void handleSend()}
-                      disabled={messagesLoading || !!messagesError}
-                      className="grid h-10 w-10 shrink-0 place-content-center rounded-full bg-[#1a1a1a] text-white transition-colors hover:bg-[#333] disabled:opacity-50 dark:bg-white dark:text-[#1a1a1a] dark:hover:bg-neutral-200"
+                      disabled={!canSend}
+                      className="mb-0.5 grid h-11 w-11 shrink-0 place-content-center rounded-full bg-[#1a1a1a] text-white transition-opacity hover:opacity-90 disabled:pointer-events-none disabled:opacity-35 dark:bg-white dark:text-[#1a1a1a]"
                       aria-label="Отправить"
                     >
-                      <Send size={16} />
+                      <Send size={18} strokeWidth={2} />
                     </button>
                   </div>
                 </div>

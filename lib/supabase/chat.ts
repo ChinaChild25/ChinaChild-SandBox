@@ -40,6 +40,22 @@ export type ConversationListItem = {
   peer: ConversationListPeer
   lastMessage: string
   lastMessageAt: string | null
+  /** `conversations.created_at` — для порядка чатов без сообщений */
+  conversationCreatedAt: string
+}
+
+/** Как в мессенджере: сначала по времени последнего сообщения, пустые внизу. */
+export function sortConversationListItems(items: ConversationListItem[]): ConversationListItem[] {
+  return [...items].sort((a, b) => {
+    const hasA = a.lastMessageAt != null && a.lastMessageAt !== ""
+    const hasB = b.lastMessageAt != null && b.lastMessageAt !== ""
+    if (hasA && !hasB) return -1
+    if (!hasA && hasB) return 1
+    if (hasA && hasB) return Date.parse(b.lastMessageAt!) - Date.parse(a.lastMessageAt!)
+    const ca = Date.parse(a.conversationCreatedAt) || 0
+    const cb = Date.parse(b.conversationCreatedAt) || 0
+    return cb - ca
+  })
 }
 
 export type ChatBubble = {
@@ -268,21 +284,17 @@ export async function loadMyConversationList(
         ? soloConversationPeerPlaceholder(conversationId)
         : conversationPeerFromProfile(peerUserId, profileMap.get(peerUserId))
 
+    const conv = convById.get(conversationId)
     items.push({
       id: conversationId,
       peer,
       lastMessage: last?.content?.trim() ? last.content.trim() : "Нет сообщений",
-      lastMessageAt: last?.created_at ?? null
+      lastMessageAt: last?.created_at ?? null,
+      conversationCreatedAt: conv?.created_at ?? ""
     })
   }
 
-  items.sort((a, b) => {
-    const ta = a.lastMessageAt ? Date.parse(a.lastMessageAt) : 0
-    const tb = b.lastMessageAt ? Date.parse(b.lastMessageAt) : 0
-    return tb - ta
-  })
-
-  return { items, error: null, authUserId: myUserId }
+  return { items: sortConversationListItems(items), error: null, authUserId: myUserId }
 }
 
 type ProfileStudentPickerRow = Pick<PeerProfileRow, "id" | "first_name" | "last_name" | "full_name"> & {
@@ -324,6 +336,63 @@ export async function loadStudentProfilesForTeacherPicker(
   })
 
   return { students, error: null }
+}
+
+/** Все ученики, видимые по RLS (если отфильтрованный список пуст). */
+export async function loadAllStudentProfilesForPicker(
+  supabase: SupabaseClient
+): Promise<{ students: { id: string; label: string }[]; error: Error | null }> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, full_name")
+    .eq("role", "student")
+
+  if (error) {
+    return { students: [], error: new Error(error.message) }
+  }
+
+  const rows = (data ?? []) as ProfileStudentPickerRow[]
+  const students = rows.map((row) => ({
+    id: row.id,
+    label: displayNameFromProfileFields(row, null)
+  }))
+  students.sort((a, b) => a.label.localeCompare(b.label, "ru"))
+
+  return { students, error: null }
+}
+
+/**
+ * Профиль собеседника по id беседы (второй участник, не `myUserId`).
+ * Для шапки/строки списка до прихода полного `loadMyConversationList`.
+ */
+export async function loadConversationPeerProfile(
+  supabase: SupabaseClient,
+  conversationId: string,
+  myUserId: string
+): Promise<{ peer: ConversationListPeer | null; error: Error | null }> {
+  const { data: parts, error: pErr } = await supabase
+    .from("conversation_participants")
+    .select("user_id")
+    .eq("conversation_id", conversationId)
+
+  if (pErr) return { peer: null, error: new Error(pErr.message) }
+
+  const peerUserId = (parts ?? [])
+    .map((r) => (r as { user_id: string }).user_id)
+    .find((id) => id !== myUserId)
+
+  if (!peerUserId) return { peer: null, error: null }
+
+  const { data: profile, error: profErr } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, full_name, avatar_url, role")
+    .eq("id", peerUserId)
+    .maybeSingle()
+
+  if (profErr) return { peer: null, error: new Error(profErr.message) }
+
+  const peer = conversationPeerFromProfile(peerUserId, profile as PeerProfileRow | undefined)
+  return { peer, error: null }
 }
 
 export async function loadMessagesForConversation(

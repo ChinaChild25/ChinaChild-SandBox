@@ -2,30 +2,32 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronDown, Loader2, MessageSquarePlus } from "lucide-react"
+import { Loader2, MessageSquarePlus } from "lucide-react"
 
 import { useAuth } from "@/lib/auth-context"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
-import { getOrCreateConversation, loadStudentProfilesForTeacherPicker } from "@/lib/supabase/chat"
+import {
+  getOrCreateConversation,
+  loadAllStudentProfilesForPicker,
+  loadStudentProfilesForTeacherPicker
+} from "@/lib/supabase/chat"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
+/** Компактная кнопка «Новый диалог» с выбором ученика (панель преподавателя). */
 export function TeacherStartChatComposer() {
   const router = useRouter()
   const { user } = useAuth()
+  const [open, setOpen] = useState(false)
   const [students, setStudents] = useState<{ id: string; label: string }[]>([])
   const [listLoading, setListLoading] = useState(true)
-  const [selectedId, setSelectedId] = useState("")
-  const [manualUuid, setManualUuid] = useState("")
-  const [working, setWorking] = useState(false)
-  /** Только ошибки создания беседы (RLS, сеть), не список/роли */
+  const [workingId, setWorkingId] = useState<string | null>(null)
   const [chatError, setChatError] = useState<string | null>(null)
-  const [debugOpen, setDebugOpen] = useState(false)
+  const [pickerFromAllStudents, setPickerFromAllStudents] = useState(false)
 
   useEffect(() => {
     if (!user?.id) {
@@ -35,12 +37,26 @@ export function TeacherStartChatComposer() {
     const supabase = createBrowserSupabaseClient()
     void (async () => {
       setListLoading(true)
-      const { students: rows, error } = await loadStudentProfilesForTeacherPicker(supabase, user.id)
-      if (error) {
-        console.warn("[TeacherStartChat] не удалось загрузить список учеников (только для отображения):", error.message)
+      setPickerFromAllStudents(false)
+      const primary = await loadStudentProfilesForTeacherPicker(supabase, user.id)
+      if (primary.error) {
+        console.warn("[TeacherStartChat] не удалось загрузить список учеников:", primary.error.message)
+        setStudents([])
+        setListLoading(false)
+        return
+      }
+      if (primary.students.length > 0) {
+        setStudents(primary.students)
+        setListLoading(false)
+        return
+      }
+      const fallback = await loadAllStudentProfilesForPicker(supabase)
+      if (fallback.error) {
+        console.warn("[TeacherStartChat] fallback учеников:", fallback.error.message)
         setStudents([])
       } else {
-        setStudents(rows)
+        setStudents(fallback.students)
+        setPickerFromAllStudents(fallback.students.length > 0)
       }
       setListLoading(false)
     })()
@@ -55,118 +71,94 @@ export function TeacherStartChatComposer() {
         return
       }
       setChatError(null)
-      setWorking(true)
+      setWorkingId(trimmed)
       const supabase = createBrowserSupabaseClient()
       const res = await getOrCreateConversation(supabase, user.id, trimmed)
-      setWorking(false)
+      setWorkingId(null)
       if ("error" in res) {
         setChatError(res.error)
         return
       }
+      setOpen(false)
       router.replace(`/teacher/messages?conversation=${res.conversationId}`)
     },
     [router, user?.id]
   )
 
-  const onSubmitSelect = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedId) return
-    void openChat(selectedId)
-  }
-
-  const onSubmitDebug = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!UUID_RE.test(manualUuid.trim())) {
-      console.warn("[TeacherStartChat] debug: неверный UUID")
-      return
-    }
-    void openChat(manualUuid)
-  }
-
   const listEmpty = !listLoading && students.length === 0
 
   return (
-    <div className="border-b border-[#e8e8e8] bg-ds-surface px-4 py-4 dark:border-[#333333]">
-      <div className="mx-auto flex w-full max-w-[min(100%,1320px)] flex-col gap-4">
-        <div className="flex items-center gap-2 text-[15px] font-semibold text-ds-ink">
-          <MessageSquarePlus className="h-4 w-4 shrink-0 text-ds-text-secondary" aria-hidden />
-          Новый диалог
-        </div>
-        <p className="text-[13px] leading-snug text-ds-text-secondary">
-          Выберите ученика и откройте чат. Список — для удобства; сам чат создаётся по id без проверки ролей в этом шаге.
-        </p>
-
-        <form onSubmit={onSubmitSelect} className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-          <div className="min-w-[min(100%,280px)] flex-1">
-            <Label htmlFor="teacher-chat-student" className="text-[13px] text-ds-text-secondary">
-              Ученик
-            </Label>
-            <select
-              id="teacher-chat-student"
-              value={selectedId}
-              onChange={(e) => {
-                setSelectedId(e.target.value)
-                setChatError(null)
-              }}
-              disabled={listLoading || working}
-              className="mt-1.5 flex h-11 w-full rounded-xl border border-black/10 bg-white px-3 text-[14px] text-ds-ink outline-none focus-visible:ring-2 focus-visible:ring-ds-ink/20 disabled:opacity-60 dark:border-white/15 dark:bg-[#141414]"
-            >
-              <option value="">{listLoading ? "Загрузка…" : "Выберите ученика"}</option>
-              {students.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-            {listEmpty ? (
-              <p className="mt-1.5 text-[12px] text-ds-text-tertiary">
-                Список пуст. При необходимости используйте отладку ниже.
-              </p>
-            ) : null}
-          </div>
-          <Button type="submit" disabled={working || listLoading || !selectedId} className="h-11 shrink-0">
-            {working ? <Loader2 className="h-4 w-4 animate-spin" /> : "Открыть чат"}
-          </Button>
-        </form>
-
-        <button
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
           type="button"
-          onClick={() => setDebugOpen((o) => !o)}
-          className="flex items-center gap-1 text-left text-[12px] font-medium uppercase tracking-wide text-ds-text-placeholder hover:text-ds-text-secondary"
+          variant="outline"
+          size="sm"
+          className="h-9 shrink-0 gap-1.5 rounded-full border-black/10 px-3 text-[13px] font-medium dark:border-white/15"
         >
-          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", debugOpen && "rotate-180")} aria-hidden />
-          Отладка
-        </button>
-
-        {debugOpen ? (
-          <form
-            onSubmit={onSubmitDebug}
-            className="flex flex-col gap-3 rounded-xl border border-dashed border-black/15 bg-black/[0.02] p-4 dark:border-white/20 dark:bg-white/[0.03] sm:flex-row sm:items-end"
-          >
-            <div className="min-w-0 flex-1">
-              <Label htmlFor="teacher-chat-uuid" className="text-[12px] text-ds-text-placeholder">
-                UUID пользователя (отладка)
-              </Label>
-              <Input
-                id="teacher-chat-uuid"
-                value={manualUuid}
-                onChange={(e) => {
-                  setManualUuid(e.target.value)
-                  setChatError(null)
-                }}
-                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                disabled={working}
-                className="mt-1.5 h-11 rounded-xl font-mono text-[13px]"
-              />
+          <MessageSquarePlus className="h-4 w-4" aria-hidden />
+          Новый диалог
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        className="w-[min(calc(100vw-2rem),18rem)] border-black/10 p-0 shadow-lg dark:border-white/15"
+      >
+        <div className="border-b border-black/5 px-3 py-2.5 dark:border-white/10">
+          <p className="text-[13px] font-semibold text-ds-ink">Выберите ученика</p>
+          <p className="text-[11px] text-ds-text-tertiary">Откроется существующий чат или создастся новый</p>
+          {pickerFromAllStudents ? (
+            <p className="mt-1 text-[11px] leading-snug text-ds-text-placeholder">
+              Показаны все ученики, доступные вам по правам доступа
+            </p>
+          ) : null}
+        </div>
+        <div className="max-h-[min(50vh,16rem)] overflow-y-auto overscroll-contain p-1">
+          {listLoading ? (
+            <div className="flex items-center justify-center gap-2 py-8 text-[13px] text-ds-text-secondary">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              Загрузка…
             </div>
-            <Button type="submit" variant="outline" disabled={working || !manualUuid.trim()} className="h-11 shrink-0">
-              {working ? <Loader2 className="h-4 w-4 animate-spin" /> : "Открыть"}
-            </Button>
-          </form>
+          ) : listEmpty ? (
+            <p className="px-3 py-6 text-center text-[13px] font-medium leading-snug text-ds-text-secondary">
+              Нет доступных учеников
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-0.5">
+              {students.map((s) => {
+                const busy = workingId === s.id
+                return (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      disabled={!!workingId}
+                      onClick={() => void openChat(s.id)}
+                      className={cn(
+                        "flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-[14px] text-ds-ink transition-colors",
+                        "hover:bg-black/[0.04] disabled:opacity-60 dark:hover:bg-white/[0.06]"
+                      )}
+                    >
+                      {busy ? (
+                        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-ds-text-secondary" aria-hidden />
+                      ) : (
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black/[0.06] text-[12px] font-semibold text-ds-text-secondary dark:bg-white/10">
+                          {s.label.trim()[0]?.toUpperCase() ?? "?"}
+                        </span>
+                      )}
+                      <span className="min-w-0 flex-1 truncate font-medium">{s.label}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </div>
+        {chatError ? (
+          <p className="border-t border-black/5 px-3 py-2 text-[12px] leading-snug text-destructive dark:border-white/10">
+            {chatError}
+          </p>
         ) : null}
-
-        {chatError ? <p className="text-[13px] text-destructive">{chatError}</p> : null}
-      </div>
-    </div>
+      </PopoverContent>
+    </Popover>
   )
 }

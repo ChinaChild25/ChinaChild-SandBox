@@ -7,16 +7,28 @@ import { SupabaseMessages } from "@/components/messages/supabase-messages"
 import { TeacherStartChatComposer } from "@/components/messages/teacher-start-chat-composer"
 import { useAuth } from "@/lib/auth-context"
 
+const TEACHER_LIST_EMPTY = {
+  title: "У вас пока нет диалогов",
+  subtitle: "Выберите ученика, чтобы начать переписку."
+}
+
+const TEACHER_NO_SELECTION = {
+  title: "Сообщения",
+  subtitle: "Выберите диалог в списке слева или нажмите «Новый диалог»."
+}
+
 function TeacherMessagesSupabase() {
   const searchParams = useSearchParams()
   const conversation = searchParams.get("conversation")
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <TeacherStartChatComposer />
-      <div className="min-h-0 flex-1">
-        <SupabaseMessages initialConversationId={conversation} />
-      </div>
+      <SupabaseMessages
+        initialConversationId={conversation}
+        listToolbarEnd={<TeacherStartChatComposer />}
+        listEmptyCopy={TEACHER_LIST_EMPTY}
+        noSelectionCopy={TEACHER_NO_SELECTION}
+      />
     </div>
   )
 }
