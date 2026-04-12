@@ -78,12 +78,12 @@ function MessagesPageInner() {
   const showChat = wide || mobilePanel === "chat"
 
   return (
-    <div className="ds-figma-page ds-messages-page flex min-h-0 flex-1 flex-col">
-      <div className="flex w-full min-h-0 flex-1 flex-col lg:h-[min(100%,calc(100dvh-9rem))] lg:max-h-[calc(100dvh-9rem)]">
+    <div className="ds-figma-page ds-messages-page flex min-h-0 w-full flex-1 flex-col">
+      <div className="ds-messages-page__frame flex w-full min-h-0 flex-1 flex-col lg:h-[min(100%,calc(100dvh-9rem))] lg:max-h-[calc(100dvh-9rem)]">
         <div className="ds-messages-shell min-h-0 flex-1 flex-col lg:h-full lg:min-h-0 lg:flex-row lg:items-stretch">
           <div
             className={cn(
-              "ds-messages-sidebar max-h-[min(40dvh,340px)] shrink-0 lg:max-h-none lg:min-h-0",
+              "ds-messages-sidebar shrink-0 lg:min-h-0",
               !showList && "hidden",
               "lg:flex"
             )}
@@ -140,23 +140,23 @@ function MessagesPageInner() {
 
           <div
             className={cn(
-              "flex min-h-0 min-w-0 flex-1 flex-col",
+              "ds-messages-chat-panel min-h-0 min-w-0 flex-1 flex-col",
               "lg:grid lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)_auto]",
               !showChat && "hidden"
             )}
           >
-            <header className="flex shrink-0 items-center gap-3 border-b border-[#e8e8e8] p-4 md:p-5 dark:border-[#333333] lg:row-start-1">
+            <header className="flex shrink-0 items-start gap-2 border-b border-[#e8e8e8] p-3 sm:items-center sm:gap-3 sm:p-4 md:p-5 dark:border-[#333333] lg:row-start-1">
               {!wide ? (
                 <button
                   type="button"
-                  className="grid h-10 w-10 shrink-0 place-content-center rounded-full border border-black/10 bg-ds-surface text-ds-ink dark:border-white/15"
+                  className="mt-0.5 grid h-10 w-10 shrink-0 place-content-center rounded-full border border-black/10 bg-ds-surface text-ds-ink sm:mt-0 dark:border-white/15"
                   onClick={() => setMobilePanel("list")}
                   aria-label="Назад к списку"
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </button>
               ) : null}
-              <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-ds-sidebar">
+              <div className="relative mt-0.5 h-10 w-10 shrink-0 overflow-hidden rounded-full bg-ds-sidebar sm:mt-0">
                 {active.avatar ? (
                   <Image src={active.avatar} alt={active.name} fill className="object-cover" sizes="40px" />
                 ) : (
@@ -165,9 +165,9 @@ function MessagesPageInner() {
                   </div>
                 )}
               </div>
-              <div className="min-w-0">
-                <p className="truncate text-[16px] font-semibold text-ds-ink">{active.name}</p>
-                <p className="truncate text-[13px] text-ds-text-tertiary">{active.role}</p>
+              <div className="min-w-0 flex-1 pr-1">
+                <p className="text-[15px] font-semibold leading-snug text-ds-ink sm:text-[16px]">{active.name}</p>
+                <p className="mt-0.5 text-[12px] leading-snug text-ds-text-tertiary sm:text-[13px]">{active.role}</p>
               </div>
               {mentorSlugs.includes(active.id) ? (
                 <Link
@@ -179,12 +179,15 @@ function MessagesPageInner() {
               ) : null}
             </header>
 
-            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4 md:p-5 lg:row-start-2 lg:min-h-0">
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-3 sm:p-4 md:p-5 lg:row-start-2 lg:min-h-0">
               {messages.map((msg, i) => (
-                <div key={`${msg.time}-${i}`} className={cn("flex", msg.from === "me" ? "justify-end" : "justify-start")}>
+                <div
+                  key={`${msg.time}-${i}`}
+                  className={cn("flex w-full", msg.from === "me" ? "justify-end" : "justify-start")}
+                >
                   <div
                     className={cn(
-                      "max-w-[70%] rounded-2xl px-4 py-2.5 text-[14px] leading-[1.5]",
+                      "max-w-[min(92vw,24rem)] rounded-2xl px-3.5 py-2.5 text-[14px] leading-[1.5] sm:max-w-[70%]",
                       msg.from === "me" ? "ds-msg-bubble-me" : "ds-msg-bubble-them"
                     )}
                   >

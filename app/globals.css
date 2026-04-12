@@ -76,4 +76,9 @@
     background-color: #e8e8e8;
     color: #141414;
   }
+
+  /** Компактные ячейки в мобильном drawer (сетка 2×N) */
+  .figma-nav-link--compact {
+    @apply px-2 py-2.5;
+  }
 }

@@ -1,10 +1,14 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { ChevronRight, FileCheck, Video } from "lucide-react"
 
-import { getClassesForStudent, type ClassDisplayType } from "@/lib/classes-mock"
+import {
+  canJoinOnlineClass,
+  getClassesForStudent,
+  type ClassDisplayType
+} from "@/lib/classes-mock"
 import { getOnlineClassJoinUrl } from "@/lib/online-class-link"
 
 const classTypes: Array<ClassDisplayType | "Все"> = ["Все", "Урок", "Тест"]
@@ -16,7 +20,7 @@ function typeIcon(t: ClassDisplayType) {
 
 export default function ClassesPage() {
   const [activeFilter, setActiveFilter] = useState<(typeof classTypes)[number]>("Все")
-  const allClasses = useMemo(() => getClassesForStudent(), [])
+  const allClasses = getClassesForStudent()
 
   const filtered =
     activeFilter === "Все" ? allClasses : allClasses.filter((c) => c.type === activeFilter)
@@ -88,6 +92,9 @@ function ClassCard({ cls }: { cls: ReturnType<typeof getClassesForStudent>[0] })
   const joinUrl = getOnlineClassJoinUrl()
   const showJoin =
     cls.status === "upcoming" && cls.type === "Урок" && cls.slug != null
+  const joinActive = showJoin && canJoinOnlineClass(cls.isoDate, cls.timeRange)
+  const joinDisabledTitle =
+    "Подключение доступно только в день занятия (по календарю школы) и до его окончания."
 
   return (
     <div className="ds-class-card group flex flex-col gap-3 rounded-2xl p-3 outline-offset-2 transition-colors focus-within:ring-2 focus-within:ring-ds-ink/25 sm:flex-row sm:items-center md:gap-4 md:p-4">
@@ -105,14 +112,16 @@ function ClassCard({ cls }: { cls: ReturnType<typeof getClassesForStudent>[0] })
         </div>
 
         <div className="min-w-0 flex-1">
+          <p className="mb-1 text-[13px] font-medium text-ds-text-secondary">
+            {cls.dateLineRu}
+            <span className="text-ds-text-tertiary"> · {cls.timeRange}</span>
+          </p>
           <div className="mb-0.5 flex items-center gap-2">
             {typeIcon(cls.type)}
             <span className="text-[16px] font-medium text-ds-ink">{cls.title}</span>
           </div>
           <p className="truncate text-[13px] text-[var(--ds-text-secondary)]">{cls.description}</p>
-          <p className="text-[12px] text-ds-text-soft">
-            {cls.teacher} · {cls.timeRange}
-          </p>
+          <p className="text-[12px] text-ds-text-soft">{cls.teacher}</p>
         </div>
 
         {cls.grade != null ? (
@@ -127,16 +136,29 @@ function ClassCard({ cls }: { cls: ReturnType<typeof getClassesForStudent>[0] })
       </Link>
 
       {showJoin ? (
-        <a
-          href={joinUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex w-full shrink-0 items-center justify-center gap-2 rounded-[var(--ds-radius-md)] bg-[#2d8cff] px-4 py-3.5 text-[15px] font-semibold text-white shadow-md transition-colors hover:bg-[#2171d8] sm:w-auto sm:min-w-[11.5rem] sm:py-3 dark:bg-[#0b5cff] dark:hover:bg-[#0a4ed6]"
-          aria-label="Подключиться к онлайн-занятию (Zoom или VooV)"
-        >
-          <Video className="h-5 w-5 shrink-0 opacity-95" aria-hidden />
-          Подключиться
-        </a>
+        joinActive ? (
+          <a
+            href={joinUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex w-full shrink-0 items-center justify-center gap-2 rounded-[var(--ds-radius-md)] bg-[#2d8cff] px-4 py-3.5 text-[15px] font-semibold text-white shadow-md transition-colors hover:bg-[#2171d8] sm:w-auto sm:min-w-[11.5rem] sm:py-3 dark:bg-[#0b5cff] dark:hover:bg-[#0a4ed6]"
+            aria-label="Подключиться к онлайн-занятию (Zoom или VooV)"
+          >
+            <Video className="h-5 w-5 shrink-0 opacity-95" aria-hidden />
+            Подключиться
+          </a>
+        ) : (
+          <button
+            type="button"
+            disabled
+            title={joinDisabledTitle}
+            className="flex w-full shrink-0 cursor-not-allowed items-center justify-center gap-2 rounded-[var(--ds-radius-md)] bg-[#b8c5d6] px-4 py-3.5 text-[15px] font-semibold text-white/95 sm:w-auto sm:min-w-[11.5rem] sm:py-3 dark:bg-zinc-600 dark:text-zinc-200"
+            aria-label={`Подключиться к занятию — недоступно. ${joinDisabledTitle}`}
+          >
+            <Video className="h-5 w-5 shrink-0 opacity-80" aria-hidden />
+            Подключиться
+          </button>
+        )
       ) : null}
     </div>
   )
