@@ -22,8 +22,7 @@ import { getMyReviewForTeacher } from "@/lib/teacher-review-storage"
 import { useUiLocale } from "@/lib/ui-locale"
 import { cn } from "@/lib/utils"
 
-const mentorShell =
-  "rounded-[28px] bg-[#f0f0f2] p-5 md:p-8 dark:bg-[#141414]"
+const mentorShell = "rounded-[28px] p-5 md:p-8"
 const mentorCardRadius = "rounded-[24px]"
 const actionRadius = "rounded-[var(--ds-radius-md)]"
 

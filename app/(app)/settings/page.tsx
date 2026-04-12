@@ -243,7 +243,7 @@ export default function SettingsPage() {
 
           <div className="mb-6 flex items-center gap-4">
             <div className="relative">
-              <div className="relative h-[88px] w-[88px] overflow-hidden rounded-full bg-[#f2f2f2] dark:bg-ds-surface-pill">
+              <div className="relative h-[88px] w-[88px] overflow-hidden rounded-full bg-white shadow-[0_1px_2px_rgb(0_0_0/0.06)] dark:bg-[#2c2c32] dark:shadow-[0_1px_2px_rgb(0_0_0/0.25)]">
                 <Image
                   src={avatarSrc}
                   alt={t("settings.avatarAlt")}

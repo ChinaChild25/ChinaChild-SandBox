@@ -172,13 +172,27 @@ function ScheduleLessonCard({ lesson, selected, onSelect, onDragStart, onDragEnd
 type EmptySlotProps = {
   day: number
   time: string
-  highlight: boolean
-  dragging: boolean
+  /** Режим «выбрали урок — жмём слот» */
+  tapSelectActive: boolean
+  /** Идёт перетаскивание с desktop */
+  dragActive: boolean
+  /** Курсор с перетаскиваемым уроком над этим слотом */
+  isDragHoverTarget: boolean
+  onDragHoverSlot: (day: number, time: string) => void
   onDropLesson: (lessonId: string) => void
   onClickPick: () => void
 }
 
-function EmptySlot({ day, time, highlight, dragging, onDropLesson, onClickPick }: EmptySlotProps) {
+function EmptySlot({
+  day,
+  time,
+  tapSelectActive,
+  dragActive,
+  isDragHoverTarget,
+  onDragHoverSlot,
+  onDropLesson,
+  onClickPick
+}: EmptySlotProps) {
   return (
     <button
       type="button"
@@ -188,6 +202,7 @@ function EmptySlot({ day, time, highlight, dragging, onDropLesson, onClickPick }
       onDragOver={(e) => {
         e.preventDefault()
         e.dataTransfer.dropEffect = "move"
+        onDragHoverSlot(day, time)
       }}
       onDrop={(e) => {
         e.preventDefault()
@@ -195,13 +210,39 @@ function EmptySlot({ day, time, highlight, dragging, onDropLesson, onClickPick }
         if (id) onDropLesson(id)
       }}
       className={cn(
-        "ds-schedule-empty flex min-h-[52px] w-full flex-col items-center justify-center px-2 text-center transition-[border-color,background-color] duration-150",
-        highlight && "border-ds-sage-strong bg-ds-sage/25 dark:bg-ds-sage/15",
-        dragging && !highlight && "border-dashed border-black/15 dark:border-white/20"
+        "ds-schedule-empty flex min-h-[52px] w-full flex-col items-center justify-center rounded-[var(--ds-radius-md)] px-2 text-center transition-[transform,box-shadow,border-color,background-color] duration-150",
+        /* Во время DnD — все свободные слоты заметно зелёные */
+        dragActive &&
+          !isDragHoverTarget &&
+          "border-2 border-dashed border-ds-sage-strong bg-ds-sage/45 dark:border-ds-sage-hover dark:bg-ds-sage/35",
+        /* Слот под курсором — сплошная обводка и сильнее заливка */
+        dragActive &&
+          isDragHoverTarget &&
+          "z-[1] scale-[1.02] border-2 border-solid border-ds-sage-strong bg-ds-sage/80 shadow-[0_0_0_3px_color-mix(in_srgb,var(--ds-sage-strong)_38%,transparent)] dark:border-ds-sage-hover dark:bg-ds-sage/55 dark:shadow-[0_0_0_3px_color-mix(in_srgb,var(--ds-sage-hover)_42%,transparent)]",
+        /* Тап: выбран урок — подсказка без DnD */
+        tapSelectActive &&
+          !dragActive &&
+          "border-2 border-dashed border-ds-sage-strong bg-ds-sage/25 dark:bg-ds-sage/15"
       )}
     >
-      <span className="text-[11px] text-ds-text-tertiary">{time}</span>
-      <span className="text-[10px] text-ds-text-tertiary/80">свободно</span>
+      <span
+        className={cn(
+          "text-[11px] font-medium",
+          isDragHoverTarget && dragActive ? "text-ds-ink dark:text-white" : "text-ds-text-tertiary"
+        )}
+      >
+        {time}
+      </span>
+      <span
+        className={cn(
+          "text-[10px]",
+          isDragHoverTarget && dragActive
+            ? "font-medium text-ds-ink/90 dark:text-white/90"
+            : "text-ds-text-tertiary/80"
+        )}
+      >
+        {dragActive && isDragHoverTarget ? "Сюда" : "свободно"}
+      </span>
     </button>
   )
 }
@@ -213,9 +254,11 @@ function DayColumn({
   lessons,
   selectedLessonId,
   draggingLessonId,
+  dropHover,
   onSelectLesson,
   onSlotDrop,
   onEmptyClick,
+  onDragHoverSlot,
   onDragStart,
   onDragEnd
 }: {
@@ -225,9 +268,11 @@ function DayColumn({
   lessons: ScheduledLesson[]
   selectedLessonId: string | null
   draggingLessonId: string | null
+  dropHover: { day: number; time: string } | null
   onSelectLesson: (id: string) => void
   onSlotDrop: (lessonId: string, day: number, time: string) => void
   onEmptyClick: (day: number, time: string) => void
+  onDragHoverSlot: (day: number, time: string) => void
   onDragStart: (e: React.DragEvent, lesson: ScheduledLesson) => void
   onDragEnd: () => void
 }) {
@@ -268,8 +313,14 @@ function DayColumn({
                 key={`${dayNum}-${time}`}
                 day={dayNum}
                 time={time}
-                highlight={!!selectedLessonId}
-                dragging={!!draggingLessonId}
+                tapSelectActive={!!selectedLessonId}
+                dragActive={!!draggingLessonId}
+                isDragHoverTarget={
+                  !!draggingLessonId &&
+                  dropHover?.day === dayNum &&
+                  dropHover?.time === time
+                }
+                onDragHoverSlot={onDragHoverSlot}
                 onDropLesson={(lessonId) => onSlotDrop(lessonId, dayNum, time)}
                 onClickPick={() => onEmptyClick(dayNum, time)}
               />
@@ -287,6 +338,7 @@ export default function SchedulePage() {
   const [storageReady, setStorageReady] = useState(false)
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null)
   const [draggingLessonId, setDraggingLessonId] = useState<string | null>(null)
+  const [dropHover, setDropHover] = useState<{ day: number; time: string } | null>(null)
 
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [pending, setPending] = useState<PendingReschedule | null>(null)
@@ -374,20 +426,27 @@ export default function SchedulePage() {
 
   const onSlotDrop = useCallback(
     (lessonId: string, day: number, time: string) => {
+      setDropHover(null)
       attemptMove(lessonId, day, time)
     },
     [attemptMove]
   )
+
+  const onDragHoverSlot = useCallback((day: number, time: string) => {
+    setDropHover({ day, time })
+  }, [])
 
   const onDragStart = useCallback((e: React.DragEvent, lesson: ScheduledLesson) => {
     e.dataTransfer.setData(DRAG_MIME, lesson.id)
     e.dataTransfer.setData("text/plain", lesson.id)
     e.dataTransfer.effectAllowed = "move"
     setDraggingLessonId(lesson.id)
+    setDropHover(null)
   }, [])
 
   const onDragEnd = useCallback(() => {
     setDraggingLessonId(null)
+    setDropHover(null)
   }, [])
 
   const confirmReschedule = useCallback(() => {
@@ -418,7 +477,8 @@ export default function SchedulePage() {
             {SCHEDULE_DEFAULT_TEACHER}.
           </p>
           <p className="mt-1 text-[13px] text-ds-text-tertiary">
-            Перетащите урок на другой день и время или выберите карточку, затем нажмите свободный слот. Перенос
+            Перетащите урок на другой день и время или выберите карточку, затем нажмите свободный слот. Пока вы
+            тянете урок, свободные ячейки подсвечиваются зелёным; под курсором слот выделяется сильнее. Перенос
             возможен только если до начала занятия осталось больше 24 часов.
           </p>
         </div>
@@ -457,9 +517,11 @@ export default function SchedulePage() {
               lessons={lessons}
               selectedLessonId={selectedLessonId}
               draggingLessonId={draggingLessonId}
+              dropHover={dropHover}
               onSelectLesson={onSelectLesson}
               onSlotDrop={onSlotDrop}
               onEmptyClick={onEmptyClick}
+              onDragHoverSlot={onDragHoverSlot}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
             />
@@ -513,8 +575,14 @@ export default function SchedulePage() {
                           key={`${dayNum}-${time}`}
                           day={dayNum}
                           time={time}
-                          highlight={!!selectedLessonId}
-                          dragging={!!draggingLessonId}
+                          tapSelectActive={!!selectedLessonId}
+                          dragActive={!!draggingLessonId}
+                          isDragHoverTarget={
+                            !!draggingLessonId &&
+                            dropHover?.day === dayNum &&
+                            dropHover?.time === time
+                          }
+                          onDragHoverSlot={onDragHoverSlot}
                           onDropLesson={(lessonId) => onSlotDrop(lessonId, dayNum, time)}
                           onClickPick={() => onEmptyClick(dayNum, time)}
                         />
