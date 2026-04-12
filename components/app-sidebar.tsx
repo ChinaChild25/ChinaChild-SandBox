@@ -77,7 +77,10 @@ export function AppSidebar({ variant = "sidebar" }: AppSidebarProps) {
   const levelLabel = t(levelKey)
   const firstName = user?.name?.split(" ")[0] ?? "Яна"
   const avatarSrc = user?.avatar ?? FIGMA_STUDENT_AVATAR
-  const subtitle = user?.profileSubtitle ?? t("profile.subtitle", { level: levelLabel })
+  const subtitle =
+    user?.role === "teacher"
+      ? (user?.profileSubtitle ?? "Преподаватель")
+      : (user?.profileSubtitle ?? t("profile.subtitle", { level: levelLabel }))
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard"

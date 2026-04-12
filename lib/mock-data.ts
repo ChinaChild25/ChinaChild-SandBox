@@ -1,9 +1,24 @@
 import type { User, Course, Lesson, Notification, Achievement, LearningResource } from "./types"
 
+export const mockTeacherUser: User = {
+  id: "teacher-zhao-li",
+  email: "zhao.li@chinachild.demo",
+  name: "Чжао Ли",
+  role: "teacher",
+  profileSubtitle: "преподаватель",
+  avatar: "/staff/zhao-li.png",
+  assignedTeacherSlug: "zhao-li",
+  joinDate: "2019-03-01",
+  learningStreak: 0,
+  totalLessonsCompleted: 0,
+  totalStudyHours: 0
+}
+
 export const mockUser: User = {
   id: "user-1",
   email: "yana@example.com",
   name: "Яна",
+  role: "student",
   assignedCuratorSlug: "eo-mi-ran",
   assignedTeacherSlug: "zhao-li",
   phone: "+7 999 123-45-67",

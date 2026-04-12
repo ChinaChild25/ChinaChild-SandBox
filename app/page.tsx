@@ -11,15 +11,15 @@ import { useAuth } from "@/lib/auth-context"
 
 export default function AuthPage() {
   const router = useRouter()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
   const [isLogin, setIsLogin] = useState(true)
   const [authMode, setAuthMode] = useState<"login" | "register" | "forgot">("login")
 
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push("/dashboard")
+    if (isAuthenticated && user) {
+      router.replace(user.role === "teacher" ? "/teacher/dashboard" : "/dashboard")
     }
-  }, [isAuthenticated, router])
+  }, [isAuthenticated, user, router])
 
   return (
     <div className="ds-auth-root">

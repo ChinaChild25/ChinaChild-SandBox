@@ -13,8 +13,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "ChinaChild — кабинет ученика",
-  description: "Личный кабинет ученика: занятия, курсы, прогресс и настройки.",
+  title: "ChinaChild — кабинет ученика и преподавателя",
+  description: "Личный кабинет: занятия, курсы, прогресс, журнал преподавателя и настройки.",
   keywords: ["ChinaChild", "китайский язык", "HSK", "образовательная платформа"],
 }
 

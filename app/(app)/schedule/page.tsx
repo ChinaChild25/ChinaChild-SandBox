@@ -14,7 +14,9 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
+import { useAuth } from "@/lib/auth-context"
 import { getAppTodayStart } from "@/lib/app-time"
+import { mirrorStudentLessonsForTeacher, pushTeacherFeedItem } from "@/lib/teacher-schedule-sync"
 import {
   buildInitialAprilLessons,
   canRescheduleLesson,
@@ -360,6 +362,7 @@ function DayColumn({
 }
 
 export default function SchedulePage() {
+  const { user } = useAuth()
   const [weekOffset, setWeekOffset] = useState(initialWeekOffset)
   const [lessons, setLessons] = useState<ScheduledLesson[]>(buildInitialAprilLessons)
   const [storageReady, setStorageReady] = useState(false)
@@ -384,6 +387,11 @@ export default function SchedulePage() {
     if (!storageReady) return
     writeStoredLessons(lessons)
   }, [lessons, storageReady])
+
+  useEffect(() => {
+    if (!storageReady || user?.role !== "student" || !user.id) return
+    mirrorStudentLessonsForTeacher(user.id, lessons)
+  }, [lessons, storageReady, user])
 
   const { monday, cells } = useMemo(() => {
     const monday0 = addDays(FIRST_WEEK_MONDAY, weekOffset * 7)
@@ -496,11 +504,18 @@ export default function SchedulePage() {
 
   const confirmReschedule = useCallback(() => {
     if (!pending) return
+    const p = pending
     setLessons((prev) =>
-      prev.map((l) =>
-        l.id === pending.lessonId ? { ...l, dateKey: pending.toDateKey, time: pending.toTime } : l
-      )
+      prev.map((l) => (l.id === p.lessonId ? { ...l, dateKey: p.toDateKey, time: p.toTime } : l))
     )
+    if (typeof window !== "undefined" && user?.role === "student" && user.id) {
+      pushTeacherFeedItem({
+        studentId: user.id,
+        studentName: user.name,
+        title: "Перенос занятия",
+        message: `${user.name}: ${formatSlotLabel(p.fromDateKey, p.fromTime)} → ${formatSlotLabel(p.toDateKey, p.toTime)}`
+      })
+    }
     setConfirmOpen(false)
     setPending(null)
     setSelectedLessonId(null)
@@ -508,7 +523,7 @@ export default function SchedulePage() {
       title: "Занятие перенесено",
       description: "Новое время сохранено в расписании (демо, только на этом устройстве)."
     })
-  }, [pending])
+  }, [pending, user])
 
   return (
     <div className="ds-figma-page">

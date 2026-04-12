@@ -17,6 +17,7 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }: LoginFormPro
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
+  const [accountType, setAccountType] = useState<"student" | "teacher">("student")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,9 +28,9 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }: LoginFormPro
       return
     }
 
-    const success = await login(email, password)
+    const success = await login(email, password, accountType)
     if (success) {
-      router.push("/dashboard")
+      router.push(accountType === "teacher" ? "/teacher/dashboard" : "/dashboard")
     } else {
       setError("Неверные данные. Пароль должен содержать минимум 6 символов.")
     }
@@ -37,6 +38,34 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }: LoginFormPro
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <div>
+        <span className="ds-auth-field-label mb-2 block">Войти как</span>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setAccountType("student")}
+            className={`rounded-[14px] border px-3 py-2.5 text-[15px] font-medium transition-colors ${
+              accountType === "student"
+                ? "border-ds-ink bg-ds-ink text-white dark:border-white dark:bg-white dark:text-ds-ink"
+                : "border-black/15 bg-white/60 text-ds-ink hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+            }`}
+          >
+            Ученик
+          </button>
+          <button
+            type="button"
+            onClick={() => setAccountType("teacher")}
+            className={`rounded-[14px] border px-3 py-2.5 text-[15px] font-medium transition-colors ${
+              accountType === "teacher"
+                ? "border-ds-ink bg-ds-ink text-white dark:border-white dark:bg-white dark:text-ds-ink"
+                : "border-black/15 bg-white/60 text-ds-ink hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+            }`}
+          >
+            Преподаватель
+          </button>
+        </div>
+      </div>
+
       <div>
         <label htmlFor="email" className="ds-auth-field-label">
           Email

@@ -1,8 +1,8 @@
 "use client"
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react"
-import type { User } from "./types"
-import { mockUser } from "./mock-data"
+import type { User, UserRole } from "./types"
+import { mockTeacherUser, mockUser } from "./mock-data"
 import { formatUiMessage, readStoredUiLocale } from "./ui-messages"
 
 export const LAST_LOGIN_STORAGE_KEY = "chinachild-last-login"
@@ -11,7 +11,7 @@ interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (email: string, password: string) => Promise<boolean>
+  login: (email: string, password: string, role?: UserRole) => Promise<boolean>
   register: (name: string, email: string, password: string) => Promise<boolean>
   logout: () => void
   updateUser: (updates: Partial<User>) => void
@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
+  const login = useCallback(async (email: string, password: string, role: UserRole = "student"): Promise<boolean> => {
     setIsLoading(true)
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000))
@@ -35,7 +35,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (typeof window !== "undefined") {
         window.localStorage.setItem(LAST_LOGIN_STORAGE_KEY, new Date().toISOString())
       }
-      setUser({ ...mockUser, email })
+      if (role === "teacher") {
+        setUser({ ...mockTeacherUser, email })
+      } else {
+        setUser({ ...mockUser, email })
+      }
       setIsLoading(false)
       return true
     }
@@ -55,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setUser({
         ...mockUser,
+        role: "student",
         id: `user-${Date.now()}`,
         name,
         email,

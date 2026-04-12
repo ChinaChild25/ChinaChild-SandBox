@@ -1,11 +1,14 @@
+export type UserRole = "student" | "teacher"
+
 export interface User {
   id: string
   email: string
   name: string
-  /** Slug закреплённого куратора (`mentorsBySlug`) */
-  assignedCuratorSlug: string
-  /** Slug закреплённого преподавателя (`mentorsBySlug`) */
-  assignedTeacherSlug: string
+  role: UserRole
+  /** Slug закреплённого куратора (`mentorsBySlug`) — только ученик */
+  assignedCuratorSlug?: string
+  /** Slug закреплённого преподавателя — ученик; у преподавателя совпадает с профилем */
+  assignedTeacherSlug?: string
   /** Телефон в профиле (настройки) */
   phone?: string
   /** Подзаголовок под именем, напр. «студентка 1 степени» */
@@ -18,7 +21,8 @@ export interface User {
     homeworkGoal: number
     averageScore: number
   }
-  level: "Beginner" | "Elementary" | "Intermediate" | "Advanced"
+  /** У преподавателя не используется в UI кабинета */
+  level?: "Beginner" | "Elementary" | "Intermediate" | "Advanced"
   joinDate: string
   learningStreak: number
   totalLessonsCompleted: number
