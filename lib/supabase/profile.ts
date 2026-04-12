@@ -84,6 +84,7 @@ export async function fetchProfileForAuthUser(
     .maybeSingle()
 
   if (error) {
+    console.error("[fetchProfileForAuthUser]", error.code ?? "", error.message)
     return {
       ok: false,
       message:

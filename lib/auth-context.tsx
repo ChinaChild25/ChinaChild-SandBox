@@ -74,6 +74,21 @@ async function fetchProfileAfterSignUp(
   }
 }
 
+/** После signIn JWT может подставиться в клиент с задержкой — несколько попыток чтения profiles. */
+async function fetchProfileAfterSignIn(
+  supabase: ReturnType<typeof createBrowserSupabaseClient>,
+  authUser: Session["user"]
+) {
+  const delays = [0, 120, 350, 800]
+  let last: Awaited<ReturnType<typeof fetchProfileForAuthUser>> | null = null
+  for (const ms of delays) {
+    if (ms > 0) await new Promise((r) => setTimeout(r, ms))
+    last = await fetchProfileForAuthUser(supabase, authUser)
+    if (last.ok) return last
+  }
+  return last ?? { ok: false as const, message: "Не удалось загрузить профиль." }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -140,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsLoading(false)
           return { ok: false, message: error ? translateSupabaseError(error.message) : "Нет данных пользователя." }
         }
-        const pr = await fetchProfileForAuthUser(supabase, data.user)
+        const pr = await fetchProfileAfterSignIn(supabase, data.user)
         if (!pr.ok) {
           await supabase.auth.signOut()
           setIsLoading(false)
