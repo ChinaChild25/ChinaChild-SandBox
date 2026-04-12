@@ -51,11 +51,11 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
       return
     }
 
-    const success = await register(name, email, password)
-    if (success) {
+    const result = await register(name, email, password)
+    if (result.ok) {
       router.push("/dashboard")
     } else {
-      setError("Не удалось зарегистрироваться. Повторите попытку.")
+      setError(result.message ?? "Не удалось зарегистрироваться. Повторите попытку.")
     }
   }
 

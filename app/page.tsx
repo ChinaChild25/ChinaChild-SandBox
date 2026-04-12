@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/auth-context"
 
 export default function AuthPage() {
   const router = useRouter()
-  const { isAuthenticated, user } = useAuth()
+  const { isAuthenticated, user, profileError, clearProfileError, usesSupabase } = useAuth()
   const [isLogin, setIsLogin] = useState(true)
   const [authMode, setAuthMode] = useState<"login" | "register" | "forgot">("login")
 
@@ -44,6 +44,22 @@ export default function AuthPage() {
       <div className="ds-auth-form-aside">
         <div className="ds-auth-form-scroll">
           <div className="ds-auth-form-inner">
+            {usesSupabase && profileError ? (
+              <div
+                className="mb-5 rounded-[14px] border border-red-200 bg-red-50 px-4 py-3 text-[14px] leading-snug text-red-900 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-100"
+                role="alert"
+              >
+                <p className="font-medium">Не удалось войти в кабинет</p>
+                <p className="mt-1 opacity-95">{profileError}</p>
+                <button
+                  type="button"
+                  onClick={clearProfileError}
+                  className="mt-3 text-[13px] font-semibold underline underline-offset-2"
+                >
+                  Закрыть
+                </button>
+              </div>
+            ) : null}
             {authMode === "forgot" ? (
               <>
                 <h1 className="ds-auth-screen-title">Сброс пароля</h1>

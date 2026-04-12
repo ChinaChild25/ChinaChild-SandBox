@@ -1,14 +1,20 @@
 "use client"
 
 import Image from "next/image"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@/lib/auth-context"
 import { placeholderImages } from "@/lib/placeholders"
 
 export default function ProfilePage() {
-  const { user, updateUser } = useAuth()
+  const { user, updateUser, usesSupabase } = useAuth()
   const [name, setName] = useState(user?.name ?? "")
   const [email, setEmail] = useState(user?.email ?? "")
+
+  useEffect(() => {
+    if (!user) return
+    setName(user.name)
+    setEmail(user.email)
+  }, [user])
   const [goal, setGoal] = useState("Разговорная практика")
 
   return (
@@ -29,7 +35,10 @@ export default function ProfilePage() {
                 alt="Аватар"
                 width={128}
                 height={128}
-                unoptimized={Boolean(user?.avatar?.startsWith("data:"))}
+                unoptimized={
+                  Boolean(user?.avatar?.startsWith("data:")) ||
+                  Boolean(user?.avatar?.includes("supabase.co"))
+                }
                 className="h-full w-full object-cover"
               />
             </div>
@@ -54,8 +63,14 @@ export default function ProfilePage() {
                 <input
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1.5 h-11 w-full rounded-2xl border border-black/12 bg-white px-4 text-[15px] text-ds-ink focus:outline-none"
+                  readOnly={usesSupabase}
+                  disabled={usesSupabase}
+                  title={usesSupabase ? "Email задаётся в Supabase Auth" : undefined}
+                  className="mt-1.5 h-11 w-full rounded-2xl border border-black/12 bg-white px-4 text-[15px] text-ds-ink focus:outline-none disabled:cursor-not-allowed disabled:opacity-70"
                 />
+                {usesSupabase ? (
+                  <span className="mt-1 block text-[11px] text-black/45">Из аккаунта Supabase; правка — в настройках / через поддержку.</span>
+                ) : null}
               </label>
               <label className="sm:col-span-2 text-sm text-black/60">
                 Цель обучения
@@ -69,7 +84,9 @@ export default function ProfilePage() {
 
             <button
               type="button"
-              onClick={() => updateUser({ name, email })}
+              onClick={() =>
+                updateUser(usesSupabase ? { name } : { name, email })
+              }
               className="mt-5 rounded-2xl bg-ds-ink px-5 py-3 text-sm font-medium text-white hover:opacity-90"
             >
               Сохранить изменения

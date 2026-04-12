@@ -5,6 +5,11 @@ export interface User {
   email: string
   name: string
   role: UserRole
+  /** Из public.profiles (настройки) */
+  firstName?: string
+  lastName?: string
+  /** profiles.full_name как в БД; для формы «полное имя» */
+  profileFullName?: string
   /** Slug закреплённого куратора (`mentorsBySlug`) — только ученик */
   assignedCuratorSlug?: string
   /** Slug закреплённого преподавателя — ученик; у преподавателя совпадает с профилем */

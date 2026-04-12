@@ -1,0 +1,9 @@
+-- Этап 1 — Supabase Auth (email + password)
+-- Отдельные таблицы не требуются: учётные записи хранятся в auth.users.
+--
+-- Настройки в Dashboard (вручную):
+-- 1. Authentication → Providers → Email → включить
+-- 2. Для локальной разработки: отключить «Confirm email», чтобы вход сразу после регистрации
+-- 3. Преподаватель: создать пользователя и в User Metadata указать JSON: { "role": "teacher", "full_name": "Имя" }
+--
+-- Следующий этап (profiles): таблица public.profiles + trigger на auth.users

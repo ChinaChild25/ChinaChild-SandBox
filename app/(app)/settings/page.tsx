@@ -12,6 +12,9 @@ import {
   type UiAccent
 } from "@/components/app-providers"
 import { LAST_LOGIN_STORAGE_KEY, useAuth } from "@/lib/auth-context"
+import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
+import { updateProfileFields } from "@/lib/supabase/profile"
+import { uploadUserAvatar } from "@/lib/supabase/upload-avatar"
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   persistNotificationPreferences,
@@ -68,13 +71,17 @@ function SettingsField({
   value,
   onChange,
   type = "text",
-  placeholder
+  placeholder,
+  readOnly,
+  hint
 }: {
   label: string
   value: string
-  onChange: (v: string) => void
+  onChange?: (v: string) => void
   type?: string
   placeholder?: string
+  readOnly?: boolean
+  hint?: string
 }) {
   return (
     <div>
@@ -82,10 +89,13 @@ function SettingsField({
       <input
         type={type}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={readOnly ? undefined : (e) => onChange?.(e.target.value)}
+        readOnly={readOnly}
+        disabled={readOnly}
         placeholder={placeholder}
-        className="ds-settings-input"
+        className={`ds-settings-input ${readOnly ? "cursor-not-allowed opacity-80" : ""}`}
       />
+      {hint ? <p className="mt-1 text-[12px] text-ds-text-tertiary">{hint}</p> : null}
     </div>
   )
 }
@@ -112,18 +122,24 @@ const ACCENT_TILES: { key: AccentKey; bg: string }[] = [
 ]
 
 export default function SettingsPage() {
-  const { user, updateUser, changePassword } = useAuth()
+  const { user, updateUser, changePassword, usesSupabase, refreshProfile } = useAuth()
   const { setTheme, resolvedTheme } = useTheme()
   const { t, locale, setLocale } = useUiLocale()
   const avatarInputRef = useRef<HTMLInputElement>(null)
 
-  const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
+  const [displayFullName, setDisplayFullName] = useState("")
   const [phone, setPhone] = useState("")
   const [notifications, setNotifications] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES)
   const [accentKey, setAccentKey] = useState<AccentKey>("sage")
   const [passwords, setPasswords] = useState({ cur: "", next: "", repeat: "" })
-  const [profileSaved, setProfileSaved] = useState(false)
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileSaveOk, setProfileSaveOk] = useState(false)
+  const [profileSaveErr, setProfileSaveErr] = useState<string | null>(null)
+  const [profileBannerErr, setProfileBannerErr] = useState<string | null>(null)
+  const [avatarBusy, setAvatarBusy] = useState(false)
+  const [avatarErr, setAvatarErr] = useState<string | null>(null)
   const [pwdBusy, setPwdBusy] = useState(false)
   const [pwdMsg, setPwdMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null)
   const [mounted, setMounted] = useState(false)
@@ -135,10 +151,25 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!user) return
-    setName(user.name)
-    setEmail(user.email)
+    const parts = user.name.split(" ").filter(Boolean)
+    setFirstName(user.firstName ?? parts[0] ?? "")
+    setLastName(user.lastName ?? parts.slice(1).join(" ") ?? "")
+    setDisplayFullName(user.profileFullName ?? "")
     setPhone(user.phone ?? "")
   }, [user])
+
+  useEffect(() => {
+    if (!usesSupabase || !user) return
+    let alive = true
+    void refreshProfile().then((r) => {
+      if (!alive) return
+      if (r.ok) setProfileBannerErr(null)
+      else setProfileBannerErr(r.message ?? "Не удалось загрузить профиль.")
+    })
+    return () => {
+      alive = false
+    }
+  }, [usesSupabase, user?.id, refreshProfile])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -169,12 +200,51 @@ export default function SettingsPage() {
   const lastLoginIso =
     typeof window !== "undefined" ? window.localStorage.getItem(LAST_LOGIN_STORAGE_KEY) : null
 
-  const handleSaveProfile = () => {
-    if (user) {
-      updateUser({ name, email, phone: phone.trim() || undefined })
+  const handleSaveProfile = async () => {
+    if (!user) return
+    setProfileSaveErr(null)
+    setProfileSaveOk(false)
+    setProfileBannerErr(null)
+
+    const full =
+      displayFullName.trim() || `${firstName.trim()} ${lastName.trim()}`.trim()
+
+    if (!usesSupabase) {
+      updateUser({
+        firstName: firstName.trim() || undefined,
+        lastName: lastName.trim() || undefined,
+        profileFullName: displayFullName.trim() || undefined,
+        name: full || user.name,
+        phone: phone.trim() || undefined
+      })
+      setProfileSaveOk(true)
+      window.setTimeout(() => setProfileSaveOk(false), 2500)
+      return
     }
-    setProfileSaved(true)
-    window.setTimeout(() => setProfileSaved(false), 2000)
+
+    setProfileSaving(true)
+    const supabase = createBrowserSupabaseClient()
+    const { error } = await updateProfileFields(supabase, user.id, {
+      first_name: firstName.trim() || null,
+      last_name: lastName.trim() || null,
+      full_name: full || null,
+      phone: phone.trim() || null
+    })
+    setProfileSaving(false)
+
+    if (error) {
+      setProfileSaveErr(error.message)
+      return
+    }
+
+    const r = await refreshProfile()
+    if (!r.ok) {
+      setProfileSaveErr(r.message ?? "Сохранено, но не удалось обновить профиль в интерфейсе.")
+      return
+    }
+
+    setProfileSaveOk(true)
+    window.setTimeout(() => setProfileSaveOk(false), 2500)
   }
 
   const handleAccentPick = (k: AccentKey) => {
@@ -217,6 +287,7 @@ export default function SettingsPage() {
   if (!user) return null
 
   const avatarSrc = user.avatar ?? placeholderImages.studentAvatar
+  const authEmail = user.email
   const levelKey = {
     Beginner: "profile.levelBeginner",
     Elementary: "profile.levelElementary",
@@ -244,7 +315,16 @@ export default function SettingsPage() {
             {t("settings.profile")}
           </h2>
 
-          <div className="mb-6 flex items-center gap-4">
+            {profileBannerErr ? (
+              <div
+                className="mb-5 rounded-[var(--ds-radius-md)] border border-red-200 bg-red-50 px-4 py-3 text-[14px] text-red-900 dark:border-red-900/40 dark:bg-red-950/35 dark:text-red-100"
+                role="alert"
+              >
+                {profileBannerErr}
+              </div>
+            ) : null}
+
+            <div className="mb-6 flex items-center gap-4">
             <div className="relative">
               <div className="relative h-[88px] w-[88px] overflow-hidden rounded-full bg-white shadow-[0_1px_2px_rgb(0_0_0/0.06)] dark:bg-[#2c2c32] dark:shadow-[0_1px_2px_rgb(0_0_0/0.25)]">
                 <Image
@@ -253,24 +333,57 @@ export default function SettingsPage() {
                   fill
                   className="object-cover"
                   sizes="88px"
-                  unoptimized={avatarSrc.startsWith("data:")}
+                  unoptimized={
+                    avatarSrc.startsWith("data:") ||
+                    avatarSrc.startsWith("http") ||
+                    avatarSrc.includes("supabase.co")
+                  }
                 />
               </div>
               <input
                 ref={avatarInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp,image/gif"
                 className="sr-only"
+                disabled={avatarBusy}
                 onChange={(e) => {
                   const file = e.target.files?.[0]
-                  if (!file) return
-                  const reader = new FileReader()
-                  reader.onload = () => {
-                    const url = String(reader.result ?? "")
-                    if (url) updateUser({ avatar: url })
+                  if (!file || !user) return
+                  setAvatarErr(null)
+                  if (usesSupabase) {
+                    void (async () => {
+                      setAvatarBusy(true)
+                      const supabase = createBrowserSupabaseClient()
+                      const up = await uploadUserAvatar(supabase, user.id, file)
+                      if (!up.ok) {
+                        setAvatarErr(up.message)
+                        setAvatarBusy(false)
+                        e.target.value = ""
+                        return
+                      }
+                      const { error } = await updateProfileFields(supabase, user.id, {
+                        avatar_url: up.publicUrl
+                      })
+                      if (error) {
+                        setAvatarErr(error.message)
+                        setAvatarBusy(false)
+                        e.target.value = ""
+                        return
+                      }
+                      const r = await refreshProfile()
+                      if (!r.ok) setAvatarErr(r.message ?? "Аватар загружен, но профиль не обновился.")
+                      setAvatarBusy(false)
+                      e.target.value = ""
+                    })()
+                  } else {
+                    const reader = new FileReader()
+                    reader.onload = () => {
+                      const url = String(reader.result ?? "")
+                      if (url) updateUser({ avatar: url })
+                    }
+                    reader.readAsDataURL(file)
+                    e.target.value = ""
                   }
-                  reader.readAsDataURL(file)
-                  e.target.value = ""
                 }}
               />
               <button
@@ -283,14 +396,37 @@ export default function SettingsPage() {
               </button>
             </div>
             <div>
-              <div className="text-[17px] font-semibold text-ds-ink">{name || user.name}</div>
+              <div className="text-[17px] font-semibold text-ds-ink">
+                {displayFullName.trim() || `${firstName} ${lastName}`.trim() || user.name}
+              </div>
               <div className="text-[14px] text-[#737373] dark:text-ds-text-tertiary">{subtitle}</div>
+              {usesSupabase ? (
+                <p className="mt-2 text-[12px] text-ds-text-tertiary">Роль в системе: {user.role === "teacher" ? "преподаватель" : "ученик"}</p>
+              ) : null}
             </div>
           </div>
 
+          {avatarErr ? (
+            <p className="mb-3 text-[13px] text-red-600 dark:text-red-300" role="alert">
+              {avatarErr}
+            </p>
+          ) : null}
+
           <div className="space-y-4">
-            <SettingsField label={t("settings.name")} value={name} onChange={setName} />
-            <SettingsField label={t("settings.email")} value={email} onChange={setEmail} type="email" />
+            <SettingsField label="Имя" value={firstName} onChange={setFirstName} />
+            <SettingsField label="Фамилия" value={lastName} onChange={setLastName} />
+            <SettingsField
+              label="Полное имя (необязательно)"
+              value={displayFullName}
+              onChange={setDisplayFullName}
+              hint="Если пусто, для отображения используется «Имя + Фамилия»."
+            />
+            <SettingsField
+              label={t("settings.email")}
+              value={authEmail}
+              readOnly
+              hint={usesSupabase ? "Email из Supabase Auth. Изменение — через сброс пароля / поддержку." : undefined}
+            />
             <SettingsField
               label={t("settings.phone")}
               value={phone}
@@ -300,14 +436,25 @@ export default function SettingsPage() {
             />
           </div>
 
+          {profileSaveErr ? (
+            <p className="mt-4 text-[14px] text-red-600 dark:text-red-300" role="alert">
+              {profileSaveErr}
+            </p>
+          ) : null}
+          {profileSaveOk ? (
+            <p className="mt-4 text-[14px] text-ds-sage-strong dark:text-green-300" role="status">
+              {t("settings.saved")}
+            </p>
+          ) : null}
+
           <button
             type="button"
-            onClick={handleSaveProfile}
-            className={`mt-6 h-12 w-full rounded-[var(--ds-radius-md)] text-[15px] font-semibold transition-colors ${
-              profileSaved ? "bg-ds-sage-strong text-white" : "bg-black text-white hover:opacity-90 dark:bg-white dark:text-black"
-            }`}
+            disabled={profileSaving || avatarBusy}
+            onClick={() => void handleSaveProfile()}
+            className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-[var(--ds-radius-md)] bg-black text-[15px] font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50 dark:bg-white dark:text-black"
           >
-            {profileSaved ? t("settings.saved") : t("settings.saveProfile")}
+            {profileSaving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+            {profileSaving ? "Сохранение…" : t("settings.saveProfile")}
           </button>
         </section>
 
@@ -316,6 +463,11 @@ export default function SettingsPage() {
             <Lock size={22} strokeWidth={1.75} aria-hidden />
             {t("settings.security")}
           </h2>
+          <p className="mb-4 text-[13px] leading-snug text-ds-text-tertiary">
+            Пароль хранится только в{" "}
+            <strong className="font-medium text-ds-ink">Supabase Auth</strong>, не в таблице profiles. Ниже —
+            обновление пароля через Auth API (как в продакшене).
+          </p>
 
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
             <SettingsField

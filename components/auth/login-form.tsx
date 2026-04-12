@@ -28,11 +28,11 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }: LoginFormPro
       return
     }
 
-    const success = await login(email, password, accountType)
-    if (success) {
+    const result = await login(email, password, accountType)
+    if (result.ok) {
       router.push(accountType === "teacher" ? "/teacher/dashboard" : "/dashboard")
     } else {
-      setError("Неверные данные. Пароль должен содержать минимум 6 символов.")
+      setError(result.message ?? "Не удалось войти. Проверьте email и пароль.")
     }
   }
 

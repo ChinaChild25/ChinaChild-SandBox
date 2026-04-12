@@ -18,7 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useAuth } from "@/lib/auth-context"
 
 export function ProfileForm() {
-  const { user, updateUser } = useAuth()
+  const { user, updateUser, usesSupabase } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: user?.name || "",
@@ -37,7 +37,7 @@ export function ProfileForm() {
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000))
     
-    updateUser({ name: formData.name, email: formData.email })
+    updateUser(usesSupabase ? { name: formData.name } : { name: formData.name, email: formData.email })
     setIsLoading(false)
     setSaved(true)
     
