@@ -9,13 +9,15 @@ import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import { Textarea } from "@/components/ui/textarea"
 import {
   formatListPeerRole,
+  loadConversationPeerProfile,
   loadMessagesForConversation,
   loadMyConversationList,
   sendChatMessage,
   sortConversationListItems,
   formatChatTimeLabel,
   type ChatBubble,
-  type ConversationListItem
+  type ConversationListItem,
+  type ConversationListPeer
 } from "@/lib/supabase/chat"
 import { cn } from "@/lib/utils"
 
@@ -28,19 +30,28 @@ const DEFAULT_LIST_EMPTY = {
 
 const DEFAULT_NO_SELECTION = {
   title: "Выберите диалог",
-  subtitle: "Откройте беседу в списке слева."
+  subtitle: "Выберите существующий чат или начните новый."
 }
 
-/** Строка до прихода беседы из `loadMyConversationList` (без «Загрузка…» в шапке). */
-function pendingListItem(conversationId: string): ConversationListItem {
-  return {
-    id: conversationId,
-    peer: {
+function peerInitialLetter(name: string): string {
+  const t = name.trim()
+  if (!t || t === "User") return "U"
+  return (t[0] ?? "U").toUpperCase()
+}
+
+/** Строка до появления беседы в списке; peer — из `loadConversationPeerProfile` или «User». */
+function pendingListItem(conversationId: string, resolved: ConversationListPeer | null): ConversationListItem {
+  const peer: ConversationListPeer =
+    resolved ??
+    ({
       id: conversationId,
-      name: "Новый чат",
+      name: "User",
       avatarUrl: null,
       role: ""
-    },
+    } satisfies ConversationListPeer)
+  return {
+    id: conversationId,
+    peer,
     lastMessage: "",
     lastMessageAt: null,
     conversationCreatedAt: new Date().toISOString()
@@ -87,6 +98,7 @@ export function SupabaseMessages({
 
   const [inputText, setInputText] = useState("")
   const [sendError, setSendError] = useState<string | null>(null)
+  const [pendingPeerOverride, setPendingPeerOverride] = useState<ConversationListPeer | null>(null)
 
   const emptyCopy = listEmptyCopy ?? DEFAULT_LIST_EMPTY
   const idleCopy = noSelectionCopy ?? DEFAULT_NO_SELECTION
@@ -97,8 +109,8 @@ export function SupabaseMessages({
     if (!urlConversationId) return sortedItems
     const has = sortedItems.some((c) => c.id === urlConversationId)
     if (has) return sortedItems
-    return [pendingListItem(urlConversationId), ...sortedItems]
-  }, [sortedItems, urlConversationId])
+    return [pendingListItem(urlConversationId, pendingPeerOverride), ...sortedItems]
+  }, [sortedItems, urlConversationId, pendingPeerOverride])
 
   const active = useMemo(
     () => sidebarItems.find((c) => c.id === activeId) ?? null,
@@ -137,6 +149,30 @@ export function SupabaseMessages({
     setActiveId(urlConversationId)
     setMobilePanel("chat")
   }, [urlConversationId])
+
+  useEffect(() => {
+    setPendingPeerOverride(null)
+  }, [urlConversationId])
+
+  /** Пока строки нет в списке — один раз подтягиваем профиль собеседника (без «Загрузка…» в UI). */
+  useEffect(() => {
+    if (!urlConversationId || !myId || listLoading) return
+    if (sortedItems.some((c) => c.id === urlConversationId)) {
+      setPendingPeerOverride(null)
+      return
+    }
+
+    let cancelled = false
+    const supabase = createBrowserSupabaseClient()
+    void loadConversationPeerProfile(supabase, urlConversationId, myId).then(({ peer, error }) => {
+      if (cancelled) return
+      if (error) console.warn("[SupabaseMessages] pending peer profile:", error.message)
+      setPendingPeerOverride(peer)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [urlConversationId, myId, listLoading, sortedItems])
 
   useEffect(() => {
     if (!myId || !activeId) {
@@ -205,7 +241,7 @@ export function SupabaseMessages({
         if (idx === -1) {
           const peer = active?.peer ?? {
             id: "",
-            name: "Собеседник",
+            name: "User",
             avatarUrl: null,
             role: ""
           }
@@ -237,7 +273,7 @@ export function SupabaseMessages({
   const showChat = wide || mobilePanel === "chat"
   const empty = !listLoading && !listError && sidebarItems.length === 0
 
-  const peerInitial = active ? (active.peer.name.trim()[0] ?? "?") : "?"
+  const peerInitial = active ? peerInitialLetter(active.peer.name) : "U"
   const activeRoleLine = active ? formatListPeerRole(active.peer.role) : ""
   const canSend =
     !!inputText.trim() && !messagesLoading && !messagesError && !!myId && !!activeId && !!active
@@ -299,7 +335,7 @@ export function SupabaseMessages({
                   const selected = row.id === activeId
                   const { peer } = row
                   const timeLabel = row.lastMessageAt ? formatChatTimeLabel(row.lastMessageAt) : ""
-                  const initial = peer.name.trim()[0] ?? "?"
+                  const initial = peerInitialLetter(peer.name)
                   const preview = row.lastMessage.trim() || "Нет сообщений"
                   return (
                     <button

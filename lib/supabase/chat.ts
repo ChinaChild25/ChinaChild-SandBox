@@ -143,18 +143,9 @@ function conversationPeerFromProfile(peerUserId: string, profile: PeerProfileRow
   }
 }
 
-/** Беседа, где вы единственный видимый участник (нет второго user_id в выборке). */
-function soloConversationPeerPlaceholder(conversationId: string): ConversationListPeer {
-  return {
-    id: conversationId,
-    name: "Диалог",
-    avatarUrl: null,
-    role: ""
-  }
-}
-
 /**
  * Список чатов: getUser → участия → conversations → участники (без join) → отдельно profiles по id → превью сообщений.
+ * Показываются только беседы ровно с двумя участниками (вы + ровно один собеседник).
  */
 export async function loadMyConversationList(
   supabase: SupabaseClient
@@ -238,25 +229,18 @@ export async function loadMyConversationList(
     byConv.set(row.conversation_id, list)
   }
 
-  /** peerUserId === null: в беседе нет второго участника в выборке (часто только вы в participants). */
-  const convPeerEntries: { conversationId: string; peerUserId: string | null }[] = []
+  const convPeerEntries: { conversationId: string; peerUserId: string }[] = []
   for (const convId of allowedIds) {
     const rows = byConv.get(convId) ?? []
-    const peerRow = rows.find((r) => r.user_id !== myUserId)
-    if (peerRow) {
-      convPeerEntries.push({ conversationId: convId, peerUserId: peerRow.user_id })
-    } else {
-      convPeerEntries.push({ conversationId: convId, peerUserId: null })
+    const others = rows.filter((r) => r.user_id !== myUserId)
+    if (rows.length !== 2 || others.length !== 1) {
+      console.warn("[chat] skipping conversation with no peer", convId)
+      continue
     }
+    convPeerEntries.push({ conversationId: convId, peerUserId: others[0].user_id })
   }
 
-  const peerIds = [
-    ...new Set(
-      convPeerEntries
-        .map((e) => e.peerUserId)
-        .filter((id): id is string => typeof id === "string" && id.length > 0)
-    )
-  ]
+  const peerIds = [...new Set(convPeerEntries.map((e) => e.peerUserId))]
 
   const profileMap = new Map<string, PeerProfileRow>()
   if (peerIds.length > 0) {
@@ -279,10 +263,7 @@ export async function loadMyConversationList(
   const items: ConversationListItem[] = []
   for (const { conversationId, peerUserId } of convPeerEntries) {
     const last = lastByConv.get(conversationId)
-    const peer =
-      peerUserId === null
-        ? soloConversationPeerPlaceholder(conversationId)
-        : conversationPeerFromProfile(peerUserId, profileMap.get(peerUserId))
+    const peer = conversationPeerFromProfile(peerUserId, profileMap.get(peerUserId))
 
     const conv = convById.get(conversationId)
     items.push({
@@ -496,6 +477,7 @@ async function insertDirectConversation(
   currentUserId: string,
   peerId: string
 ): Promise<ConversationIdResult> {
+  // Только id: RLS SELECT должен разрешать created_by до вставки участников (см. миграцию view own conversations).
   const { data: conv, error: cErr } = await supabase
     .from("conversations")
     .insert({ created_by: currentUserId })

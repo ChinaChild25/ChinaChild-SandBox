@@ -13,8 +13,8 @@ const TEACHER_LIST_EMPTY = {
 }
 
 const TEACHER_NO_SELECTION = {
-  title: "Сообщения",
-  subtitle: "Выберите диалог в списке слева или нажмите «Новый диалог»."
+  title: "Выберите диалог",
+  subtitle: "Выберите существующий чат или начните новый."
 }
 
 function TeacherMessagesSupabase() {
