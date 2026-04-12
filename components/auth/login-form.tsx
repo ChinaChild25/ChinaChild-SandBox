@@ -36,7 +36,7 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }: LoginFormPro
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-6">
       <div>
         <label htmlFor="email" className="ds-auth-field-label">
           Email
@@ -71,7 +71,7 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }: LoginFormPro
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-[#a3a3a3] transition-colors hover:bg-black/[0.04] hover:text-[#525252]"
+            className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl text-[#a3a3a3] transition-colors hover:bg-black/[0.06] hover:text-[#525252] dark:text-zinc-500 dark:hover:bg-white/10 dark:hover:text-zinc-200"
             aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
           >
             {showPassword ? <EyeOff className="h-4 w-4" strokeWidth={1.75} /> : <Eye className="h-4 w-4" strokeWidth={1.75} />}
@@ -80,10 +80,7 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }: LoginFormPro
       </div>
 
       {error ? (
-        <p
-          className="rounded-[10px] border border-red-200/90 px-3 py-2.5 text-[14px] text-red-700"
-          style={{ backgroundColor: "rgb(254 242 242)" }}
-        >
+        <p className="rounded-[14px] border border-red-200/90 bg-red-50 px-4 py-3 text-[15px] text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
           {error}
         </p>
       ) : null}
@@ -106,7 +103,7 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }: LoginFormPro
         <button
           type="button"
           onClick={onForgotPassword}
-          className="border-0 bg-transparent text-[15px] text-[#737373] underline-offset-4 transition-colors hover:text-[#1a1a1a]"
+          className="border-0 bg-transparent text-[1.0625rem] text-[#525252] underline-offset-4 transition-colors hover:text-[#141414] dark:text-zinc-400 dark:hover:text-zinc-100"
         >
           Забыли пароль?
         </button>
@@ -114,13 +111,9 @@ export function LoginForm({ onSwitchToRegister, onForgotPassword }: LoginFormPro
 
       <hr className="ds-auth-divider" />
 
-      <p className="text-center text-[15px] text-[#737373]">
+      <p className="text-center text-[1.0625rem] text-[#525252] dark:text-zinc-400">
         Нет аккаунта?{" "}
-        <button
-          type="button"
-          onClick={onSwitchToRegister}
-          className="border-0 bg-transparent font-bold text-black transition-opacity hover:opacity-80"
-        >
+        <button type="button" onClick={onSwitchToRegister} className="ds-auth-accent-link cursor-pointer border-0 bg-transparent p-0">
           Зарегистрироваться
         </button>
       </p>

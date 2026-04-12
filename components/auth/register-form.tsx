@@ -61,6 +61,13 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <p className="text-[1.0625rem] leading-snug text-[#525252] dark:text-zinc-400">
+        Уже есть аккаунт?{" "}
+        <button type="button" onClick={onSwitchToLogin} className="ds-auth-accent-link cursor-pointer border-0 bg-transparent p-0">
+          Войти
+        </button>
+      </p>
+
       <div>
         <label htmlFor="name" className="ds-auth-field-label">
           Имя и фамилия
@@ -68,7 +75,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         <input
           id="name"
           type="text"
-          placeholder="Введите имя и фамилию"
+          placeholder="Надежда Толкачёва"
           value={name}
           onChange={(e) => setName(e.target.value)}
           disabled={isLoading}
@@ -84,7 +91,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
         <input
           id="reg-email"
           type="email"
-          placeholder="name@chinachild.ru"
+          placeholder="n.tolkacheva@chinachild.ru"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={isLoading}
@@ -111,22 +118,22 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-[#a3a3a3] transition-colors hover:bg-black/[0.04] hover:text-[#525252]"
+            className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl text-[#a3a3a3] transition-colors hover:bg-black/[0.06] hover:text-[#525252] dark:text-zinc-500 dark:hover:bg-white/10 dark:hover:text-zinc-200"
             aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"}
           >
             {showPassword ? <EyeOff className="h-4 w-4" strokeWidth={1.75} /> : <Eye className="h-4 w-4" strokeWidth={1.75} />}
           </button>
         </div>
         {password ? (
-          <div className="mt-3 space-y-1.5 rounded-[var(--ds-radius-md)] bg-ds-surface-muted p-3">
+          <div className="mt-3 space-y-1.5 rounded-[14px] border border-black/5 bg-black/[0.03] p-4 dark:border-white/10 dark:bg-white/5">
             {passwordRequirements.map((req, idx) => (
               <div
                 key={idx}
-                className={`flex items-center gap-2 text-ds-sm ${
-                  req.met ? "text-ds-text-primary" : "text-ds-text-tertiary"
+                className={`flex items-center gap-2 text-[14px] ${
+                  req.met ? "text-ds-ink dark:text-zinc-200" : "text-ds-text-tertiary dark:text-zinc-500"
                 }`}
               >
-                {req.met ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+                {req.met ? <Check className="h-3.5 w-3.5 shrink-0" /> : <X className="h-3.5 w-3.5 shrink-0" />}
                 {req.label}
               </div>
             ))}
@@ -149,7 +156,7 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           autoComplete="new-password"
         />
         {confirmPassword && password !== confirmPassword ? (
-          <p className="mt-2 flex items-center gap-1.5 text-ds-sm text-red-600">
+          <p className="mt-2 flex items-center gap-1.5 text-[14px] text-red-600 dark:text-red-400">
             <X className="h-3.5 w-3.5" aria-hidden />
             Пароли не совпадают
           </p>
@@ -161,22 +168,22 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           id="terms"
           checked={acceptTerms}
           onCheckedChange={(checked) => setAcceptTerms(checked as boolean)}
-          className="mt-0.5"
+          className="mt-1"
         />
-        <label htmlFor="terms" className="cursor-pointer text-ds-body-sm leading-snug text-ds-text-muted">
+        <label htmlFor="terms" className="cursor-pointer text-[15px] leading-relaxed text-[#525252] dark:text-zinc-400">
           Я принимаю{" "}
-          <a href="#" className="text-ds-ink underline-offset-2 hover:underline">
+          <a href="#" className="ds-auth-accent-link">
             условия сервиса
           </a>{" "}
           и{" "}
-          <a href="#" className="text-ds-ink underline-offset-2 hover:underline">
+          <a href="#" className="ds-auth-accent-link">
             политику конфиденциальности
           </a>
         </label>
       </div>
 
       {error ? (
-        <p className="rounded-[var(--ds-radius-md)] border border-red-200 px-3 py-2 text-ds-body-sm text-red-600">
+        <p className="rounded-[14px] border border-red-200/90 bg-red-50 px-4 py-3 text-[15px] text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
           {error}
         </p>
       ) : null}
@@ -189,23 +196,22 @@ export function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
           </>
         ) : (
           <>
-            Создать аккаунт
+            Зарегистрироваться
             <ArrowRight className="h-4 w-4" aria-hidden />
           </>
         )}
       </button>
 
-      <hr className="ds-auth-divider" />
-
-      <p className="text-center text-[15px] text-[#737373]">
-        Уже есть аккаунт?{" "}
-        <button
-          type="button"
-          onClick={onSwitchToLogin}
-          className="border-0 bg-transparent font-bold text-black transition-opacity hover:opacity-80"
-        >
-          Войти
-        </button>
+      <p className="text-center text-[13px] leading-relaxed text-[#737373] dark:text-zinc-500">
+        Нажимая кнопку, вы соглашаетесь с{" "}
+        <a href="#" className="ds-auth-accent-link">
+          политикой конфиденциальности
+        </a>{" "}
+        и{" "}
+        <a href="#" className="ds-auth-accent-link">
+          пользовательским соглашением
+        </a>
+        .
       </p>
     </form>
   )

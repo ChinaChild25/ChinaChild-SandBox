@@ -49,35 +49,35 @@ export default function ProgressPage() {
         </div>
 
         <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="flex items-center gap-4 rounded-[24px] bg-ds-sidebar p-5">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-ds-surface">
+          <div className="flex items-center gap-4 rounded-[24px] bg-ds-sidebar p-5 ring-1 ring-black/[0.04] dark:ring-white/10">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-ds-surface dark:bg-zinc-800/90">
               <TrendingUp size={22} className="text-ds-sage-strong" aria-hidden />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="text-[28px] font-bold leading-none text-ds-ink">{avg}</div>
               <div className="text-[13px] text-[var(--ds-text-secondary)]">Средний балл</div>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 rounded-[24px] bg-ds-sage p-5">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/60">
+          <div className="flex items-center gap-4 rounded-[24px] bg-ds-sage p-5 ring-1 ring-black/[0.06] dark:ring-white/10">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/60 dark:bg-white/10">
               <Award size={22} className="text-ds-sage-strong" aria-hidden />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="text-[28px] font-bold leading-none text-ds-ink">{best}</div>
-              <div className="text-[13px] text-ds-text-muted">Лучший результат</div>
+              <div className="text-[13px] text-ds-text-muted dark:text-zinc-300">Лучший результат</div>
             </div>
           </div>
 
-          <div className="flex items-center gap-4 rounded-[24px] bg-ds-ink p-5">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/10">
-              <Target size={22} className="text-white" aria-hidden />
+          <div className="flex items-center gap-4 rounded-[24px] bg-[#1a1a1a] p-5 text-white dark:bg-zinc-200 dark:text-zinc-900">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/10 dark:bg-zinc-900/15">
+              <Target size={22} className="text-white dark:text-zinc-800" aria-hidden />
             </div>
-            <div>
-              <div className="text-[28px] font-bold leading-none text-white">
+            <div className="min-w-0">
+              <div className="text-[28px] font-bold leading-none">
                 {passed}/{gradesData.length}
               </div>
-              <div className="text-[13px] text-ds-stat-muted-on-dark">Работ сдано</div>
+              <div className="text-[13px] text-ds-stat-muted-on-dark dark:text-zinc-800">Работ сдано</div>
             </div>
           </div>
         </div>
@@ -96,8 +96,8 @@ export default function ProgressPage() {
               onClick={() => setFilter(key)}
               className={`rounded-full px-4 py-2 text-[14px] transition-colors ${
                 filter === key
-                  ? "bg-ds-ink text-white"
-                  : "bg-ds-sidebar text-ds-ink hover:bg-ds-sidebar-hover"
+                  ? "bg-ds-ink text-white dark:bg-[#e8e8e8] dark:text-[#141414]"
+                  : "bg-ds-sidebar text-ds-ink hover:bg-ds-sidebar-hover dark:hover:bg-ds-sidebar-hover"
               }`}
             >
               {label}

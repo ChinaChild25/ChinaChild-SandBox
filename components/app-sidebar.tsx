@@ -18,7 +18,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
-import { ChinaChildCircleMark } from "@/components/brand-logo"
+import { ChinaChildSidebarLogo } from "@/components/brand-logo"
 import { FIGMA_STUDENT_AVATAR } from "@/lib/figma-dashboard"
 
 type NavItem = {
@@ -62,19 +62,19 @@ export function AppSidebar() {
 
   return (
     <div className="flex h-full min-h-0 flex-col text-ds-ink">
-      <div className="mb-10">
+      <div className="mb-8 shrink-0 cursor-pointer select-none pb-1">
         <Link
           href="/dashboard"
-          className="inline-flex rounded-lg outline-offset-2 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ds-ink/20"
+          className="block w-[52px] rounded-lg outline-offset-2 focus-visible:outline focus-visible:ring-2 focus-visible:ring-ds-ink/20"
           aria-label="ChinaChild — главная"
         >
-          <ChinaChildCircleMark />
+          <ChinaChildSidebarLogo size={52} />
         </Link>
       </div>
 
       <Link
         href="/profile"
-        className="mb-8 flex flex-col items-center rounded-2xl py-1 no-underline outline-offset-2 transition-colors hover:bg-black/[0.04] focus-visible:outline focus-visible:ring-2 focus-visible:ring-ds-ink/20"
+        className="mb-8 flex flex-col items-center rounded-2xl py-1 no-underline outline-offset-2 transition-colors hover:bg-black/[0.04] focus-visible:outline focus-visible:ring-2 focus-visible:ring-ds-ink/20 dark:hover:bg-white/[0.06]"
       >
         <div className="mb-3 h-[110px] w-[110px] overflow-hidden rounded-full bg-white ring-1 ring-black/8">
           <Image
@@ -105,7 +105,9 @@ export function AppSidebar() {
                 <span
                   className={cn(
                     "flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-bold",
-                    active ? "bg-white text-ds-ink dark:bg-[#141414] dark:text-white" : "bg-ds-ink text-white dark:bg-white dark:text-ds-ink"
+                    active
+                      ? "bg-white text-ds-ink dark:bg-[#141414] dark:text-white"
+                      : "bg-ds-ink text-white dark:bg-[#e8e8e8] dark:text-[#141414]"
                   )}
                 >
                   {item.badge}
@@ -130,11 +132,11 @@ export function AppSidebar() {
         </div>
       </Link>
 
-      <div className="mt-6 border-t border-black/10 pt-4">
+      <div className="mt-6 border-t border-black/10 pt-4 dark:border-white/12">
         <Button
           variant="outline"
           onClick={logout}
-          className="w-full justify-start rounded-2xl border-black/15 bg-white/80 py-6 text-[15px] font-medium text-ds-ink hover:bg-white"
+          className="w-full justify-start rounded-2xl border-black/15 bg-white/80 py-6 text-[15px] font-medium text-ds-ink hover:bg-white dark:border-white/15 dark:bg-[#262626] dark:text-ds-ink dark:hover:bg-[#333333]"
         >
           <LogOut className="mr-2 h-4 w-4" aria-hidden />
           Выйти

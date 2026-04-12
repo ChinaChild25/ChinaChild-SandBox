@@ -1,5 +1,7 @@
 "use client"
 
+import Image from "next/image"
+
 import { cn } from "@/lib/utils"
 
 type BrandLogoProps = {
@@ -23,7 +25,7 @@ export function BrandLogo({ className, compact = false }: BrandLogoProps) {
   )
 }
 
-/** Круглый знак «ЧЧ» как в макете Figma (сайдбар) */
+/** Круглый знак «ЧЧ» (легаси / компактные места) */
 export function ChinaChildCircleMark({ className }: { className?: string }) {
   return (
     <div
@@ -35,5 +37,44 @@ export function ChinaChildCircleMark({ className }: { className?: string }) {
     >
       ЧЧ
     </div>
+  )
+}
+
+const MARK_LIGHT = "/brand/chinachild-mark-light.svg"
+const MARK_DARK = "/brand/chinachild-mark-dark.svg"
+
+/**
+ * Логотип как в v0: 52×52, отдельные SVG для светлой (#FEFEFE круг) и тёмной (#1A1A1A круг) темы.
+ */
+export function ChinaChildSidebarLogo({
+  className,
+  size = 52
+}: {
+  className?: string
+  /** Сторона квадрата, по умолчанию 52 как в макете */
+  size?: number
+}) {
+  return (
+    <span className={cn("relative inline-block shrink-0 leading-none", className)} style={{ width: size, height: size }}>
+      <Image
+        src={MARK_LIGHT}
+        alt="ChinaChild"
+        width={size}
+        height={size}
+        className="h-full w-full dark:hidden"
+        unoptimized
+        priority
+      />
+      <Image
+        src={MARK_DARK}
+        alt=""
+        width={size}
+        height={size}
+        className="hidden h-full w-full dark:block"
+        unoptimized
+        priority
+        aria-hidden
+      />
+    </span>
   )
 }

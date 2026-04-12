@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 const weekDays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"] as const
 
@@ -30,11 +31,11 @@ const scheduleByWeekday: Record<number, EventItem[]> = {
   6: [{ time: "9:00", duration: 5, title: "Экскурсия в Запретный город", type: "event" }]
 }
 
-const typeColors: Record<string, { bg: string; text: string; border?: string }> = {
-  lesson: { bg: "var(--ds-ink)", text: "#ffffff" },
-  club: { bg: "var(--ds-gray-tile)", text: "var(--ds-ink)", border: "1px solid #cccccc" },
-  test: { bg: "var(--ds-pink)", text: "var(--ds-ink)" },
-  event: { bg: "var(--ds-sage)", text: "var(--ds-ink)" }
+const slotClass: Record<EventItem["type"], string> = {
+  lesson: "ds-schedule-slot--lesson",
+  club: "ds-schedule-slot--club",
+  test: "ds-schedule-slot--test",
+  event: "ds-schedule-slot--event"
 }
 
 const typeLabels: Record<string, string> = {
@@ -98,6 +99,16 @@ function isSameDay(a: Date, b: Date) {
   )
 }
 
+function ScheduleEventCard({ ev }: { ev: EventItem }) {
+  return (
+    <div className={`ds-schedule-slot min-w-0 ${slotClass[ev.type]}`}>
+      <div className="text-[10px] opacity-80">{typeLabels[ev.type]}</div>
+      <div className="text-[13px] font-semibold leading-snug sm:text-[12px]">{ev.title}</div>
+      <div className="text-[11px] opacity-80">{ev.time}</div>
+    </div>
+  )
+}
+
 export default function SchedulePage() {
   const [weekOffset, setWeekOffset] = useState(0)
 
@@ -119,34 +130,39 @@ export default function SchedulePage() {
   return (
     <div className="ds-figma-page">
       <div className="mx-auto w-full max-w-[var(--ds-shell-max-width)]">
-        <div className="mb-7">
-          <h1 className="text-[36px] font-bold leading-none text-ds-ink">Расписание</h1>
+        <div className="mb-6 sm:mb-7">
+          <h1 className="text-[28px] font-bold leading-tight text-ds-ink sm:text-[36px] sm:leading-none">
+            Расписание
+          </h1>
           <p className="mt-1 text-[15px] text-[var(--ds-text-secondary)]">
             Ваше еженедельное расписание занятий
           </p>
         </div>
 
-        <div className="mb-6 flex items-center justify-between gap-3">
+        <div className="mb-5 flex items-center justify-between gap-3 sm:mb-6">
           <button
             type="button"
             onClick={() => setWeekOffset((w) => w - 1)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ds-sidebar transition-colors hover:bg-ds-sidebar-hover"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ds-sidebar transition-colors hover:bg-ds-sidebar-hover sm:h-9 sm:w-9"
             aria-label="Предыдущая неделя"
           >
             <ChevronLeft size={18} aria-hidden />
           </button>
-          <div className="min-w-0 text-center text-[16px] font-semibold text-ds-ink">{weekTitle}</div>
+          <div className="min-w-0 px-1 text-center text-[15px] font-semibold leading-tight text-ds-ink sm:text-[16px]">
+            {weekTitle}
+          </div>
           <button
             type="button"
             onClick={() => setWeekOffset((w) => w + 1)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ds-sidebar transition-colors hover:bg-ds-sidebar-hover"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ds-sidebar transition-colors hover:bg-ds-sidebar-hover sm:h-9 sm:w-9"
             aria-label="Следующая неделя"
           >
             <ChevronRight size={18} aria-hidden />
           </button>
         </div>
 
-        <div className="grid grid-cols-7 gap-2 sm:gap-3">
+        {/* Широкий экран: 7 колонок (на планшете — список по дням) */}
+        <div className="hidden gap-3 lg:grid lg:grid-cols-7">
           {cells.map((cellDate, i) => {
             const events = weekOffset === 0 ? scheduleByWeekday[i] ?? [] : []
             const isToday = isSameDay(cellDate, today)
@@ -163,19 +179,7 @@ export default function SchedulePage() {
                 </div>
 
                 {events.map((ev, j) => (
-                  <div
-                    key={`${ev.time}-${j}`}
-                    className="ds-schedule-slot min-w-0"
-                    style={{
-                      backgroundColor: typeColors[ev.type].bg,
-                      color: typeColors[ev.type].text,
-                      border: typeColors[ev.type].border
-                    }}
-                  >
-                    <div className="text-[10px] opacity-70">{typeLabels[ev.type]}</div>
-                    <div className="text-[12px] font-semibold leading-snug">{ev.title}</div>
-                    <div className="text-[10px] opacity-70">{ev.time}</div>
-                  </div>
+                  <ScheduleEventCard key={`${ev.time}-${j}`} ev={ev} />
                 ))}
 
                 {events.length === 0 ? <div className="ds-schedule-empty" /> : null}
@@ -184,15 +188,54 @@ export default function SchedulePage() {
           })}
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-4 border-t border-[#e8e8e8] pt-6 dark:border-white/10">
+        {/* Узкий экран: карточки по дням */}
+        <div className="flex flex-col gap-3 lg:hidden">
+          {cells.map((cellDate, i) => {
+            const events = weekOffset === 0 ? scheduleByWeekday[i] ?? [] : []
+            const isToday = isSameDay(cellDate, today)
+
+            return (
+              <section
+                key={i}
+                className="rounded-[20px] border border-black/[0.06] bg-ds-surface p-4 dark:border-white/10"
+              >
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[13px] font-semibold uppercase tracking-wide text-ds-text-tertiary">
+                      {weekDays[i]}
+                    </span>
+                    <span className="text-[26px] font-bold leading-none text-ds-ink">{cellDate.getDate()}</span>
+                  </div>
+                  {isToday ? (
+                    <span className="rounded-full bg-ds-sage px-2.5 py-1 text-[11px] font-semibold text-ds-ink dark:text-[#ecfccb]">
+                      Сегодня
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex flex-col gap-2">
+                  {events.map((ev, j) => (
+                    <ScheduleEventCard key={`${ev.time}-${j}`} ev={ev} />
+                  ))}
+                  {events.length === 0 ? (
+                    <p className="rounded-[12px] border border-dashed border-black/10 py-6 text-center text-[14px] text-ds-text-tertiary dark:border-white/12">
+                      Нет событий
+                    </p>
+                  ) : null}
+                </div>
+              </section>
+            )
+          })}
+        </div>
+
+        <div className="mt-6 flex flex-wrap gap-x-5 gap-y-3 border-t border-[#e8e8e8] pt-6 dark:border-white/10">
           {Object.entries(typeLabels).map(([key, label]) => (
             <div key={key} className="flex items-center gap-2">
               <div
-                className="h-3 w-3 shrink-0 rounded-full"
-                style={{
-                  backgroundColor: typeColors[key].bg,
-                  border: key === "club" ? "1px solid #cccccc" : "none"
-                }}
+                className={cn(
+                  "h-3.5 w-3.5 shrink-0 rounded-full",
+                  slotClass[key as EventItem["type"]],
+                  key === "club" && "box-border border border-black/12 dark:border-white/14"
+                )}
               />
               <span className="text-[13px] text-[var(--ds-text-secondary)]">{label}</span>
             </div>

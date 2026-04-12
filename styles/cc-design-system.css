@@ -132,13 +132,160 @@
 }
 
 .cc-lesson-head h1 {
-  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  font-size: clamp(1.9rem, 4.5vw, 3rem);
   font-weight: 700;
   letter-spacing: -0.04em;
   line-height: 1.05;
   margin: var(--cc-space-sm) 0 0;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+
+.cc-lesson-module-line {
+  margin-top: 0.75rem;
+  font-size: clamp(0.95rem, 2.2vw, 1.05rem);
+  font-weight: 600;
+  color: var(--cc-hsk-muted);
+}
+
+.cc-lesson-chinese-line {
+  margin-top: 0.5rem;
+  font-size: clamp(1.35rem, 3.5vw, 1.85rem);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--cc-hsk-text);
+}
+
+.cc-lesson-block-intro {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.55;
+  color: var(--cc-hsk-muted);
+  max-width: 58ch;
+}
+
+.cc-lesson-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-lg);
+}
+
+.cc-lesson-hero-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-md);
+}
+
+@media (min-width: 900px) {
+  .cc-lesson-hero-main {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--cc-space-xl);
+  }
+
+  .cc-lesson-hero-main .cc-lesson-head {
+    flex: 1.1;
+    min-width: 0;
+  }
+
+  .cc-lesson-hero-main .cc-lesson-hero-grid {
+    flex: 1;
+    margin-top: 0;
+  }
+}
+
+.cc-lesson-hero-img {
+  max-height: 240px;
+  width: 100%;
+  border-radius: var(--cc-radius-lg);
+  object-fit: cover;
+}
+
+.cc-lesson-hero-caption {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--cc-hsk-muted);
+}
+
+.cc-lesson-card--glass {
+  background: rgba(255, 255, 255, 0.52);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  box-shadow: 0 16px 56px rgba(15, 23, 42, 0.07);
+  backdrop-filter: blur(22px) saturate(1.35);
+  -webkit-backdrop-filter: blur(22px) saturate(1.35);
+}
+
+.cc-lesson-card--veil {
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.05);
+  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+}
+
+.cc-lesson-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.cc-lesson-track {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+
+@media (min-width: 641px) {
+  .cc-lesson-track > .cc-lesson-card {
+    margin-left: 1.25rem;
+  }
+}
+
+.cc-lesson-track::before {
+  content: "";
+  position: absolute;
+  left: 0.65rem;
+  top: 0.5rem;
+  bottom: 0.5rem;
+  width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(26, 26, 26, 0.12), rgba(26, 26, 26, 0.04));
+  pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .cc-lesson-track::before {
+    display: none;
+  }
+}
+
+.cc-lesson-whimsy-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 0.35rem 0 0.25rem;
+  color: var(--cc-hsk-muted);
+}
+
+.cc-lesson-whimsy-svg {
+  width: min(200px, 58vw);
+  height: auto;
+}
+
+.cc-lesson-roadmap--scroll {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  margin-top: var(--cc-space-md);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.cc-lesson-roadmap--scroll a {
+  flex: 0 0 auto;
+  min-width: 138px;
 }
 
 .cc-lesson-head .cc-lesson-lead {
@@ -159,7 +306,7 @@
 }
 
 .cc-lesson-section-title {
-  font-size: clamp(1.25rem, 3vw, 1.6rem);
+  font-size: clamp(1.35rem, 3.2vw, 1.85rem);
   font-weight: 700;
   letter-spacing: -0.03em;
   margin: 0 0 var(--cc-space-sm);
@@ -317,4 +464,91 @@
 .cc-lesson-quiz-option[data-wrong="true"] {
   background: rgba(215, 91, 104, 0.15);
   color: #9a2f3a;
+}
+
+/* —— Тёмная тема (урок внутри общего .dark) —— */
+.dark .lesson-shell {
+  --cc-hsk-text: #f4f4f5;
+  --cc-hsk-muted: rgba(244, 244, 245, 0.62);
+  --cc-hsk-card: rgba(28, 28, 30, 0.94);
+  --cc-hsk-bg: #0a0a0a;
+  --cc-hsk-accent: #fafafa;
+  --cc-hsk-line: rgba(255, 255, 255, 0.1);
+  --cc-shadow-card: 0 20px 56px rgba(0, 0, 0, 0.45);
+}
+
+.dark .cc-lesson-card:not(.cc-lesson-card--glass):not(.cc-lesson-card--veil) {
+  background: var(--cc-hsk-card);
+  box-shadow: var(--cc-shadow-card);
+}
+
+.dark .cc-lesson-card--glass {
+  background: rgba(28, 28, 30, 0.72);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 18px 56px rgba(0, 0, 0, 0.42);
+}
+
+.dark .cc-lesson-card--veil {
+  background: rgba(28, 28, 30, 0.78);
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 12px 44px rgba(0, 0, 0, 0.35);
+}
+
+.dark .cc-lesson-pillcard,
+.dark .cc-lesson-roadmap a {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.dark .cc-lesson-roadmap a:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dark .cc-lesson-tab {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--cc-hsk-text);
+}
+
+.dark .cc-lesson-btn-ghost {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--cc-hsk-text);
+}
+
+.dark .cc-lesson-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.dark .cc-lesson-audio {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .cc-lesson-quiz-option {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--cc-hsk-text);
+}
+
+.dark .cc-lesson-quiz-option:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.dark .cc-lesson-quiz-option[data-correct="true"] {
+  background: rgba(93, 184, 124, 0.22);
+  color: #b6f0c8;
+}
+
+.dark .cc-lesson-quiz-option[data-wrong="true"] {
+  background: rgba(215, 91, 104, 0.2);
+  color: #fecaca;
+}
+
+.dark .cc-lesson-track::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-lesson-roadmap a,
+  .cc-lesson-btn-primary,
+  .cc-lesson-btn-ghost {
+    transition: none;
+  }
 }

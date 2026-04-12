@@ -1,7 +1,9 @@
 "use client"
 
+import Image from "next/image"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { HelpCircle } from "lucide-react"
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form"
 import { LoginForm } from "@/components/auth/login-form"
 import { RegisterForm } from "@/components/auth/register-form"
@@ -22,15 +24,15 @@ export default function AuthPage() {
   return (
     <div className="ds-auth-root">
       <div className="ds-auth-marketing">
-        <div className="ds-auth-brand-center">
-          <div className="ds-auth-logo-mark">ЧЧ</div>
-          <h1 className="ds-auth-brand-title">ChinaChild</h1>
-          <p className="ds-auth-brand-sub">
-            Платформа для изучения китайского языка
-            <br />
-            с нуля до HSK2
-          </p>
-        </div>
+        <Image
+          src="/illustrations/chinachild-auth-registration.svg"
+          alt=""
+          width={800}
+          height={900}
+          className="ds-auth-marketing__img ds-auth-marketing__float"
+          priority
+        />
+        <div className="ds-auth-marketing__shine" aria-hidden />
       </div>
 
       <div className="ds-auth-form-aside">
@@ -53,7 +55,7 @@ export default function AuthPage() {
               </>
             ) : isLogin ? (
               <>
-                <h1 className="ds-auth-screen-title">Войти</h1>
+                <h1 className="ds-auth-screen-title">Вход в аккаунт</h1>
                 <p className="ds-auth-screen-sub">Рады видеть тебя снова</p>
                 <div className="ds-auth-form-panel">
                   <LoginForm
@@ -67,8 +69,8 @@ export default function AuthPage() {
               </>
             ) : (
               <>
-                <h1 className="ds-auth-screen-title">Регистрация</h1>
-                <p className="ds-auth-screen-sub">Создайте аккаунт, чтобы начать обучение</p>
+                <h1 className="ds-auth-screen-title">Регистрация аккаунта</h1>
+                <p className="ds-auth-screen-sub">Заполните форму, чтобы создать свой аккаунт</p>
                 <div className="ds-auth-form-panel">
                   <RegisterForm
                     onSwitchToLogin={() => {
@@ -88,7 +90,7 @@ export default function AuthPage() {
           aria-label="Помощь"
           onClick={() => window.open("mailto:support@chinachild.ru", "_blank")}
         >
-          ?
+          <HelpCircle className="h-5 w-5" strokeWidth={2} aria-hidden />
         </button>
       </div>
     </div>

@@ -107,12 +107,15 @@
   html {
     font-size: var(--font-size);
     scroll-behavior: smooth;
+    overflow-x: clip;
+    max-width: 100%;
   }
 
   html,
   body {
     height: 100%;
     margin: 0;
+    max-width: 100%;
   }
 
   h1 {

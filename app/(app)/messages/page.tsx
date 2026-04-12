@@ -143,17 +143,17 @@ function MessagesPageInner() {
 
   return (
     <div className="ds-figma-page">
-      <div className="mx-auto flex w-full max-w-[var(--ds-shell-max-width)] flex-col">
-        <div className="ds-messages-shell flex-col lg:flex-row">
+      <div className="mx-auto flex min-h-[min(720px,calc(100dvh-9rem))] w-full max-w-[var(--ds-shell-max-width)] flex-col">
+        <div className="ds-messages-shell min-h-0 flex-1 flex-col lg:flex-row">
           <div
             className={cn(
-              "ds-messages-sidebar max-h-[min(52dvh,420px)] lg:max-h-none",
+              "ds-messages-sidebar max-h-[min(40dvh,340px)] shrink-0 lg:max-h-none",
               !showList && "hidden",
               "lg:flex"
             )}
           >
-            <div className="border-b border-[#e8e8e8] p-4 dark:border-white/10">
-              <div className="flex items-center gap-2 rounded-xl bg-[#f5f5f5] px-3 py-2 dark:bg-white/5">
+            <div className="ds-messages-search-wrap border-b border-[#e8e8e8] p-4">
+              <div className="ds-messages-search-glass flex items-center gap-2 rounded-2xl bg-[#f5f5f5] px-4 py-3 dark:bg-transparent">
                 <Search size={15} className="shrink-0 text-[#aaa] dark:text-ds-text-placeholder" aria-hidden />
                 <input
                   value={query}
@@ -173,8 +173,8 @@ function MessagesPageInner() {
                     type="button"
                     onClick={() => handleSwitch(conv.id)}
                     className={cn(
-                      "flex w-full cursor-pointer items-center gap-3 border-b border-[#f0f0f0] p-4 text-left transition-colors dark:border-white/8",
-                      selected ? "bg-[#f5f5f5] dark:bg-white/5" : "hover:bg-[#fafafa] dark:hover:bg-white/[0.03]"
+                      "flex w-full cursor-pointer items-center gap-3 border-b border-[#f0f0f0] p-4 text-left transition-colors dark:border-[#333333]",
+                      selected ? "bg-[#f5f5f5] dark:bg-[#262626]" : "hover:bg-[#fafafa] dark:hover:bg-[#2a2a2a]"
                     )}
                   >
                     <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-ds-sidebar">
@@ -204,12 +204,12 @@ function MessagesPageInner() {
 
           <div
             className={cn(
-              "flex min-h-0 min-w-0 flex-1 flex-col",
+              "flex min-h-[min(58dvh,520px)] min-w-0 flex-1 flex-col lg:min-h-0",
               !showChat && "hidden",
               "lg:flex"
             )}
           >
-            <header className="flex items-center gap-3 border-b border-[#e8e8e8] p-5 dark:border-white/10">
+            <header className="flex items-center gap-3 border-b border-[#e8e8e8] p-4 md:p-5 dark:border-[#333333]">
               {!wide ? (
                 <button
                   type="button"
@@ -243,7 +243,7 @@ function MessagesPageInner() {
               ) : null}
             </header>
 
-            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-5">
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4 md:p-5">
               {messages.map((msg, i) => (
                 <div key={`${msg.time}-${i}`} className={cn("flex", msg.from === "me" ? "justify-end" : "justify-start")}>
                   <div
@@ -266,7 +266,7 @@ function MessagesPageInner() {
               ))}
             </div>
 
-            <div className="flex items-center gap-3 border-t border-[#e8e8e8] p-4 dark:border-white/10">
+            <div className="flex items-center gap-3 border-t border-[#e8e8e8] p-4 dark:border-[#333333]">
               <input
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import { useTheme } from "next-themes"
-import { Bell, Camera, Check, Globe, Hexagon, Loader2, Moon, Palette, Sun } from "lucide-react"
+import { Bell, Camera, Check, Globe, Loader2, Lock, Moon, Palette, Sun, User } from "lucide-react"
 
 import {
   applyUiAccentToDocument,
@@ -229,21 +229,18 @@ export default function SettingsPage() {
   const isDark = resolvedTheme === "dark"
 
   return (
-    <div className="ds-figma-page">
-      <div className="mx-auto w-full max-w-[var(--ds-shell-max-width)]">
-        <div className="mb-6">
-          <h1 className="text-[36px] font-bold leading-none text-ds-ink">Настройки</h1>
-          <p className="mt-1 text-[15px] text-[var(--ds-text-secondary)]">Управление профилем и предпочтениями</p>
-        </div>
+    <div className="ds-figma-page ds-settings-page-bleed">
+      <div className="ds-settings-v0-stack">
+        <header>
+          <h1 className="ds-settings-page-title">Настройки</h1>
+          <p className="ds-settings-page-lead">Управление профилем и предпочтениями</p>
+        </header>
 
-        <div className="ds-settings-page-canvas">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {/* Профиль — верх слева */}
-            <div className="ds-settings-panel">
-              <div className="ds-settings-section-head">
-                <Hexagon size={22} strokeWidth={1.5} aria-hidden />
-                Профиль
-              </div>
+        <section className="ds-settings-panel" aria-labelledby="settings-profile-heading">
+          <h2 id="settings-profile-heading" className="ds-settings-section-head">
+            <User size={22} strokeWidth={1.75} aria-hidden />
+            Профиль
+          </h2>
 
               <div className="mb-6 flex items-center gap-4">
                 <div className="relative">
@@ -295,23 +292,22 @@ export default function SettingsPage() {
                 <SettingsField label="Телефон" value={phone} onChange={setPhone} type="tel" placeholder="+7 999 123-45-67" />
               </div>
 
-              <button
-                type="button"
-                onClick={handleSaveProfile}
-                className={`mt-6 h-12 w-full rounded-full text-[15px] font-semibold transition-colors ${
-                  profileSaved ? "bg-[#8ab84a] text-white" : "bg-black text-white hover:opacity-90 dark:bg-white dark:text-black"
-                }`}
-              >
-                {profileSaved ? "Сохранено" : "Сохранить профиль"}
-              </button>
-            </div>
+          <button
+            type="button"
+            onClick={handleSaveProfile}
+            className={`mt-6 h-12 w-full rounded-full text-[15px] font-semibold transition-colors ${
+              profileSaved ? "bg-[#8ab84a] text-white" : "bg-black text-white hover:opacity-90 dark:bg-white dark:text-black"
+            }`}
+          >
+            {profileSaved ? "Сохранено" : "Сохранить профиль"}
+          </button>
+        </section>
 
-            {/* Внешний вид — верх справа */}
-            <div className="ds-settings-panel">
-              <div className="ds-settings-section-head">
-                <Palette size={22} strokeWidth={1.5} aria-hidden />
-                Внешний вид
-              </div>
+        <section className="ds-settings-panel" aria-labelledby="settings-appearance-heading">
+          <h2 id="settings-appearance-heading" className="ds-settings-section-head">
+            <Palette size={22} strokeWidth={1.75} aria-hidden />
+            Внешний вид
+          </h2>
 
               <p className="ds-settings-subtitle">Тема оформления</p>
               <div className="ds-settings-segmented mb-6">
@@ -356,19 +352,69 @@ export default function SettingsPage() {
                   )
                 })}
               </div>
-              {isDark ? (
-                <p className="mt-3 text-[12px] text-ds-text-tertiary">Акцент применяется в светлой теме.</p>
-              ) : null}
-            </div>
+          {isDark ? (
+            <p className="mt-3 text-[12px] text-ds-text-tertiary">Акцент применяется в светлой теме.</p>
+          ) : null}
+        </section>
 
-            {/* Безопасность — низ слева */}
-            <div className="ds-settings-panel">
-              <div className="ds-settings-section-head">
-                <Hexagon size={22} strokeWidth={1.5} aria-hidden />
-                Безопасность
+        <section className="ds-settings-panel" aria-labelledby="settings-notifications-heading">
+          <h2 id="settings-notifications-heading" className="ds-settings-section-head">
+            <Bell size={22} strokeWidth={1.75} aria-hidden />
+            Уведомления
+          </h2>
+
+          <div className="space-y-4">
+            {(
+              [
+                ["lessons", "Напоминания о занятиях"],
+                ["homework", "Дедлайны домашних заданий"],
+                ["messages", "Новые сообщения"],
+                ["news", "Новости и акции"]
+              ] as const
+            ).map(([key, label]) => (
+              <div key={key} className="flex items-center justify-between gap-3">
+                <span className="text-[15px] text-ds-ink">{label}</span>
+                <FigmaToggle
+                  checked={notifications[key]}
+                  onChange={(v) => setNotifications((n) => ({ ...n, [key]: v }))}
+                />
               </div>
+            ))}
+          </div>
 
-              <form onSubmit={handlePasswordSubmit} className="space-y-4">
+          <div className="mt-8 border-t border-[#ebebeb] pt-6 dark:border-white/10">
+            <h3 className="ds-settings-section-head mb-4 mt-0 text-[1.05rem]">
+              <Globe size={22} strokeWidth={1.75} className="text-ds-text-tertiary" aria-hidden />
+              Язык интерфейса
+            </h3>
+            <div className="ds-settings-segmented">
+              {(
+                [
+                  ["ru", "Русский"],
+                  ["en", "English"],
+                  ["zh", "中文"]
+                ] as const
+              ).map(([code, lab]) => (
+                <button
+                  key={code}
+                  type="button"
+                  onClick={() => applyLanguage(code)}
+                  className={`ds-settings-segmented__btn ${language === code ? "ds-settings-segmented__btn--active" : ""}`}
+                >
+                  {lab}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="ds-settings-panel" aria-labelledby="settings-security-heading">
+          <h2 id="settings-security-heading" className="ds-settings-section-head">
+            <Lock size={22} strokeWidth={1.75} aria-hidden />
+            Безопасность
+          </h2>
+
+          <form onSubmit={handlePasswordSubmit} className="space-y-4">
                 <SettingsField
                   label="Текущий пароль"
                   value={passwords.cur}
@@ -391,82 +437,28 @@ export default function SettingsPage() {
                   placeholder="••••••••"
                 />
 
-                {pwdMsg ? (
-                  <p
-                    className={`rounded-full px-4 py-2 text-[14px] ${
-                      pwdMsg.type === "ok" ? "bg-green-50 text-green-800 dark:bg-green-950/40 dark:text-green-200" : "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-200"
-                    }`}
-                  >
-                    {pwdMsg.text}
-                  </p>
-                ) : null}
+            {pwdMsg ? (
+              <p
+                className={`rounded-full px-4 py-2 text-[14px] ${
+                  pwdMsg.type === "ok" ? "bg-green-50 text-green-800 dark:bg-green-950/40 dark:text-green-200" : "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-200"
+                }`}
+              >
+                {pwdMsg.text}
+              </p>
+            ) : null}
 
-                <button
-                  type="submit"
-                  disabled={pwdBusy}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-black text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 dark:bg-white dark:text-black"
-                >
-                  {pwdBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-                  Обновить пароль
-                </button>
-              </form>
+            <button
+              type="submit"
+              disabled={pwdBusy}
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-black text-[15px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 dark:bg-white dark:text-black"
+            >
+              {pwdBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+              Обновить пароль
+            </button>
+          </form>
 
-              <p className="mt-5 text-[13px] text-[#a3a3a3] dark:text-ds-text-tertiary">{formatLastLogin(lastLoginIso)}</p>
-            </div>
-
-            {/* Уведомления + язык — низ справа */}
-            <div className="ds-settings-panel">
-              <div className="ds-settings-section-head">
-                <Bell size={22} strokeWidth={1.5} aria-hidden />
-                Уведомления
-              </div>
-
-              <div className="space-y-4">
-                {(
-                  [
-                    ["lessons", "Напоминания о занятиях"],
-                    ["homework", "Дедлайны домашних заданий"],
-                    ["messages", "Новые сообщения"],
-                    ["news", "Новости и акции"]
-                  ] as const
-                ).map(([key, label]) => (
-                  <div key={key} className="flex items-center justify-between gap-3">
-                    <span className="text-[15px] text-ds-ink">{label}</span>
-                    <FigmaToggle
-                      checked={notifications[key]}
-                      onChange={(v) => setNotifications((n) => ({ ...n, [key]: v }))}
-                    />
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-8 border-t border-[#ebebeb] pt-6 dark:border-white/10">
-                <div className="ds-settings-section-head mb-4 mt-0">
-                  <Globe size={22} strokeWidth={1.5} className="text-ds-text-tertiary" aria-hidden />
-                  Язык интерфейса
-                </div>
-                <div className="ds-settings-segmented">
-                  {(
-                    [
-                      ["ru", "Русский"],
-                      ["en", "English"],
-                      ["zh", "中文"]
-                    ] as const
-                  ).map(([code, lab]) => (
-                    <button
-                      key={code}
-                      type="button"
-                      onClick={() => applyLanguage(code)}
-                      className={`ds-settings-segmented__btn ${language === code ? "ds-settings-segmented__btn--active" : ""}`}
-                    >
-                      {lab}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+          <p className="mt-5 text-[13px] text-[#a3a3a3] dark:text-ds-text-tertiary">{formatLastLogin(lastLoginIso)}</p>
+        </section>
       </div>
     </div>
   )

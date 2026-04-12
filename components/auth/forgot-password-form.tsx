@@ -25,10 +25,7 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
     <div className="space-y-5">
       {sent ? (
         <div className="space-y-5">
-          <p
-            className="rounded-[10px] border border-black/10 px-3 py-2.5 text-[14px] text-[#1a1a1a]"
-            style={{ backgroundColor: "rgb(240 253 244)" }}
-          >
+          <p className="rounded-[14px] border border-emerald-200/80 bg-emerald-50 px-4 py-3 text-[15px] text-emerald-950 dark:border-emerald-800/40 dark:bg-emerald-950/35 dark:text-emerald-100">
             Если адрес зарегистрирован, письмо со ссылкой скоро придёт на <strong>{email}</strong>.
           </p>
           <button type="button" onClick={onBackToLogin} className="ds-btn-primary-solid w-full">
@@ -64,12 +61,8 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
             )}
           </button>
           <hr className="ds-auth-divider" />
-          <p className="text-center text-[15px] text-[#737373]">
-            <button
-              type="button"
-              onClick={onBackToLogin}
-              className="border-0 bg-transparent font-bold text-black transition-opacity hover:opacity-80"
-            >
+          <p className="text-center text-[1.0625rem] text-[#525252] dark:text-zinc-400">
+            <button type="button" onClick={onBackToLogin} className="ds-auth-accent-link cursor-pointer border-0 bg-transparent p-0">
               Назад ко входу
             </button>
           </p>

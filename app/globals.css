@@ -4,6 +4,26 @@
 @import './figma-theme.css';
 @import '../styles/cc-design-system.css';
 
+@keyframes ds-auth-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-8px) scale(1.01);
+  }
+}
+
+.ds-auth-marketing__float {
+  animation: ds-auth-float 7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-auth-marketing__float {
+    animation: none;
+  }
+}
+
 @layer components {
   .ek-auth-title {
     @apply text-[2rem] font-semibold leading-none tracking-[-0.03em] text-foreground;
@@ -48,7 +68,7 @@
 
   .dark .figma-nav-link--active,
   .dark .figma-nav-link--active:hover {
-    background-color: #f4f4f4;
+    background-color: #e8e8e8;
     color: #141414;
   }
 }

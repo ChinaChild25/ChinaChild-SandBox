@@ -34,7 +34,7 @@ export default function DashboardPage() {
 
   return (
     <div className="ds-figma-page">
-      <div className="mx-auto flex w-full max-w-[var(--ds-shell-max-width)] flex-col">
+      <div className="ds-dashboard-page flex flex-col">
         {/* Три карточки статистики — иконки + ссылки как в макете */}
         <div className="ds-stat-grid">
           <Link
@@ -48,7 +48,7 @@ export default function DashboardPage() {
             </div>
             <div className="ds-stat-card__value text-ds-ink">
               {dashboardStats.attendedLessons}
-              <span className="text-[#888] dark:text-neutral-500">/{dashboardStats.lessonGoal}</span>
+              <span className="text-[#888] dark:text-white/50">/{dashboardStats.lessonGoal}</span>
             </div>
             <div className="ds-stat-card__label text-[#555] dark:text-[var(--ds-text-secondary)]">
               Посещено занятий
@@ -70,9 +70,9 @@ export default function DashboardPage() {
             </div>
             <div className="ds-stat-card__value">
               {dashboardStats.completedHomework}
-              <span className="text-[#777]">/{dashboardStats.homeworkGoal}</span>
+              <span className="text-white/55 dark:text-white/50">/{dashboardStats.homeworkGoal}</span>
             </div>
-            <div className="ds-stat-card__label text-[#aaa]">Выполнено домашних</div>
+            <div className="ds-stat-card__label text-[#aaa] dark:text-zinc-400">Выполнено домашних</div>
             <span className="ds-dashboard-stat-link">
               История оценок
               <ArrowRight className="h-4 w-4" aria-hidden />
@@ -90,7 +90,7 @@ export default function DashboardPage() {
             </div>
             <div className="ds-stat-card__value text-ds-ink">
               {dashboardStats.averageScore}
-              <span className="text-[#666] dark:text-neutral-600">/100</span>
+              <span className="text-[#666] dark:text-white/55">/100</span>
             </div>
             <div className="ds-stat-card__label text-[#555] dark:text-[var(--ds-text-secondary)]">
               Средний балл теста
@@ -113,14 +113,18 @@ export default function DashboardPage() {
                     className="group mb-4 flex items-center gap-4 no-underline last:mb-0"
                   >
                     <div
-                      className="flex h-[88px] w-[88px] shrink-0 flex-col items-center justify-center rounded-full text-center"
+                      className="flex h-[76px] w-[76px] shrink-0 flex-col items-center justify-center rounded-full text-center sm:h-[88px] sm:w-[88px]"
                       style={{ backgroundColor: lesson.bgColor, color: lesson.textColor }}
                     >
-                      <span className="mb-1 text-[26px] font-normal leading-none">{lesson.date}</span>
-                      <span className="text-[11px] leading-tight">{lesson.time}</span>
+                      <span className="mb-0.5 text-[22px] font-normal leading-none sm:mb-1 sm:text-[26px]">
+                        {lesson.date}
+                      </span>
+                      <span className="text-[10px] leading-tight sm:text-[11px]">{lesson.time}</span>
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="mb-1 text-[20px] font-normal leading-none text-ds-ink">{lesson.title}</p>
+                      <p className="mb-1 text-[17px] font-normal leading-snug text-ds-ink sm:text-[20px] sm:leading-none">
+                        {lesson.title}
+                      </p>
                       <p className="flex items-center gap-2 text-[13px] text-[#666] dark:text-[var(--ds-text-secondary)]">
                         <span className="truncate">{lesson.description}</span>
                         {"hasIndicator" in lesson && lesson.hasIndicator ? (
@@ -130,7 +134,7 @@ export default function DashboardPage() {
                     </div>
                     <ChevronRight
                       size={26}
-                      className="shrink-0 text-[#ccc] opacity-0 transition-opacity group-hover:opacity-100 dark:text-neutral-600"
+                      className="shrink-0 text-[#ccc] opacity-0 transition-opacity group-hover:opacity-100 dark:text-zinc-500"
                       aria-hidden
                     />
                   </Link>
@@ -155,9 +159,9 @@ export default function DashboardPage() {
                 <span className="ds-calendar-title-reg text-ds-ink">{FIGMA_CALENDAR.year}</span>
               </div>
 
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
                 {weekdays.map((d) => (
-                  <div key={d} className="pb-1 text-center text-[12px] text-[#888] dark:text-ds-text-tertiary">
+                  <div key={d} className="pb-1 text-center text-[11px] text-[#888] dark:text-ds-text-tertiary sm:text-[12px]">
                     {d}
                   </div>
                 ))}
@@ -168,11 +172,11 @@ export default function DashboardPage() {
                   <Link
                     key={item.day}
                     href="/schedule"
-                    className={`rounded-lg py-1.5 text-center no-underline outline-offset-1 focus-visible:ring-2 focus-visible:ring-ds-ink/20 ${
+                    className={`flex min-h-[44px] flex-col items-center justify-center rounded-lg py-1 text-center no-underline outline-offset-1 focus-visible:ring-2 focus-visible:ring-ds-ink/20 sm:min-h-0 sm:py-1.5 ${
                       item.isToday ? "bg-ds-sage" : "hover:bg-ds-surface-hover"
                     }`}
                   >
-                    <div className="text-[14px] text-ds-ink">{item.day}</div>
+                    <div className="text-[13px] text-ds-ink sm:text-[14px]">{item.day}</div>
                     {item.hasEvent || item.isToday ? (
                       <div className="mt-0.5 flex justify-center">
                         <span className="h-1 w-1 rounded-full bg-[#8ab84a]" />

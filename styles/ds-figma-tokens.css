@@ -15,8 +15,8 @@
   --ds-shell-radius: 0px;
   --ds-shell-max-width: none;
   --ds-shadow-shell: none;
-  /** Right edge only (sidebar flush to viewport left) */
-  --ds-sidebar-radius-right: 24px;
+  /** Скругление правого края серого сайдбара (desktop) */
+  --ds-sidebar-radius-right: 40px;
 
   /* —— Sidebar —— */
   --ds-sidebar: #e8e8e8;
@@ -174,8 +174,10 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
+  /* Совпадает с областью контента — без «чёрной рамки» вокруг приложения */
+  --background: #0a0a0a;
+  /* Читаемый основной текст на #0a / #14 (как в v0, ~rgb(232,232,232)) */
+  --foreground: #e8e8e8;
   --card: oklch(0.145 0 0);
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.145 0 0);
@@ -205,19 +207,19 @@
   /* ChinaChild / Figma dashboard tokens — dark surfaces */
   --ds-canvas: #0c0c0c;
   --ds-surface: #141414;
-  --ds-ink: #f4f4f4;
-  --ds-border-strong: #f4f4f4;
+  --ds-ink: #e8e8e8;
+  --ds-border-strong: #e8e8e8;
   --ds-sidebar: #1a1a1a;
-  --ds-sidebar-hover: #2a2a2a;
-  --ds-text-primary: #f4f4f4;
-  --ds-text-secondary: #b5b5b5;
-  --ds-text-muted: #a3a3a3;
-  --ds-text-tertiary: #8a8a8a;
-  --ds-text-quaternary: #c4c4c4;
-  --ds-text-soft: #737373;
-  --ds-text-soft-dark: #9ca3af;
-  --ds-text-placeholder: #737373;
-  --ds-chevron: #525252;
+  --ds-sidebar-hover: #2f2f2f;
+  --ds-text-primary: #e8e8e8;
+  --ds-text-secondary: #c6c6c6;
+  --ds-text-muted: #b8b8b8;
+  --ds-text-tertiary: #a0a0a0;
+  --ds-text-quaternary: #d0d0d0;
+  --ds-text-soft: #9a9a9a;
+  --ds-text-soft-dark: #b0b0b0;
+  --ds-text-placeholder: #9ca3af;
+  --ds-chevron: #8a8a8a;
   --ds-surface-muted: #1e1e1e;
   --ds-surface-pill: #262626;
   --ds-surface-hover: #2a2a2a;
@@ -270,66 +272,60 @@ html:not(.dark)[data-ui-accent="orange"] {
 }
 
 @layer components {
-  /* —— Figma shell (Figmadasboard Layout.tsx): #f5f5f5 canvas + 1400px card, 6px #1a1a1a —— */
+  /* —— App после логина: на весь экран, без рамки и без «карточки» с отступами от края viewport —— */
   .ds-figma-shell-outer {
     box-sizing: border-box;
     display: flex;
-    min-height: 100dvh;
     width: 100%;
-    align-items: flex-start;
-    justify-content: center;
-    background-color: #f5f5f5;
-    padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
-      max(16px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+    max-width: none;
+    min-height: 100svh;
+    min-height: 100dvh;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    border: none;
+    outline: none;
+    box-shadow: none;
+    background-color: #ffffff;
     font-family: var(--ds-font-sans);
   }
 
-  @media (min-width: 1024px) {
-    .ds-figma-shell-outer {
-      padding: 32px;
-    }
-  }
-
   .dark .ds-figma-shell-outer {
-    background-color: var(--ds-canvas);
-  }
-
-  .ds-figma-shell-card {
-    display: flex;
-    width: 100%;
-    max-width: 1400px;
-    flex-direction: column;
-    overflow: hidden;
-    border-radius: 24px;
-    border: 4px solid #1a1a1a;
-    background-color: #ffffff;
-    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
-  }
-
-  @media (min-width: 1024px) {
-    .ds-figma-shell-card {
-      border-radius: 40px;
-      border-width: 6px;
-    }
-  }
-
-  .dark .ds-figma-shell-card {
-    border-color: #404040;
-    background-color: #121212;
-    box-shadow: 0 25px 60px -12px rgb(0 0 0 / 0.55);
+    background-color: #0a0a0a;
   }
 
   .ds-figma-shell-row {
     display: flex;
-    flex: 1;
+    width: 100%;
+    max-width: none;
     min-width: 0;
-    min-height: min(100dvh - 32px, 1200px);
+    min-height: 0;
+    flex: 1 1 0%;
+    align-items: stretch;
+    border: none;
+    box-shadow: none;
   }
 
-  @media (min-width: 1024px) {
-    .ds-figma-shell-row {
-      min-height: calc(100vh - 64px);
-    }
+  /**
+   * Если где-то осталась обёртка с таким классом — не даём ей рамку/отступы/ограничивать ширину.
+   * Полноэкранный режим только через ds-figma-shell-outer + row.
+   */
+  .ds-figma-shell-card {
+    box-sizing: border-box;
+    display: flex;
+    width: 100%;
+    max-width: none;
+    min-height: 0;
+    flex: 1 1 0%;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    background: transparent;
+    color: inherit;
   }
 
   .ds-figma-shell-sidebar {
@@ -340,13 +336,24 @@ html:not(.dark)[data-ui-accent="orange"] {
     box-sizing: border-box;
     align-self: stretch;
     min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
     background-color: #e8e8e8;
-    padding: 24px;
+    /* Как v0: px-7 pt-7 по сути — отступы зоны лого и навигации */
+    padding: 28px 28px 24px;
+    border-radius: 0;
+    border: none;
   }
 
   @media (min-width: 1024px) {
+    /* Без вертикальных полей — иначе видна «чёрная рамка» вокруг блока на тёмном фоне */
     .ds-figma-shell-sidebar {
       display: flex;
+      min-height: 0;
+      flex: 0 0 280px;
+      align-self: stretch;
+      border-radius: 0 var(--ds-sidebar-radius-right) var(--ds-sidebar-radius-right) 0;
+      padding-top: max(28px, env(safe-area-inset-top));
     }
   }
 
@@ -367,19 +374,34 @@ html:not(.dark)[data-ui-accent="orange"] {
     background-color: #0a0a0a;
   }
 
-  /** Внутренний отступ контента как `p-8` в страницах Figmadasboard */
+  .dark .ds-figma-shell-main-scroll {
+    color: var(--ds-text-primary);
+  }
+
+  /** Прокрутка как у v0: основной скролл на main */
+  .ds-figma-shell-main-scroll {
+    box-sizing: border-box;
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /** Как в превью v0: p-4 md:p-10 */
   .ds-figma-shell-page-pad {
     box-sizing: border-box;
     flex: 1;
     min-height: 0;
-    overflow: auto;
     width: 100%;
-    padding: 24px;
+    padding: 1rem;
   }
 
-  @media (min-width: 1024px) {
+  @media (min-width: 768px) {
     .ds-figma-shell-page-pad {
-      padding: 32px;
+      padding: 2.5rem;
     }
   }
 
@@ -539,8 +561,14 @@ html:not(.dark)[data-ui-accent="orange"] {
   .ds-stat-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--ds-space-4);
+    gap: 1rem;
     margin-bottom: var(--ds-section-gap);
+  }
+
+  @media (min-width: 768px) {
+    .ds-stat-grid {
+      gap: 1.25rem;
+    }
   }
 
   @media (min-width: 640px) and (max-width: 1023px) {
@@ -570,6 +598,17 @@ html:not(.dark)[data-ui-accent="orange"] {
 
   .ds-stat-card--dark {
     background-color: var(--ds-ink);
+    color: #ffffff;
+  }
+
+  /* В тёмной теме --ds-ink светлый: отдельная «тёмная» плитка для читаемости */
+  .dark .ds-stat-card--dark {
+    background-color: #2c2c2e;
+    color: #fafafa;
+  }
+
+  .dark .ds-stat-card--dark .ds-stat-card__icon-badge {
+    background-color: rgb(255 255 255 / 0.12);
     color: #ffffff;
   }
 
@@ -703,6 +742,29 @@ html:not(.dark)[data-ui-accent="orange"] {
 
   .ds-stat-card--sage .ds-dashboard-stat-link:hover {
     color: #365314;
+  }
+
+  .dark .ds-stat-card--sage .ds-dashboard-stat-link {
+    color: var(--ds-sage-hover);
+  }
+
+  .dark .ds-stat-card--sage .ds-dashboard-stat-link:hover {
+    color: #d9f99d;
+  }
+
+  /* Главная: ширина и ритм как в v0 (узкая колонка ~760px → на xl шире под две колонки) */
+  .ds-dashboard-page {
+    --ds-section-gap: 28px;
+    width: 100%;
+    max-width: min(100%, 760px);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  @media (min-width: 1280px) {
+    .ds-dashboard-page {
+      max-width: min(100%, 1200px);
+    }
   }
 
   .ds-dashboard-grid {
@@ -948,15 +1010,15 @@ html:not(.dark)[data-ui-accent="orange"] {
     background-color: var(--ds-sage);
   }
 
-  /* —— Auth: макет Figma — 50/50, градиент слева, белая форма, без рамки —— */
+  /* —— Auth: 2 колонки, иллюстрация слева (SVG), стеклянная панель формы, крупная типографика —— */
   .ds-auth-root {
     min-height: 100dvh;
     width: 100%;
     display: flex;
     flex-direction: column;
     font-family: var(--ds-font-sans);
-    color: #1a1a1a;
-    color-scheme: light;
+    color: #141414;
+    color-scheme: light dark;
   }
 
   @media (min-width: 1024px) {
@@ -966,14 +1028,13 @@ html:not(.dark)[data-ui-accent="orange"] {
   }
 
   .ds-auth-marketing {
+    position: relative;
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 42dvh;
+    min-height: 38dvh;
     flex-shrink: 0;
-    padding: max(2rem, env(safe-area-inset-top)) 1.5rem max(2rem, env(safe-area-inset-bottom));
-    background: linear-gradient(152deg, #dff0c8 0%, #eef6e4 38%, #fafcf8 72%, #ffffff 100%);
+    flex-direction: column;
+    overflow: hidden;
+    background-color: #2d1f4a;
   }
 
   @media (min-width: 1024px) {
@@ -981,47 +1042,23 @@ html:not(.dark)[data-ui-accent="orange"] {
       width: 50%;
       flex: 1 1 50%;
       min-height: 100dvh;
-      padding: 2rem max(2rem, env(safe-area-inset-right)) 2rem max(2rem, env(safe-area-inset-left));
     }
   }
 
-  .ds-auth-brand-center {
-    display: flex;
-    max-width: 22rem;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
+  .ds-auth-marketing__img {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
+    object-position: center 30%;
   }
 
-  .ds-auth-logo-mark {
-    display: flex;
-    height: 4.5rem;
-    width: 4.5rem;
-    flex-shrink: 0;
-    align-items: center;
-    justify-content: center;
-    border-radius: 9999px;
-    background-color: #000000;
-    font-size: 1.375rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: #ffffff;
-  }
-
-  .ds-auth-brand-title {
-    margin-top: 1.5rem;
-    font-size: clamp(2rem, 4.5vw, 2.75rem);
-    font-weight: 700;
-    line-height: 1.05;
-    letter-spacing: -0.03em;
-    color: #000000;
-  }
-
-  .ds-auth-brand-sub {
-    margin-top: 1rem;
-    font-size: 1rem;
-    line-height: 1.5;
-    color: #737373;
+  .ds-auth-marketing__shine {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(125deg, rgb(255 255 255 / 0.08) 0%, transparent 42%, transparent 100%);
   }
 
   .ds-auth-form-aside {
@@ -1029,17 +1066,28 @@ html:not(.dark)[data-ui-accent="orange"] {
     display: flex;
     flex: 1;
     flex-direction: column;
-    background-color: #ffffff;
-    padding: max(1.5rem, env(safe-area-inset-top)) max(1.5rem, env(safe-area-inset-right))
-      max(2rem, env(safe-area-inset-bottom)) max(1.5rem, env(safe-area-inset-left));
+    background: linear-gradient(165deg, rgb(255 255 255 / 0.92) 0%, rgb(250 250 252 / 0.88) 100%);
+    padding: max(1.25rem, env(safe-area-inset-top)) max(1.25rem, env(safe-area-inset-right))
+      max(1.75rem, env(safe-area-inset-bottom)) max(1.25rem, env(safe-area-inset-left));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-left: 1px solid rgb(255 255 255 / 0.55);
+    box-shadow: -12px 0 40px rgb(0 0 0 / 0.06);
   }
 
   @media (min-width: 1024px) {
     .ds-auth-form-aside {
       width: 50%;
       flex: 1 1 50%;
-      padding: 3rem max(2.5rem, env(safe-area-inset-right)) 3rem max(2.5rem, env(safe-area-inset-left));
+      padding: 2.5rem max(2rem, env(safe-area-inset-right)) 2.5rem max(2.25rem, env(safe-area-inset-left));
     }
+  }
+
+  .dark .ds-auth-form-aside {
+    background: linear-gradient(165deg, rgb(24 24 27 / 0.92) 0%, rgb(15 15 18 / 0.94) 100%);
+    border-left-color: rgb(255 255 255 / 0.08);
+    box-shadow: -8px 0 48px rgb(0 0 0 / 0.45);
+    color: #fafafa;
   }
 
   .ds-auth-form-scroll {
@@ -1053,23 +1101,56 @@ html:not(.dark)[data-ui-accent="orange"] {
     margin-left: auto;
     margin-right: auto;
     width: 100%;
-    max-width: 26rem;
+    max-width: 28rem;
+  }
+
+  @media (min-width: 1024px) {
+    .ds-auth-form-inner {
+      max-width: 30rem;
+    }
   }
 
   .ds-auth-screen-title {
-    font-size: clamp(2.25rem, 5vw, 2.75rem);
+    font-size: clamp(2.75rem, 6vw, 3.5rem);
     font-weight: 700;
-    line-height: 1.05;
-    letter-spacing: -0.03em;
-    color: #000000;
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+    color: #0a0a0a;
+  }
+
+  .dark .ds-auth-screen-title {
+    color: #fafafa;
   }
 
   .ds-auth-screen-sub {
-    margin-top: 0.75rem;
+    margin-top: 0.875rem;
     margin-bottom: 2rem;
-    font-size: 1rem;
-    line-height: 1.5;
-    color: #737373;
+    font-size: clamp(1.125rem, 2.4vw, 1.3125rem);
+    line-height: 1.55;
+    color: #525252;
+  }
+
+  .dark .ds-auth-screen-sub {
+    color: #a3a3a3;
+  }
+
+  .ds-auth-accent-link {
+    font-weight: 600;
+    color: #d97744;
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  .ds-auth-accent-link:hover {
+    color: #c2410c;
+  }
+
+  .dark .ds-auth-accent-link {
+    color: #fdba74;
+  }
+
+  .dark .ds-auth-accent-link:hover {
+    color: #fed7aa;
   }
 
   .ds-auth-help-fab {
@@ -1077,88 +1158,102 @@ html:not(.dark)[data-ui-accent="orange"] {
     right: max(1.25rem, env(safe-area-inset-right));
     bottom: max(1.25rem, env(safe-area-inset-bottom));
     z-index: 40;
-    display: grid;
-    height: 2.75rem;
-    width: 2.75rem;
-    place-content: center;
+    display: flex;
+    height: 3rem;
+    width: 3rem;
+    align-items: center;
+    justify-content: center;
     border: none;
     border-radius: 9999px;
-    background-color: #000000;
-    font-size: 1.125rem;
-    font-weight: 600;
-    line-height: 1;
+    background-color: #1c1c1e;
     color: #ffffff;
     cursor: pointer;
-    box-shadow: 0 4px 20px rgb(0 0 0 / 0.15);
+    box-shadow: 0 4px 24px rgb(0 0 0 / 0.2);
     transition: transform 0.15s ease, opacity 0.15s ease;
   }
 
+  .dark .ds-auth-help-fab {
+    background-color: #fafafa;
+    color: #141414;
+    box-shadow: 0 4px 24px rgb(0 0 0 / 0.35);
+  }
+
   .ds-auth-help-fab:hover {
-    opacity: 0.9;
-    transform: scale(1.04);
+    opacity: 0.92;
+    transform: scale(1.05);
   }
 
   .ds-auth-divider {
     margin-top: 1.75rem;
     margin-bottom: 1.75rem;
     border: 0;
-    border-top: 1px solid #e8e8e8;
+    border-top: 1px solid rgb(0 0 0 / 0.08);
   }
 
-  /* Поля и кнопка на экране входа — как в макете (~10px скругление, тонкая рамка) */
+  .dark .ds-auth-divider {
+    border-top-color: rgb(255 255 255 / 0.1);
+  }
+
+  /* Поля и кнопки — крупнее */
   .ds-auth-root .ds-input-field {
-    height: 52px;
-    border-radius: 10px;
-    border: 1px solid #e0e0e0;
-    background-color: #ffffff;
-    color: #1a1a1a;
-  }
-
-  .ds-auth-root .ds-input-field::placeholder {
-    color: #a3a3a3;
-  }
-
-  .ds-auth-root .ds-input-field:focus-visible {
-    border-color: #bdbdbd;
-    box-shadow: 0 0 0 3px rgb(0 0 0 / 0.06);
-  }
-
-  .ds-auth-root .ds-btn-primary-solid {
-    height: 52px;
-    border-radius: 10px;
-    background-color: #000000;
-    font-size: 1rem;
-    font-weight: 700;
-  }
-
-  .ds-auth-root .ds-btn-primary-solid:hover:not(:disabled) {
-    opacity: 0.88;
-  }
-
-  .ds-auth-root .ds-auth-field-label {
-    margin-bottom: 0.375rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: #737373;
-  }
-
-  .dark .ds-auth-root {
-    color: #1a1a1a;
-  }
-
-  .dark .ds-auth-root .ds-auth-form-aside {
-    background-color: #ffffff;
+    height: 58px;
+    border-radius: 14px;
+    border: 1px solid rgb(0 0 0 / 0.1);
+    background-color: rgb(255 255 255 / 0.85);
+    font-size: 1.0625rem;
+    color: #141414;
   }
 
   .dark .ds-auth-root .ds-input-field {
-    background-color: #ffffff;
-    color: #1a1a1a;
-    border-color: #e0e0e0;
+    background-color: rgb(39 39 42 / 0.75);
+    border-color: rgb(255 255 255 / 0.12);
+    color: #fafafa;
+  }
+
+  .ds-auth-root .ds-input-field::placeholder {
+    color: #9ca3af;
+  }
+
+  .dark .ds-auth-root .ds-input-field::placeholder {
+    color: #71717a;
+  }
+
+  .ds-auth-root .ds-input-field:focus-visible {
+    border-color: rgb(0 0 0 / 0.22);
+    box-shadow: 0 0 0 4px rgb(0 0 0 / 0.06);
+  }
+
+  .dark .ds-auth-root .ds-input-field:focus-visible {
+    border-color: rgb(255 255 255 / 0.28);
+    box-shadow: 0 0 0 4px rgb(255 255 255 / 0.08);
+  }
+
+  .ds-auth-root .ds-btn-primary-solid {
+    height: 58px;
+    border-radius: 14px;
+    background-color: #1c1c1e;
+    font-size: 1.0625rem;
+    font-weight: 700;
   }
 
   .dark .ds-auth-root .ds-btn-primary-solid {
-    background-color: #000000;
-    color: #ffffff;
+    background-color: #fafafa;
+    color: #141414;
+  }
+
+  .ds-auth-root .ds-btn-primary-solid:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+
+  .ds-auth-root .ds-auth-field-label {
+    margin-bottom: 0.5rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #404040;
+  }
+
+  .dark .ds-auth-root .ds-auth-field-label {
+    color: #d4d4d4;
   }
 
   .ds-segmented {
@@ -1527,37 +1622,92 @@ html:not(.dark)[data-ui-accent="orange"] {
     color: #ffffff;
   }
 
-  /* —— Settings: макет Figma — белые карточки, фон #f2f2f2, поля-pill —— */
-  .ds-settings-page-canvas {
-    border-radius: 28px;
-    background-color: #f2f2f2;
-    padding: var(--ds-space-6);
+  /* —— Settings: как превью v0 — p-6 md:p-8 от края main (компенсация shell-page-pad) —— */
+  .ds-settings-page-bleed {
+    box-sizing: border-box;
+    width: calc(100% + 2rem);
+    max-width: none;
+    margin: -1rem;
+    padding: 1.5rem;
+    color: #1a1a1a;
   }
 
-  .dark .ds-settings-page-canvas {
-    background-color: var(--ds-surface-muted);
+  @media (min-width: 768px) {
+    .ds-settings-page-bleed {
+      width: calc(100% + 5rem);
+      margin: -2.5rem;
+      padding: 2rem;
+    }
+  }
+
+  .dark .ds-settings-page-bleed {
+    color: var(--ds-ink);
+  }
+
+  .ds-settings-v0-stack {
+    display: flex;
+    max-width: min(100%, 854px);
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  @media (min-width: 768px) {
+    .ds-settings-v0-stack {
+      gap: 2rem;
+    }
+  }
+
+  .ds-settings-page-title {
+    margin: 0 0 0.25rem;
+    font-size: clamp(1.75rem, 4vw, 2.25rem);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    color: var(--ds-ink);
+  }
+
+  .ds-settings-page-lead {
+    margin: 0 0 1.5rem;
+    font-size: 0.9375rem;
+    line-height: 1.45;
+    color: var(--ds-text-secondary);
+  }
+
+  @media (min-width: 768px) {
+    .ds-settings-page-lead {
+      margin-bottom: 2rem;
+    }
   }
 
   .ds-settings-panel {
-    border-radius: 28px;
+    border-radius: 24px;
     background-color: #ffffff;
-    padding: var(--ds-space-6);
-    box-shadow: 0 1px 3px rgb(0 0 0 / 0.06);
+    padding: 1.25rem 1.25rem 1.5rem;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px rgb(0 0 0 / 0.06);
+  }
+
+  @media (min-width: 768px) {
+    .ds-settings-panel {
+      padding: 1.5rem 1.5rem 1.75rem;
+    }
   }
 
   .dark .ds-settings-panel {
     background-color: var(--ds-surface);
     box-shadow: none;
-    border: 1px solid rgb(255 255 255 / 0.06);
+    border: 1px solid rgb(255 255 255 / 0.12);
   }
 
   .ds-settings-section-head {
     display: flex;
     align-items: center;
     gap: var(--ds-space-3);
-    margin-bottom: var(--ds-space-5);
+    margin: 0 0 var(--ds-space-5);
     font-size: 1.125rem;
     font-weight: 600;
+    line-height: 1.25;
     color: var(--ds-ink);
   }
 
@@ -1653,7 +1803,7 @@ html:not(.dark)[data-ui-accent="orange"] {
   }
 
   .dark .ds-settings-segmented__btn--active {
-    background-color: #f4f4f4;
+    background-color: #e8e8e8;
     color: #141414;
   }
 
@@ -1767,6 +1917,11 @@ html:not(.dark)[data-ui-accent="orange"] {
     color: #ffffff;
   }
 
+  .dark .ds-schedule-day-head--today {
+    background-color: #fafafa;
+    color: #141414;
+  }
+
   .ds-schedule-day-head--muted {
     background-color: var(--ds-canvas);
     color: var(--ds-text-tertiary);
@@ -1788,6 +1943,48 @@ html:not(.dark)[data-ui-accent="orange"] {
     flex: 1;
     border-radius: var(--ds-radius-md);
     border: 2px dashed var(--ds-sidebar);
+  }
+
+  .dark .ds-schedule-empty {
+    border-color: rgb(255 255 255 / 0.12);
+  }
+
+  .ds-schedule-slot--lesson {
+    background-color: var(--ds-ink);
+    color: #ffffff;
+  }
+
+  .dark .ds-schedule-slot--lesson {
+    background-color: #3f3f46;
+    color: #fafafa;
+  }
+
+  .ds-schedule-slot--club {
+    background-color: var(--ds-gray-tile);
+    color: var(--ds-ink);
+    border: 1px solid rgb(0 0 0 / 0.1);
+  }
+
+  .dark .ds-schedule-slot--club {
+    border-color: rgb(255 255 255 / 0.14);
+  }
+
+  .ds-schedule-slot--test {
+    background-color: var(--ds-pink);
+    color: var(--ds-ink);
+  }
+
+  .dark .ds-schedule-slot--test {
+    color: #fde8ea;
+  }
+
+  .ds-schedule-slot--event {
+    background-color: var(--ds-sage);
+    color: var(--ds-ink);
+  }
+
+  .dark .ds-schedule-slot--event {
+    color: #ecfccb;
   }
 
   /* —— Classes list (Figmadasboard Classes.tsx) —— */
@@ -1814,14 +2011,34 @@ html:not(.dark)[data-ui-accent="orange"] {
 
   .ds-messages-sidebar {
     display: flex;
-    width: 260px;
+    width: 100%;
     flex-shrink: 0;
     flex-direction: column;
-    border-right: 1px solid #e8e8e8;
+    border-bottom: 1px solid #e8e8e8;
+    border-right: none;
+  }
+
+  @media (min-width: 1024px) {
+    .ds-messages-sidebar {
+      width: 300px;
+      border-bottom: none;
+      border-right: 1px solid #e8e8e8;
+    }
   }
 
   .dark .ds-messages-sidebar {
-    border-right-color: rgb(255 255 255 / 0.1);
+    border-color: #333333;
+  }
+
+  .dark .ds-messages-search-wrap {
+    border-bottom-color: #333333;
+  }
+
+  .dark .ds-messages-search-glass {
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
 
   .ds-messages-search {
@@ -1858,8 +2075,14 @@ html:not(.dark)[data-ui-accent="orange"] {
     color: #ffffff;
   }
 
+  .dark .ds-msg-bubble-them {
+    background-color: #262626;
+    color: #e8e8e8;
+    border: 1px solid rgb(255 255 255 / 0.08);
+  }
+
   .dark .ds-msg-bubble-me {
-    background-color: #f4f4f4;
+    background-color: #e8e8e8;
     color: #141414;
   }
 }

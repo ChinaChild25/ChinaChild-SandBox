@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 900" fill="none" aria-hidden="true">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2d1f4a"/>
+      <stop offset="55%" stop-color="#3d2b5c"/>
+      <stop offset="100%" stop-color="#4a3568"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="900" fill="url(#bg)"/>
+  <circle cx="120" cy="140" r="28" fill="#ff8c42" opacity="0.9"/>
+  <circle cx="180" cy="100" r="14" fill="#ffffff" opacity="0.35"/>
+  <circle cx="90" cy="200" r="10" fill="#ff8c42" opacity="0.5"/>
+  <path d="M520 0 C620 80 700 200 800 120 L800 0 Z" fill="#ff7a3d"/>
+  <path d="M480 0 C560 140 640 280 800 200 L800 0 Z" fill="#ff9348" opacity="0.92"/>
+  <path d="M60 320 Q120 280 200 340 T380 300" stroke="#ff8c42" stroke-width="3" fill="none" opacity="0.45" stroke-linecap="round"/>
+  <path d="M100 400 Q180 360 260 420" stroke="#ff9348" stroke-width="2.5" fill="none" opacity="0.35" stroke-linecap="round"/>
+  <g transform="translate(280 220)">
+    <ellipse cx="140" cy="280" rx="120" ry="32" fill="#000000" opacity="0.12"/>
+    <path d="M40 380 C40 200 80 80 140 60 C200 80 240 200 240 380 Z" fill="#ffffff" stroke="#1a1a1a" stroke-width="3"/>
+    <circle cx="140" cy="160" r="72" fill="#ffffff" stroke="#1a1a1a" stroke-width="3"/>
+    <ellipse cx="118" cy="150" rx="8" ry="10" fill="#1a1a1a"/>
+    <ellipse cx="162" cy="150" rx="8" ry="10" fill="#1a1a1a"/>
+    <path d="M120 178 Q140 198 160 178" stroke="#1a1a1a" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <circle cx="140" cy="230" r="36" fill="#ffffff" stroke="#1a1a1a" stroke-width="2.5"/>
+    <text x="140" y="242" text-anchor="middle" font-family="system-ui,sans-serif" font-size="22" font-weight="800" fill="#1a1a1a">Ch</text>
+    <path d="M200 320 L260 260 L280 340 Z" fill="#ffffff" stroke="#1a1a1a" stroke-width="2.5" stroke-linejoin="round"/>
+  </g>
+  <path d="M620 720 L640 680 L660 720 L650 700 L670 700 Z" fill="#ffffff" opacity="0.95" stroke="#1a1a1a" stroke-width="1.5"/>
+</svg>
