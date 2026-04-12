@@ -27,7 +27,7 @@ function lessonTitleToType(title: string, lessonType: string): ClassDisplayType 
 }
 
 const visualByType: Record<ClassDisplayType, { bg: string; text: string }> = {
-  Урок: { bg: "#1a1a1a", text: "#ffffff" },
+  Урок: { bg: "#d8d9e0", text: "#1a1a1a" },
   Тест: { bg: "#f4c4c4", text: "#1a1a1a" }
 }
 

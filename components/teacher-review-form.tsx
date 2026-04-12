@@ -23,7 +23,7 @@ export function TeacherReviewFormBlock({
   const [hint, setHint] = useState<string | null>(null)
 
   return (
-    <div className="mt-6 rounded-[var(--ds-radius-lg)] border border-black/[0.08] bg-[var(--ds-neutral-row)] p-5 dark:border-white/10 dark:bg-[var(--ds-neutral-row)]">
+    <div className="mt-6 rounded-[var(--ds-radius-lg)] bg-[var(--ds-neutral-row)] p-5 dark:bg-[var(--ds-neutral-row)]">
       <h3 className="text-[16px] font-semibold text-ds-ink dark:text-white">{t("mentor.reviewFormTitle")}</h3>
       <p className="mt-1 text-[12px] text-ds-text-tertiary">{t("mentor.reviewFormNote")}</p>
 

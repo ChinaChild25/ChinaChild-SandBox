@@ -23,7 +23,7 @@ import { useUiLocale } from "@/lib/ui-locale"
 import { cn } from "@/lib/utils"
 
 const mentorShell =
-  "rounded-[28px] bg-white p-5 md:p-8 dark:border dark:border-white/10 dark:bg-[#141414]"
+  "rounded-[28px] bg-[#f0f0f2] p-5 md:p-8 dark:bg-[#141414]"
 const mentorCardRadius = "rounded-[24px]"
 const actionRadius = "rounded-[var(--ds-radius-md)]"
 
@@ -147,7 +147,7 @@ function CuratorPageBody({ mentor, t }: { mentor: MentorProfile; t: (k: string, 
         <section
           className={cn(
             mentorCardRadius,
-            "border border-indigo-200/90 bg-gradient-to-br from-[#eef1ff] to-[#f4f6ff] p-6 dark:border-indigo-500/25 dark:from-[#1a1f33] dark:to-[#141824] md:p-8"
+            "bg-gradient-to-br from-[#e8ecff] to-[#eef1ff] p-6 dark:from-[#1a1f33] dark:to-[#141824] md:p-8"
           )}
         >
           <div className="mb-3 flex items-center gap-2 text-[18px] font-semibold text-indigo-950 dark:text-indigo-100">
@@ -161,7 +161,7 @@ function CuratorPageBody({ mentor, t }: { mentor: MentorProfile; t: (k: string, 
           <section
             className={cn(
               mentorCardRadius,
-              "border border-indigo-100 bg-white p-6 shadow-[0_1px_0_rgb(0_0_0/0.04)] dark:border-white/10 dark:bg-[#1a1a1f] md:p-8"
+              "bg-[#e8e8ec] p-6 dark:bg-[#1a1a1f] md:p-8"
             )}
           >
             <h2 className="text-[18px] font-semibold text-ds-ink dark:text-white">{t("mentor.curatorHelpTitle")}</h2>
@@ -181,7 +181,7 @@ function CuratorPageBody({ mentor, t }: { mentor: MentorProfile; t: (k: string, 
         <section
           className={cn(
             mentorCardRadius,
-            "border border-dashed border-indigo-200/70 bg-[#fafbff] p-6 dark:border-indigo-500/20 dark:bg-[#16161c] md:p-8"
+            "bg-[#e4e6ef] p-6 dark:bg-[#16161c] md:p-8"
           )}
         >
           <h2 className="text-[16px] font-semibold text-ds-ink dark:text-white">{t("mentor.curatorCredentialsTitle")}</h2>
@@ -193,7 +193,7 @@ function CuratorPageBody({ mentor, t }: { mentor: MentorProfile; t: (k: string, 
         <section
           className={cn(
             mentorCardRadius,
-            "border-2 border-indigo-200/80 bg-indigo-50/40 p-6 dark:border-indigo-400/25 dark:bg-indigo-950/25 md:p-7"
+            "bg-indigo-100/90 p-6 dark:bg-indigo-950/35 md:p-7"
           )}
         >
           <h2 className="text-[17px] font-semibold text-indigo-950 dark:text-indigo-100">{t("mentor.curatorContactTitle")}</h2>
@@ -229,7 +229,7 @@ function CuratorPageBody({ mentor, t }: { mentor: MentorProfile; t: (k: string, 
         <section
           className={cn(
             mentorCardRadius,
-            "border border-indigo-100 bg-white p-6 dark:border-white/10 dark:bg-[#1e1e24] md:p-7"
+            "bg-[#e8e8ec] p-6 dark:bg-[#1e1e24] md:p-7"
           )}
         >
           <div className="mb-4 flex items-center gap-2 text-[17px] font-semibold text-ds-ink dark:text-white">
@@ -253,7 +253,7 @@ function CuratorPageBody({ mentor, t }: { mentor: MentorProfile; t: (k: string, 
           <section
             className={cn(
               mentorCardRadius,
-              "bg-[#fce8ec] p-6 dark:border dark:border-white/10 dark:bg-[#2d2426] md:p-7"
+              "bg-[#fce8ec] p-6 dark:bg-[#2d2426] md:p-7"
             )}
           >
             <div className="mb-4 flex items-center gap-2 text-[17px] font-semibold text-ds-ink dark:text-white">
@@ -388,7 +388,7 @@ function TeacherPageBody({ mentor, t }: { mentor: MentorProfile; t: (k: string, 
           <section
             className={cn(
               mentorCardRadius,
-              "bg-[#fce8ec] p-6 dark:border dark:border-white/10 dark:bg-[#2d2426] md:p-7"
+              "bg-[#fce8ec] p-6 dark:bg-[#2d2426] md:p-7"
             )}
           >
             <div className="mb-4 flex items-center gap-2 text-[17px] font-semibold text-ds-ink dark:text-white">

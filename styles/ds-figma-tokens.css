@@ -297,6 +297,78 @@ html:not(.dark)[data-ui-accent="orange"] {
   --ds-sage-hover: #9e4f14;
 }
 
+/**
+ * Тёмная тема — те же акценты, что в светлой: тонированный холст/сайдбар и яркие
+ * --ds-sage-strong/--ds-sage-hover для ссылок и плашек (читаемый контраст).
+ */
+html.dark[data-ui-accent="sage"] {
+  --ds-canvas: #0b0f0a;
+  --ds-sidebar: #151c13;
+  --ds-sidebar-hover: #243320;
+  --ds-panel-muted: #1a2218;
+  --ds-surface-muted: #131a11;
+  --ds-sage: #2a3826;
+  --ds-sage-strong: #a3c968;
+  --ds-sage-hover: #c4e085;
+  --ds-pink: #2a3826;
+  --ds-pink-strong: #a3c968;
+  --accent: #243320;
+  --accent-foreground: #e8f2e4;
+  --sidebar-accent: #243320;
+  --sidebar-accent-foreground: #e8f2e4;
+}
+
+html.dark[data-ui-accent="pink"] {
+  --ds-canvas: #100c0d;
+  --ds-sidebar: #1f1618;
+  --ds-sidebar-hover: #322428;
+  --ds-panel-muted: #241a1d;
+  --ds-surface-muted: #161012;
+  --ds-sage: #3a282c;
+  --ds-sage-strong: #e88787;
+  --ds-sage-hover: #f0a8a8;
+  --ds-pink: #3a282c;
+  --ds-pink-strong: #e88787;
+  --accent: #322428;
+  --accent-foreground: #fce8e8;
+  --sidebar-accent: #322428;
+  --sidebar-accent-foreground: #fce8e8;
+}
+
+html.dark[data-ui-accent="blue"] {
+  --ds-canvas: #090d12;
+  --ds-sidebar: #141b26;
+  --ds-sidebar-hover: #1c2636;
+  --ds-panel-muted: #182030;
+  --ds-surface-muted: #0f141c;
+  --ds-sage: #1e2d40;
+  --ds-sage-strong: #7eb0e8;
+  --ds-sage-hover: #9ec8f5;
+  --ds-pink: #1e2d40;
+  --ds-pink-strong: #7eb0e8;
+  --accent: #1c2636;
+  --accent-foreground: #e4eef8;
+  --sidebar-accent: #1c2636;
+  --sidebar-accent-foreground: #e4eef8;
+}
+
+html.dark[data-ui-accent="orange"] {
+  --ds-canvas: #0e0c09;
+  --ds-sidebar: #1c1610;
+  --ds-sidebar-hover: #2e2418;
+  --ds-panel-muted: #221a12;
+  --ds-surface-muted: #15120d;
+  --ds-sage: #3d3020;
+  --ds-sage-strong: #e8994a;
+  --ds-sage-hover: #f0b06a;
+  --ds-pink: #3d3020;
+  --ds-pink-strong: #e8994a;
+  --accent: #2e2418;
+  --accent-foreground: #f8eee4;
+  --sidebar-accent: #2e2418;
+  --sidebar-accent-foreground: #f8eee4;
+}
+
 @layer components {
   /* —— App после логина: на весь экран, без рамки и без «карточки» с отступами от края viewport —— */
   .ds-figma-shell-outer {
@@ -2369,12 +2441,12 @@ html:not(.dark)[data-ui-accent="orange"] {
   }
 
   .ds-schedule-slot--lesson {
-    background-color: var(--ds-ink);
-    color: #ffffff;
+    background-color: #e2e3e8;
+    color: var(--ds-ink);
   }
 
   .dark .ds-schedule-slot--lesson {
-    background-color: #3f3f46;
+    background-color: #52525b;
     color: #fafafa;
   }
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { ArrowRight, ChevronRight, ClipboardList, Star, TrendingUp } from "lucide-react"
@@ -51,6 +51,15 @@ export default function DashboardPage() {
   const calendarMonthTitle = useMemo(
     () =>
       new Date(FIGMA_CALENDAR.year, 3, 1).toLocaleDateString(localeToBcp47(locale), {
+        month: "long"
+      }),
+    [locale]
+  )
+
+  const upcomingLessonHeading = useCallback(
+    (dayOfMonth: number) =>
+      new Date(FIGMA_CALENDAR.year, 3, dayOfMonth).toLocaleDateString(localeToBcp47(locale), {
+        day: "numeric",
         month: "long"
       }),
     [locale]
@@ -141,20 +150,17 @@ export default function DashboardPage() {
                 <li key={lesson.id}>
                   <Link
                     href={lesson.href}
-                    className="group flex items-center gap-4 no-underline"
+                    className="group flex items-center gap-4 rounded-[var(--ds-radius-xl)] px-3 py-2 -mx-3 no-underline transition-colors duration-150 hover:bg-black/[0.06] dark:hover:bg-white/[0.07]"
                   >
-                    <div
-                      className="flex h-[92px] w-[92px] shrink-0 flex-col items-center justify-center rounded-full text-center sm:h-[104px] sm:w-[104px]"
-                      style={{ backgroundColor: lesson.bgColor, color: lesson.textColor }}
-                    >
-                      <span className="mb-1 text-[30px] font-normal leading-none sm:mb-1.5 sm:text-[36px]">
+                    <div className="flex h-[92px] w-[92px] shrink-0 flex-col items-center justify-center rounded-full border-0 bg-[var(--ds-sage)] text-center text-ds-ink sm:h-[104px] sm:w-[104px] dark:text-white">
+                      <span className="mb-1 text-[30px] font-normal leading-none tabular-nums sm:mb-1.5 sm:text-[36px]">
                         {lesson.date}
                       </span>
-                      <span className="text-[12px] leading-tight sm:text-[13px]">{lesson.time}</span>
+                      <span className="text-[12px] leading-tight opacity-90 sm:text-[13px]">{lesson.time}</span>
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="mb-1 text-[17px] font-normal leading-snug text-ds-ink sm:text-[20px] sm:leading-none">
-                        {lesson.title}
+                        {upcomingLessonHeading(lesson.date)}
                       </p>
                       <p className="flex items-center gap-2 text-[13px] text-[#666] dark:text-[var(--ds-text-secondary)]">
                         <span className="truncate">{lesson.description}</span>

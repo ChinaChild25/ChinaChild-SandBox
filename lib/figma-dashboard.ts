@@ -26,50 +26,35 @@ export const FIGMA_UPCOMING_LESSONS = [
     id: "figma-1",
     date: 7,
     time: "19:00–20:00",
-    title: "Урок №10",
     description: "Числа на китайском. Как использовать 是.",
-    bgColor: "#1a1a1a",
-    textColor: "#ffffff",
     href: "/hsk1-tema10" as const
   },
   {
     id: "figma-2",
     date: 11,
     time: "19:00–20:00",
-    title: "Урок №11",
     description: "Повседневный распорядок и время суток.",
-    bgColor: "#1a1a1a",
-    textColor: "#ffffff",
     href: "/hsk1-tema11" as const
   },
   {
     id: "figma-3",
     date: 14,
     time: "19:00–20:00",
-    title: "Урок №12",
     description: "Транспорт и дорога до школы.",
-    bgColor: "#1a1a1a",
-    textColor: "#ffffff",
     href: "/hsk1-tema12" as const
   },
   {
     id: "figma-4",
     date: 18,
     time: "19:00–20:00",
-    title: "Урок №13",
     description: "Цвета и простые описания.",
-    bgColor: "#1a1a1a",
-    textColor: "#ffffff",
     href: "/hsk1-tema13" as const
   },
   {
     id: "figma-5",
     date: 21,
     time: "19:00–20:00",
-    title: "Урок №14",
     description: "Одежда и погода.",
-    bgColor: "#1a1a1a",
-    textColor: "#ffffff",
     href: "/hsk1-tema14" as const
   }
 ] as const

@@ -50,7 +50,7 @@ export const UI_MESSAGES: Record<UiLocale, Record<string, string>> = {
     "settings.themeDark": "Тёмная",
     "settings.accent": "Акцентный цвет",
     "settings.accentHelp":
-      "В светлой теме меняет фон сайдбара и холста и подстраивает «фирменные» плашки, переключатели и акцентные ссылки (тот же оттенок, что у плиток прогресса и оценок). В тёмной теме выбор сохраняется и применится при возврате к светлой.",
+      "Меняет оттенок сайдбара, холста и акцентные цвета интерфейса (плашки, переключатели, ссылки — в том же ключе, что плитки прогресса и оценок). Работает и в светлой, и в тёмной теме; оттенки в тёмной теме подобраны так, чтобы текст оставался читаемым.",
     "settings.notifications": "Уведомления",
     "settings.notificationsHelp":
       "Переключатели сохраняются на устройстве и сразу влияют на интерфейс: счётчик «Сообщения», блок прогресса HSK, напоминание на странице оценок и блок новостей на главной.",
@@ -193,7 +193,7 @@ export const UI_MESSAGES: Record<UiLocale, Record<string, string>> = {
     "settings.themeDark": "Dark",
     "settings.accent": "Accent color",
     "settings.accentHelp":
-      "In light mode, changes the sidebar and canvas tint and matches branded cards, toggles, and accent links (same hue as progress and grade tiles). In dark mode your choice is saved and applies when you switch back to light.",
+      "Tints the sidebar, canvas, and accent UI (cards, toggles, links — same family as progress and grade tiles). Works in both light and dark mode; dark variants keep text and shapes readable.",
     "settings.notifications": "Notifications",
     "settings.notificationsHelp":
       "These toggles are stored on your device and affect the interface right away: the Messages badge, the HSK progress block, reminders on the grades page, and the news banner on the home screen.",
@@ -336,7 +336,7 @@ export const UI_MESSAGES: Record<UiLocale, Record<string, string>> = {
     "settings.themeDark": "深色",
     "settings.accent": "强调色",
     "settings.accentHelp":
-      "在浅色模式下会改变侧栏与画布色调，并统一品牌卡片、开关与强调链接（与进度、成绩卡片同色）。深色模式下选择会保存，切回浅色时生效。",
+      "调整侧栏、画布与界面强调色（卡片、开关、链接，与进度和成绩卡片同色系）。浅色与深色模式均生效，深色下的配色保证文字与区块清晰可辨。",
     "settings.notifications": "通知",
     "settings.notificationsHelp":
       "这些开关保存在本机并立即影响界面：消息角标、HSK 进度块、成绩页提醒以及首页新闻条。",
