@@ -8,10 +8,16 @@ import { SCHEDULE_DEFAULT_TEACHER } from "@/lib/schedule-lessons"
 export type HskBand = "HSK 1" | "HSK 2" | "HSK 3" | "HSK 4"
 
 export type TeacherStudentMock = {
+  /** Демо-id в URL `/teacher/students/:id`, не UUID Supabase. */
   id: string
   name: string
   avatar: string
   group: string
+  /**
+   * Реальный `public.profiles.id` ученика в Supabase — тогда на карточке появится кнопка «Написать».
+   * Оставьте пустым для чисто демо-учеников.
+   */
+  chatProfileId?: string
   homeworks: { done: number; total: number }
   attendance: { done: number; total: number }
   tests: { score: number; max: number }
@@ -52,6 +58,8 @@ function seedAprilMonFri(prefix: string, days: number[]): ScheduledLesson[] {
 export const TEACHER_STUDENTS_MOCK: TeacherStudentMock[] = [
   {
     id: "user-1",
+    /** Совпадает с закреплением в БД (profiles.assigned_teacher_id). */
+    chatProfileId: "92bba875-b74e-4836-be1c-9d5aecb574f9",
     name: "Яна",
     avatar: "/students/yana.png",
     group: "HSK2 · вечер",

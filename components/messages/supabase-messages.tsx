@@ -63,7 +63,7 @@ export function SupabaseMessages({ initialConversationId }: SupabaseMessagesProp
 
   useEffect(() => {
     void refreshList()
-  }, [refreshList])
+  }, [refreshList, initialConversationId])
 
   useEffect(() => {
     const mq = window.matchMedia(`(min-width: ${CHAT_BREAKPOINT}px)`)

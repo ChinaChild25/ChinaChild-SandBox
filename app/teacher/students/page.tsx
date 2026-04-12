@@ -19,10 +19,19 @@ export default function TeacherStudentsPage() {
         </nav>
 
         <header className="mb-2">
-          <h1 className="text-[28px] font-bold leading-tight text-ds-ink sm:text-[36px]">Журнал учеников</h1>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <h1 className="text-[28px] font-bold leading-tight text-ds-ink sm:text-[36px]">Журнал учеников</h1>
+            <Link
+              href="/teacher/messages"
+              className="shrink-0 rounded-[var(--ds-radius-md)] border border-black/10 bg-white px-4 py-2.5 text-[14px] font-semibold text-ds-ink no-underline transition-colors hover:bg-ds-surface-hover dark:border-white/15 dark:bg-ds-surface dark:hover:bg-white/5"
+            >
+              Написать ученику
+            </Link>
+          </div>
           <p className="mt-2 max-w-[52rem] text-[15px] leading-relaxed text-[var(--ds-text-secondary)]">
             Карточки группы: цели HSK, посещаемость и ближайшие слоты. Переносы из кабинета ученика подтягиваются в
-            расписание (демо через локальное хранилище).
+            расписание (демо через локальное хранилище). Кнопка «Написать» на карточке появится, если в данных ученика
+            задан <code className="text-[13px]">chatProfileId</code> (UUID из Supabase).
           </p>
         </header>
 

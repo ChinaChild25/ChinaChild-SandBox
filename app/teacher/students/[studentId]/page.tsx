@@ -6,6 +6,7 @@ import { useParams } from "next/navigation"
 import { ArrowLeft, CalendarDays } from "lucide-react"
 import { getUpcomingLessonsDisplay } from "@/lib/teacher-schedule-display"
 import { getTeacherStudentById } from "@/lib/teacher-students-mock"
+import { StartChatWithStudentButton } from "@/components/teacher/start-chat-with-student-button"
 
 export default function TeacherStudentDetailPage() {
   const params = useParams()
@@ -52,13 +53,16 @@ export default function TeacherStudentDetailPage() {
               <div className="min-w-0 flex-1">
                 <h1 className="text-[32px] font-bold leading-tight text-ds-ink sm:text-[38px]">{s.name}</h1>
                 <p className="mt-1 text-[16px] text-ds-text-secondary">{s.group}</p>
-                <div className="mt-4 flex flex-wrap gap-3 text-[15px]">
+                <div className="mt-4 flex flex-wrap items-center gap-3 text-[15px]">
                   <span className="rounded-full bg-ds-sage/35 px-4 py-1.5 font-semibold text-ds-ink dark:bg-ds-sage/20">
                     Цель: {s.hskTarget}
                   </span>
                   <span className="rounded-full bg-[var(--ds-neutral-row)] px-4 py-1.5 text-ds-text-secondary dark:bg-white/10">
                     Уровень: {s.levelLabel}
                   </span>
+                  {s.chatProfileId ? (
+                    <StartChatWithStudentButton studentProfileId={s.chatProfileId} className="rounded-full" />
+                  ) : null}
                 </div>
                 <div className="mt-5 grid max-w-xl grid-cols-3 gap-3 sm:gap-4">
                   <div className="rounded-2xl bg-[var(--ds-neutral-row)] p-4 dark:bg-white/[0.06]">
