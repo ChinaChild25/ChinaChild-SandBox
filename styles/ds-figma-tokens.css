@@ -426,6 +426,10 @@ html.dark[data-ui-accent="orange"] {
     color: inherit;
   }
 
+  /**
+   * Сайдбар — строго нейтральный серый (--ds-neutral-chrome), без тонирования data-ui-accent
+   * (акцент меняет --ds-sidebar и холст, но не колонку навигации).
+   */
   .ds-figma-shell-sidebar {
     display: none;
     width: 280px;
@@ -436,11 +440,12 @@ html.dark[data-ui-accent="orange"] {
     min-height: 100%;
     overflow-x: hidden;
     overflow-y: auto;
-    background-color: var(--ds-sidebar);
+    background-color: var(--ds-neutral-chrome);
     /* Как v0: px-7 pt-7 по сути — отступы зоны лого и навигации */
     padding: 28px 28px 24px;
     border-radius: 0;
     border: none;
+    box-shadow: none;
   }
 
   @media (min-width: 1024px) {
@@ -453,10 +458,6 @@ html.dark[data-ui-accent="orange"] {
       border-radius: 0 var(--ds-sidebar-radius-right) var(--ds-sidebar-radius-right) 0;
       padding-top: max(28px, env(safe-area-inset-top));
     }
-  }
-
-  .dark .ds-figma-shell-sidebar {
-    background-color: var(--ds-sidebar);
   }
 
   .ds-figma-shell-main {
@@ -1892,13 +1893,13 @@ html.dark[data-ui-accent="orange"] {
     }
   }
 
-  /* Секции: тот же серый, что у сайдбара (--ds-sidebar); поля светлее карточки */
+  /* Секции настроек: тот же нейтральный серый, что сайдбар; без теней; акцент не тонирует */
   .ds-settings-panel {
     border-radius: 28px;
     border: none;
-    background-color: var(--ds-sidebar);
+    background-color: var(--ds-neutral-chrome);
     padding: 1.25rem 1.25rem 1.5rem;
-    box-shadow: 0 2px 14px rgb(0 0 0 / 0.045);
+    box-shadow: none;
   }
 
   @media (min-width: 768px) {
@@ -1916,10 +1917,6 @@ html.dark[data-ui-accent="orange"] {
       margin-bottom: var(--ds-space-4);
       font-size: 1.05rem;
     }
-  }
-
-  .dark .ds-settings-panel {
-    box-shadow: 0 12px 40px rgb(0 0 0 / 0.35);
   }
 
   /* —— Оплата: варианты карточек (светлая / тёмная тема), без обводки —— */
