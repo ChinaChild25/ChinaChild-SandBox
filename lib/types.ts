@@ -2,6 +2,10 @@ export interface User {
   id: string
   email: string
   name: string
+  /** Slug закреплённого куратора (`mentorsBySlug`) */
+  assignedCuratorSlug: string
+  /** Slug закреплённого преподавателя (`mentorsBySlug`) */
+  assignedTeacherSlug: string
   /** Телефон в профиле (настройки) */
   phone?: string
   /** Подзаголовок под именем, напр. «студентка 1 степени» */

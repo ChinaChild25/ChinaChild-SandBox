@@ -3,6 +3,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useEffect, useState } from "react"
 import {
   LayoutGrid,
   GraduationCap,
@@ -20,12 +21,17 @@ import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { ChinaChildSidebarLogo } from "@/components/brand-logo"
 import { FIGMA_STUDENT_AVATAR } from "@/lib/figma-dashboard"
+import { getMessagesUnreadTotal } from "@/lib/messages-conversations"
+import {
+  readNotificationPreferences,
+  subscribeNotificationPreferences,
+  type NotificationPreferences
+} from "@/lib/notification-preferences"
 
 type NavItem = {
   href: string
   label: string
   icon: LucideIcon
-  badge?: string
 }
 
 const navItems: NavItem[] = [
@@ -33,7 +39,7 @@ const navItems: NavItem[] = [
   { href: "/classes", label: "Занятия", icon: GraduationCap },
   { href: "/progress", label: "Мои оценки", icon: Award },
   { href: "/schedule", label: "Расписание", icon: CalendarDays },
-  { href: "/messages", label: "Сообщения", icon: Mail, badge: "7" },
+  { href: "/messages", label: "Сообщения", icon: Mail },
   { href: "/courses", label: "Мои курсы", icon: BookOpen },
   { href: "/settings", label: "Настройки", icon: Settings }
 ]
@@ -41,6 +47,16 @@ const navItems: NavItem[] = [
 export function AppSidebar() {
   const pathname = usePathname()
   const { user, logout } = useAuth()
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(readNotificationPreferences)
+
+  useEffect(() => {
+    setNotifPrefs(readNotificationPreferences())
+    return subscribeNotificationPreferences(() => setNotifPrefs(readNotificationPreferences()))
+  }, [])
+
+  const messagesUnread = getMessagesUnreadTotal()
+  const messagesBadge =
+    notifPrefs.messages && messagesUnread > 0 ? String(messagesUnread) : undefined
 
   const levelLabel = {
     Beginner: "1 степени",
@@ -101,7 +117,7 @@ export function AppSidebar() {
             >
               <item.icon size={20} strokeWidth={2} aria-hidden />
               <span className="flex-1">{item.label}</span>
-              {item.badge ? (
+              {item.href === "/messages" && messagesBadge ? (
                 <span
                   className={cn(
                     "flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-bold",
@@ -110,7 +126,7 @@ export function AppSidebar() {
                       : "bg-ds-ink text-white dark:bg-[#e8e8e8] dark:text-[#141414]"
                   )}
                 >
-                  {item.badge}
+                  {messagesBadge}
                 </span>
               ) : null}
             </Link>
@@ -118,25 +134,27 @@ export function AppSidebar() {
         })}
       </nav>
 
-      <Link
-        href="/courses"
-        className="mt-4 flex flex-col gap-2 rounded-[20px] bg-ds-sage p-4 no-underline text-ds-ink transition-opacity hover:opacity-95"
-      >
-        <div className="text-[14px] font-semibold">HSK 1 — Прогресс</div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-white/50">
-          <div className="h-full w-[37%] rounded-full bg-[#5a7c3a]" />
-        </div>
-        <div className="flex items-center gap-1 text-[13px] font-medium text-ds-ink/80">
-          <span>37%</span>
-          <ChevronRight className="h-4 w-4" aria-hidden />
-        </div>
-      </Link>
+      {notifPrefs.lessons ? (
+        <Link
+          href="/courses"
+          className="mt-4 flex flex-col gap-2 rounded-[20px] bg-ds-sage p-4 no-underline text-ds-ink transition-opacity hover:opacity-95"
+        >
+          <div className="text-[14px] font-semibold">HSK 1 — Прогресс</div>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-white/50">
+            <div className="h-full w-[37%] rounded-full bg-[#5a7c3a]" />
+          </div>
+          <div className="flex items-center gap-1 text-[13px] font-medium text-ds-ink/80">
+            <span>37%</span>
+            <ChevronRight className="h-4 w-4" aria-hidden />
+          </div>
+        </Link>
+      ) : null}
 
       <div className="mt-6 border-t border-black/10 pt-4 dark:border-white/12">
         <Button
           variant="outline"
           onClick={logout}
-          className="w-full justify-start rounded-2xl border-black/15 bg-white/80 py-6 text-[15px] font-medium text-ds-ink hover:bg-white dark:border-white/15 dark:bg-[#262626] dark:text-ds-ink dark:hover:bg-[#333333]"
+          className="w-full justify-start rounded-2xl bg-white py-6 text-[15px] font-medium text-ds-ink shadow-none transition-colors hover:bg-ds-surface-hover dark:bg-[#262626] dark:text-ds-ink dark:hover:bg-[#333333]"
         >
           <LogOut className="mr-2 h-4 w-4" aria-hidden />
           Выйти

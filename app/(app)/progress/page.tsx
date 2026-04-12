@@ -1,7 +1,13 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { Award, Target, TrendingUp } from "lucide-react"
+import {
+  readNotificationPreferences,
+  subscribeNotificationPreferences,
+  type NotificationPreferences
+} from "@/lib/notification-preferences"
 
 const gradesData = [
   { subject: "Тема №1 — Пиньинь, базовые штрихи", date: "15 фев", score: 98, maxScore: 100, type: "ДЗ" },
@@ -23,6 +29,12 @@ function scoreColor(score: number) {
 
 export default function ProgressPage() {
   const [filter, setFilter] = useState<"all" | "homework" | "test">("all")
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(readNotificationPreferences)
+
+  useEffect(() => {
+    setNotifPrefs(readNotificationPreferences())
+    return subscribeNotificationPreferences(() => setNotifPrefs(readNotificationPreferences()))
+  }, [])
 
   const filtered = useMemo(
     () =>
@@ -81,6 +93,16 @@ export default function ProgressPage() {
             </div>
           </div>
         </div>
+
+        {!notifPrefs.homework ? (
+          <div className="mb-6 rounded-[24px] border border-black/[0.08] bg-ds-surface-muted px-4 py-3 text-[14px] text-ds-text-secondary dark:border-white/10">
+            Напоминания о дедлайнах домашних заданий отключены в{" "}
+            <Link href="/settings" className="font-medium text-ds-ink underline-offset-2 hover:underline dark:text-white">
+              настройках
+            </Link>
+            .
+          </div>
+        ) : null}
 
         <div className="mb-5 flex flex-wrap gap-2">
           {(

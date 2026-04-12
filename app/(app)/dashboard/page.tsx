@@ -1,20 +1,31 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { ArrowRight, ChevronRight, ClipboardList, Star, TrendingUp } from "lucide-react"
 
 import { useAuth } from "@/lib/auth-context"
 import {
-  FIGMA_CALENDAR,
-  FIGMA_DASHBOARD_LESSONS,
-  FIGMA_TEACHERS
-} from "@/lib/figma-dashboard"
+  readNotificationPreferences,
+  subscribeNotificationPreferences,
+  type NotificationPreferences
+} from "@/lib/notification-preferences"
+import { TelegramIcon, telegramProfileUrl } from "@/components/telegram-icon"
+import { FIGMA_CALENDAR, FIGMA_DASHBOARD_LESSONS } from "@/lib/figma-dashboard"
+import { curatorAndTeacherForUser } from "@/lib/student-staff"
 
 const weekdays = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"] as const
 
 export default function DashboardPage() {
   const { user } = useAuth()
+  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(readNotificationPreferences)
+
+  useEffect(() => {
+    setNotifPrefs(readNotificationPreferences())
+    return subscribeNotificationPreferences(() => setNotifPrefs(readNotificationPreferences()))
+  }, [])
+
   const dashboardStats = user?.dashboardStats ?? {
     attendedLessons: 9,
     lessonGoal: 48,
@@ -22,6 +33,10 @@ export default function DashboardPage() {
     homeworkGoal: 48,
     averageScore: 93
   }
+
+  const { curator, teacher, curatorSlug, teacherSlug } = user
+    ? curatorAndTeacherForUser(user)
+    : curatorAndTeacherForUser(null)
 
   const calendarDays = Array.from({ length: 30 }, (_, i) => {
     const day = i + 1
@@ -35,6 +50,15 @@ export default function DashboardPage() {
   return (
     <div className="ds-figma-page">
       <div className="ds-dashboard-page flex flex-col">
+        {notifPrefs.news ? (
+          <aside className="mb-6 rounded-[var(--ds-radius-xl)] border border-black/[0.06] bg-ds-sage/35 px-4 py-3 text-[14px] text-ds-ink dark:border-white/10 dark:bg-ds-sage/20 dark:text-white">
+            <span className="font-semibold">Новости и акции.</span>{" "}
+            <span className="text-ds-text-secondary dark:text-white/80">
+              Скидка 10% на следующий модуль при оплате до конца месяца — уточняйте у куратора.
+            </span>
+          </aside>
+        ) : null}
+
         {/* Три карточки статистики — иконки + ссылки как в макете */}
         <div className="ds-stat-grid">
           <Link
@@ -190,19 +214,24 @@ export default function DashboardPage() {
             </div>
 
             <div>
-              <h3 className="mb-3 text-[17px] font-semibold leading-none text-ds-ink">Мои преподаватели</h3>
-              <ul className="flex flex-col gap-3 p-0 list-none">
-                {FIGMA_TEACHERS.map((t) => (
-                  <li key={t.slug}>
-                    <div className="flex items-center gap-3">
+              <h3 className="mb-3 text-[17px] font-semibold leading-none text-ds-ink">Куратор и преподаватель</h3>
+              <ul className="flex flex-col gap-4 p-0 list-none">
+                {(
+                  [
+                    { slug: curatorSlug, m: curator, kind: "Куратор" as const },
+                    { slug: teacherSlug, m: teacher, kind: "Преподаватель" as const }
+                  ] as const
+                ).map(({ slug, m, kind }) => (
+                  <li key={slug}>
+                    <div className="flex items-center gap-2 sm:gap-3">
                       <Link
-                        href={`/mentors/${t.slug}`}
+                        href={`/mentors/${slug}`}
                         className="flex min-w-0 flex-1 items-center gap-3 no-underline"
                       >
                         <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-gray-200 dark:bg-neutral-700">
                           <Image
-                            src={t.photo}
-                            alt={t.name}
+                            src={m.photo}
+                            alt={m.name}
                             fill
                             className="object-cover"
                             sizes="56px"
@@ -210,13 +239,25 @@ export default function DashboardPage() {
                           />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="mb-0.5 text-[18px] font-semibold leading-none text-ds-ink">{t.name}</div>
-                          <div className="text-[13px] text-[#666] dark:text-[var(--ds-text-secondary)]">{t.role}</div>
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-[#888] dark:text-ds-text-tertiary">
+                            {kind}
+                          </div>
+                          <div className="mb-0.5 text-[18px] font-semibold leading-none text-ds-ink">{m.name}</div>
+                          <div className="text-[13px] text-[#666] dark:text-[var(--ds-text-secondary)]">{m.role}</div>
                         </div>
                       </Link>
+                      <a
+                        href={telegramProfileUrl(m.telegramUsername)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="grid h-10 w-10 shrink-0 place-content-center rounded-[var(--ds-radius-md)] bg-[#2AABEE]/12 text-[#229ED9] transition-colors hover:bg-[#2AABEE]/20 dark:bg-[#2AABEE]/20 dark:text-[#54bdeb]"
+                        aria-label={`Написать в Telegram: @${m.telegramUsername}`}
+                      >
+                        <TelegramIcon className="h-[22px] w-[22px]" />
+                      </a>
                       <Link
-                        href={`/messages?mentor=${t.slug}`}
-                        className="flex shrink-0 items-center gap-1 rounded-[var(--ds-radius-md)] border border-[#e8e8e8] bg-white px-3 py-2 text-[13px] font-medium text-ds-ink no-underline transition-colors hover:bg-[#f5f5f5] dark:border-white/15 dark:bg-ds-surface dark:hover:bg-white/5"
+                        href={`/messages?mentor=${slug}`}
+                        className="flex shrink-0 items-center gap-1 rounded-[var(--ds-radius-md)] bg-white px-3 py-2 text-[13px] font-medium text-ds-ink no-underline shadow-none transition-colors hover:bg-ds-surface-hover dark:bg-ds-surface dark:hover:bg-white/5"
                       >
                         Написать
                         <ChevronRight className="h-4 w-4 opacity-60" aria-hidden />

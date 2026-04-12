@@ -51,7 +51,7 @@ export default function AppLayout({
                 <Button
                   variant="outline"
                   size="icon"
-                  className="rounded-2xl border-black/15 bg-white dark:border-white/20 dark:bg-[#262626]"
+                  className="rounded-2xl bg-white shadow-none transition-colors hover:bg-ds-surface-hover dark:bg-[#262626] dark:hover:bg-[#333333]"
                   aria-label="Открыть меню"
                 >
                   <Menu className="h-5 w-5" />

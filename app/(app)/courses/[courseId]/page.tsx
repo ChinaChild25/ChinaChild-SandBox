@@ -220,7 +220,7 @@ export default function CourseDetailsPage() {
           </Link>
           <Link
             href="/progress"
-            className="inline-flex flex-1 items-center justify-center rounded-[var(--ds-radius-md)] border border-black/12 bg-white px-4 py-3 text-ds-body-sm font-medium text-ds-ink hover:bg-ds-surface-hover sm:min-w-[200px]"
+            className="inline-flex flex-1 items-center justify-center rounded-[var(--ds-radius-md)] bg-white px-4 py-3 text-ds-body-sm font-medium text-ds-ink shadow-none transition-colors hover:bg-ds-surface-hover dark:bg-ds-surface dark:hover:bg-white/5 sm:min-w-[200px]"
           >
             Материалы и отчёты (PDF)
           </Link>

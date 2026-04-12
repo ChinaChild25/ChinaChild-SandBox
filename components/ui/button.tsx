@@ -13,7 +13,7 @@ const buttonVariants = cva(
         default: 'bg-ds-ink text-white hover:opacity-92',
         destructive: 'bg-destructive text-white hover:opacity-92',
         outline:
-          'border border-black/10 bg-white text-ds-ink hover:bg-ds-surface-hover',
+          'bg-white text-ds-ink shadow-none hover:bg-ds-surface-hover dark:bg-ds-surface dark:hover:bg-white/5',
         secondary: 'bg-ds-sidebar text-ds-ink hover:bg-ds-sidebar-hover',
         ghost: 'text-ds-ink hover:bg-ds-surface-hover',
         link: 'rounded-none text-ds-sage-strong underline-offset-4 hover:text-ds-sage-hover hover:underline',

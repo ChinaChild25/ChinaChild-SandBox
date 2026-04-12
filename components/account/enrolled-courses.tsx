@@ -24,7 +24,7 @@ export function EnrolledCourses() {
             variant="outline" 
             size="sm" 
             asChild 
-            className="rounded-lg border-border hover:bg-foreground hover:text-background hover:border-foreground"
+            className="rounded-lg"
           >
             <Link href="/dashboard/courses">
               Browse More

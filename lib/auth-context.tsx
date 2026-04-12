@@ -57,6 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         id: `user-${Date.now()}`,
         name,
         email,
+        assignedCuratorSlug: mockUser.assignedCuratorSlug,
+        assignedTeacherSlug: mockUser.assignedTeacherSlug,
         dashboardStats: {
           attendedLessons: 0,
           lessonGoal: 48,

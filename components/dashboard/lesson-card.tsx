@@ -69,7 +69,7 @@ export function LessonCard({ lesson }: LessonCardProps) {
           <Button 
             size="sm" 
             variant="outline" 
-            className="shrink-0 rounded-lg h-9 px-4 border-border hover:bg-foreground hover:text-background hover:border-foreground transition-colors"
+            className="shrink-0 rounded-lg h-9 px-4"
           >
             {lesson.type === "Live" ? "Join" : "Start"}
           </Button>

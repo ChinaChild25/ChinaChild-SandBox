@@ -14,6 +14,10 @@ export type MentorScheduleSlot = {
 export type MentorProfile = {
   slug: string
   name: string
+  /** Куратор и преподаватель — разные сущности для ученика */
+  staffKind: "curator" | "teacher"
+  /** Логин Telegram без @ (ссылка https://t.me/…) */
+  telegramUsername: string
   /** Короткая роль (чаты, списки) */
   role: string
   /** Подзаголовок под именем, напр. «Куратор группы · Преподаватель» */
@@ -32,6 +36,12 @@ export type MentorProfile = {
   subjects: string[]
   languages: string[]
   scheduleSlots: MentorScheduleSlot[]
+  /** Карточка «Ваша группа» (как на макете профиля) */
+  group?: {
+    name: string
+    description: string
+    ctaHref: string
+  }
 }
 
 /** Профили как на макетах Figma (Чэнь Мэйлин / Ли Вэй) */
@@ -39,6 +49,8 @@ export const mentorsBySlug: Record<string, MentorProfile> = {
   "eo-mi-ran": {
     slug: "eo-mi-ran",
     name: FIGMA_TEACHERS[0].name,
+    staffKind: "curator",
+    telegramUsername: "chinachild_curator_demo",
     role: FIGMA_TEACHERS[0].role,
     titleLine: "Куратор группы · Преподаватель",
     initials: "ЧМ",
@@ -70,11 +82,18 @@ export const mentorsBySlug: Record<string, MentorProfile> = {
       { day: "Вторник", time: "16:00–18:00" },
       { day: "Четверг", time: "18:00–20:00" },
       { day: "Суббота", time: "11:00–13:00" }
-    ]
+    ],
+    group: {
+      name: "Группа HSK1",
+      description: "Утренние занятия по понедельникам и средам. Материалы и домашние задания — в разделе «Занятия».",
+      ctaHref: "/classes"
+    }
   },
   "kim-ji-hun": {
     slug: "kim-ji-hun",
     name: FIGMA_TEACHERS[1].name,
+    staffKind: "teacher",
+    telegramUsername: "chinachild_teacher_demo",
     role: FIGMA_TEACHERS[1].role,
     titleLine: "Преподаватель · Методист",
     initials: "ЛВ",
@@ -106,7 +125,12 @@ export const mentorsBySlug: Record<string, MentorProfile> = {
       { day: "Понедельник", time: "10:00–12:00" },
       { day: "Пятница", time: "14:00–16:00" },
       { day: "Суббота", time: "09:00–11:00" }
-    ]
+    ],
+    group: {
+      name: "Группа HSK2",
+      description: "Вечерние слоты, упор на аудирование и лексику по учебнику.",
+      ctaHref: "/classes"
+    }
   }
 }
 

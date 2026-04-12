@@ -1,7 +1,8 @@
 import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { ArrowLeft, BookOpen, CalendarDays, MessageCircle, Star } from "lucide-react"
+import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, MessageCircle, Star, Users } from "lucide-react"
+import { TelegramIcon, telegramProfileUrl } from "@/components/telegram-icon"
 import { cn } from "@/lib/utils"
 import { mentorsBySlug, mentorSlugs } from "@/lib/mentors"
 
@@ -26,6 +27,11 @@ function ReviewStars({ count }: { count: number }) {
   )
 }
 
+const mentorShell =
+  "rounded-[28px] bg-white p-5 md:p-8 dark:border dark:border-white/10 dark:bg-[#141414]"
+const mentorCardRadius = "rounded-[24px]"
+const squirclePhoto = "rounded-[28px]"
+
 export default async function MentorPage({ params }: Props) {
   const { slug } = await params
   const mentor = mentorsBySlug[slug]
@@ -40,7 +46,7 @@ export default async function MentorPage({ params }: Props) {
 
   return (
     <div className="ds-figma-page">
-      <div className="rounded-[28px] bg-[#f5f5f5] p-5 md:p-8 dark:bg-ds-surface-muted">
+      <div className={mentorShell}>
         <Link
           href="/dashboard"
           className="mb-6 inline-flex items-center gap-1.5 text-[15px] font-medium text-[#737373] no-underline transition-colors hover:text-ds-ink dark:text-ds-text-tertiary"
@@ -49,9 +55,13 @@ export default async function MentorPage({ params }: Props) {
           Назад
         </Link>
 
-        {/* Шапка профиля */}
         <header className="flex flex-col gap-8 md:flex-row md:items-start">
-          <div className="relative mx-auto h-[160px] w-[160px] shrink-0 overflow-hidden rounded-full bg-white ring-2 ring-white shadow-sm md:mx-0 md:h-[176px] md:w-[176px]">
+          <div
+            className={cn(
+              "relative mx-auto h-[160px] w-[160px] shrink-0 overflow-hidden bg-[#f0f0f0] shadow-sm md:mx-0 md:h-[176px] md:w-[176px]",
+              squirclePhoto
+            )}
+          >
             <Image src={mentor.photo} alt={mentor.name} fill className="object-cover" sizes="176px" unoptimized />
           </div>
 
@@ -73,14 +83,23 @@ export default async function MentorPage({ params }: Props) {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center md:justify-start">
               <Link
                 href={`/messages?mentor=${mentor.slug}`}
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-[var(--ds-radius-md)] bg-black px-6 text-[15px] font-semibold text-white no-underline transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-black px-6 text-[15px] font-semibold text-white no-underline transition-opacity hover:opacity-90 dark:bg-white dark:text-black"
               >
                 <MessageCircle className="h-5 w-5" strokeWidth={2} aria-hidden />
-                Написать
+                Написать в чат
               </Link>
+              <a
+                href={telegramProfileUrl(mentor.telegramUsername)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#2AABEE] text-white no-underline shadow-none transition-opacity hover:opacity-90"
+                aria-label={`Telegram @${mentor.telegramUsername}`}
+              >
+                <TelegramIcon className="h-6 w-6 text-white" />
+              </a>
               <Link
                 href="/schedule"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-[var(--ds-radius-md)] border border-black/10 bg-white px-6 text-[15px] font-semibold text-ds-ink no-underline shadow-sm transition-colors hover:bg-[#fafafa] dark:border-white/15 dark:bg-ds-surface dark:hover:bg-white/5"
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#ebebeb] px-6 text-[15px] font-semibold text-ds-ink no-underline transition-colors hover:bg-[#e0e0e0] dark:bg-[#2a2a2a] dark:text-ds-ink dark:hover:bg-[#333333]"
               >
                 <CalendarDays className="h-5 w-5" strokeWidth={2} aria-hidden />
                 Расписание
@@ -89,29 +108,28 @@ export default async function MentorPage({ params }: Props) {
           </div>
         </header>
 
-        {/* Основная сетка: центр + правая колонка */}
         <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8">
           <div className="space-y-6 lg:col-span-7">
-            <section className="rounded-[24px] bg-white p-6 shadow-sm dark:border dark:border-white/10 dark:bg-ds-surface md:p-8">
-              <h2 className="text-[18px] font-semibold text-ds-ink">О преподавателе</h2>
-              <p className="mt-4 text-[15px] leading-[1.65] text-[#555] dark:text-ds-text-secondary">{mentor.about}</p>
+            <section className={cn(mentorCardRadius, "bg-[#e2f0d9] p-6 dark:bg-[#2d3d28] md:p-8")}>
+              <h2 className="text-[18px] font-semibold text-ds-ink dark:text-white">О преподавателе</h2>
+              <p className="mt-4 text-[15px] leading-[1.65] text-[#3d3d3d] dark:text-white/85">{mentor.about}</p>
             </section>
 
-            <section className="rounded-[24px] bg-white p-6 shadow-sm dark:border dark:border-white/10 dark:bg-ds-surface md:p-8">
-              <h2 className="text-[18px] font-semibold text-ds-ink">Образование</h2>
+            <section className={cn(mentorCardRadius, "bg-[#f5f5f5] p-6 dark:bg-[#1e1e1e] md:p-8")}>
+              <h2 className="text-[18px] font-semibold text-ds-ink dark:text-white">Образование</h2>
               <p className="mt-4 text-[15px] leading-relaxed text-[#555] dark:text-ds-text-secondary">{mentor.education}</p>
             </section>
 
-            <section className="rounded-[24px] bg-white p-6 shadow-sm dark:border dark:border-white/10 dark:bg-ds-surface md:p-8">
-              <h2 className="text-[18px] font-semibold text-ds-ink">Отзывы студентов</h2>
+            <section>
+              <h2 className="text-[18px] font-semibold text-ds-ink dark:text-white">Отзывы студентов</h2>
               <ul className="mt-5 space-y-4 p-0 list-none">
                 {mentor.reviews.map((r) => (
                   <li
                     key={r.author}
-                    className="rounded-[20px] border border-black/[0.06] bg-[#fafafa] p-5 dark:border-white/10 dark:bg-ds-surface-muted"
+                    className={cn(mentorCardRadius, "bg-[#f5f5f5] p-5 dark:bg-[#1e1e1e]")}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-[15px] font-semibold text-ds-ink">{r.author}</span>
+                      <span className="text-[15px] font-semibold text-ds-ink dark:text-white">{r.author}</span>
                       <ReviewStars count={r.stars} />
                     </div>
                     <p className="mt-3 text-[14px] leading-relaxed text-[#555] dark:text-ds-text-secondary">{r.text}</p>
@@ -122,7 +140,7 @@ export default async function MentorPage({ params }: Props) {
           </div>
 
           <div className="space-y-6 lg:col-span-5">
-            <section className="rounded-[24px] bg-[#e2f0d9] p-6 dark:bg-[#2d3d28] md:p-7">
+            <section className={cn(mentorCardRadius, "bg-[#e2f0d9] p-6 dark:bg-[#2d3d28] md:p-7")}>
               <div className="mb-4 flex items-center gap-2 text-[17px] font-semibold text-ds-ink dark:text-white">
                 <BookOpen className="h-5 w-5 shrink-0 opacity-80" aria-hidden />
                 Предметы
@@ -131,7 +149,7 @@ export default async function MentorPage({ params }: Props) {
                 {mentor.subjects.map((tag) => (
                   <span
                     key={tag}
-                    className="rounded-[var(--ds-radius-md)] bg-white px-3.5 py-2 text-[13px] font-medium text-ds-ink shadow-sm dark:bg-white/15 dark:text-white"
+                    className="rounded-full bg-white px-3.5 py-2 text-[13px] font-medium text-ds-ink shadow-none dark:bg-white/15 dark:text-white"
                   >
                     {tag}
                   </span>
@@ -139,8 +157,8 @@ export default async function MentorPage({ params }: Props) {
               </div>
             </section>
 
-            <section className="rounded-[24px] bg-white p-6 shadow-sm dark:border dark:border-white/10 dark:bg-ds-surface md:p-7">
-              <h2 className="text-[17px] font-semibold text-ds-ink">Языки преподавания</h2>
+            <section className={cn(mentorCardRadius, "bg-[#f5f5f5] p-6 dark:bg-[#1e1e1e] md:p-7")}>
+              <h2 className="text-[17px] font-semibold text-ds-ink dark:text-white">Языки преподавания</h2>
               <ul className="mt-4 space-y-2 pl-5 text-[15px] text-[#555] dark:text-ds-text-secondary [list-style-type:disc]">
                 {mentor.languages.map((lang) => (
                   <li key={lang}>{lang}</li>
@@ -148,20 +166,46 @@ export default async function MentorPage({ params }: Props) {
               </ul>
             </section>
 
-            <section className="overflow-hidden rounded-[24px] bg-[#1a1a1a] p-6 text-white md:p-7 dark:bg-[#0a0a0a]">
+            <section className={cn("overflow-hidden", mentorCardRadius, "bg-[#1a1a1a] p-6 text-white md:p-7 dark:bg-[#0a0a0a]")}>
               <div className="mb-5 flex items-center gap-2 text-[17px] font-semibold">
                 <CalendarDays className="h-5 w-5 shrink-0 text-white/90" aria-hidden />
                 Расписание занятий
               </div>
-              <ul className="divide-y divide-white/12 p-0 list-none">
+              <ul className="flex flex-col gap-2 p-0 list-none">
                 {mentor.scheduleSlots.map((row) => (
-                  <li key={`${row.day}-${row.time}`} className="flex items-center justify-between gap-4 py-3.5 first:pt-0">
+                  <li
+                    key={`${row.day}-${row.time}`}
+                    className="flex items-center justify-between gap-4 rounded-[var(--ds-radius-md)] bg-[#2c2c2c] px-4 py-3.5 dark:bg-white/[0.08]"
+                  >
                     <span className="text-[15px] font-medium text-white/95">{row.day}</span>
                     <span className="text-[15px] tabular-nums text-white/75">{row.time}</span>
                   </li>
                 ))}
               </ul>
             </section>
+
+            {mentor.group ? (
+              <section
+                className={cn(
+                  mentorCardRadius,
+                  "bg-[#fce8ec] p-6 dark:border dark:border-white/10 dark:bg-[#2d2426] md:p-7"
+                )}
+              >
+                <div className="mb-4 flex items-center gap-2 text-[17px] font-semibold text-ds-ink dark:text-white">
+                  <Users className="h-5 w-5 shrink-0 opacity-80" aria-hidden />
+                  Ваша группа
+                </div>
+                <p className="text-[15px] font-semibold text-ds-ink dark:text-white">{mentor.group.name}</p>
+                <p className="mt-2 text-[14px] leading-relaxed text-[#5c5c5c] dark:text-white/75">{mentor.group.description}</p>
+                <Link
+                  href={mentor.group.ctaHref}
+                  className="mt-4 inline-flex items-center gap-1 text-[14px] font-semibold text-[#5a7c3a] no-underline transition-opacity hover:opacity-80 dark:text-[#b8d97a]"
+                >
+                  Перейти к занятиям
+                  <ArrowRight className="h-4 w-4" aria-hidden />
+                </Link>
+              </section>
+            ) : null}
           </div>
         </div>
       </div>
