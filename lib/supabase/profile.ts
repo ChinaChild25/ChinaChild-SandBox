@@ -24,12 +24,20 @@ function parseRole(raw: string): UserRole | null {
   return null
 }
 
-function displayNameFromProfile(profile: ProfileRow, email: string | null): string {
+/** Для UI (чат, списки), без привязки к auth user. */
+export function displayNameFromProfileFields(
+  profile: Pick<ProfileRow, "first_name" | "last_name" | "full_name">,
+  emailFallback?: string | null
+): string {
   const fn = profile.first_name?.trim() ?? ""
   const ln = profile.last_name?.trim() ?? ""
   const combined = [fn, ln].filter(Boolean).join(" ").trim()
   const full = profile.full_name?.trim() ?? ""
-  return full || combined || email?.split("@")[0] || "Пользователь"
+  return full || combined || emailFallback?.split("@")[0] || "Пользователь"
+}
+
+function displayNameFromProfile(profile: ProfileRow, email: string | null): string {
+  return displayNameFromProfileFields(profile, email)
 }
 
 export function mapProfileRowToAppUser(profile: ProfileRow, email: string | null): User {

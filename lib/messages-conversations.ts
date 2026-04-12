@@ -1,4 +1,5 @@
 import { mentorsBySlug } from "@/lib/mentors"
+import { isSupabaseConfigured } from "@/lib/supabase/config"
 
 export type ChatMessage = { from: "me" | "them"; text: string; time: string }
 
@@ -68,5 +69,6 @@ function buildConversations(): Conversation[] {
 export const MESSAGES_CONVERSATIONS: Conversation[] = buildConversations()
 
 export function getMessagesUnreadTotal(): number {
+  if (isSupabaseConfigured()) return 0
   return MESSAGES_CONVERSATIONS.reduce((s, c) => s + c.unread, 0)
 }

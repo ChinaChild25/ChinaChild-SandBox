@@ -3,15 +3,21 @@
 import { Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { MessagesView } from "@/components/messages/messages-view"
+import { SupabaseMessages } from "@/components/messages/supabase-messages"
+import { useAuth } from "@/lib/auth-context"
 import { MESSAGES_CONVERSATIONS } from "@/lib/messages-conversations"
 
 function MessagesPageInner() {
   const searchParams = useSearchParams()
   const mentorParam = searchParams.get("mentor")
+  const conversationParam = searchParams.get("conversation")
+  const { usesSupabase } = useAuth()
 
-  return (
-    <MessagesView conversations={MESSAGES_CONVERSATIONS} initialMentorId={mentorParam} />
-  )
+  if (usesSupabase) {
+    return <SupabaseMessages initialConversationId={conversationParam} />
+  }
+
+  return <MessagesView conversations={MESSAGES_CONVERSATIONS} initialMentorId={mentorParam} />
 }
 
 export default function MessagesPage() {
