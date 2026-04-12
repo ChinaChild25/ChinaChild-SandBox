@@ -58,7 +58,7 @@ export function CourseDetailContent({
             </h1>
             <Link
               href={coursesListHref}
-              className="mt-4 inline-flex rounded-[var(--ds-radius-md)] bg-ds-ink px-4 py-2 text-ds-body-sm font-medium text-white transition-opacity hover:opacity-90"
+              className="mt-4 inline-flex rounded-[var(--ds-radius-md)] bg-ds-ink px-4 py-2 text-ds-body-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-[#1a1a1a] dark:hover:opacity-95"
             >
               Вернуться к курсам
             </Link>
@@ -131,7 +131,7 @@ export function CourseDetailContent({
             const href = `/${lesson.slug}`
 
             const rowClass = active
-              ? "cursor-pointer bg-ds-ink text-white"
+              ? "cursor-pointer bg-ds-ink text-white dark:bg-white dark:text-[#1a1a1a]"
               : done
                 ? "cursor-pointer bg-[var(--ds-neutral-row)] hover:bg-[var(--ds-neutral-row-hover)]"
                 : locked
@@ -149,36 +149,42 @@ export function CourseDetailContent({
                     </div>
                   ) : isTest ? (
                     <FileText
-                      className={`h-[22px] w-[22px] ${active ? "text-white" : "text-ds-text-tertiary"}`}
+                      className={`h-[22px] w-[22px] ${active ? "text-white dark:text-[#1a1a1a]" : "text-ds-text-tertiary"}`}
                       aria-hidden
                     />
                   ) : locked ? (
                     <Lock className="h-[18px] w-[18px] text-ds-chevron" aria-hidden />
                   ) : (
                     <PlayCircle
-                      className={`h-[22px] w-[22px] ${active ? "text-white" : "text-ds-text-tertiary"}`}
+                      className={`h-[22px] w-[22px] ${active ? "text-white dark:text-[#1a1a1a]" : "text-ds-text-tertiary"}`}
                       aria-hidden
                     />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className={`text-ds-body leading-tight ${active ? "text-white" : "text-ds-ink"}`}>
+                  <p
+                    className={`text-ds-body leading-tight ${active ? "text-white dark:text-[#1a1a1a]" : "text-ds-ink"}`}
+                  >
                     {lesson.title}
                   </p>
                   {isDiagnostic ? (
-                    <p className={`mt-0.5 text-ds-sm ${active ? "text-white/70" : "text-ds-text-tertiary"}`}>
+                    <p
+                      className={`mt-0.5 text-ds-sm ${active ? "text-white/70 dark:text-neutral-600" : "text-ds-text-tertiary"}`}
+                    >
                       Полный диагностический тест
                     </p>
                   ) : null}
                   {isTest && !isDiagnostic ? (
-                    <p className={`mt-0.5 text-ds-sm ${active ? "text-white/70" : "text-ds-text-tertiary"}`}>
+                    <p
+                      className={`mt-0.5 text-ds-sm ${active ? "text-white/70 dark:text-neutral-600" : "text-ds-text-tertiary"}`}
+                    >
                       Вариант теста
                     </p>
                   ) : null}
                 </div>
                 {!locked ? (
                   <ChevronRight
-                    className={`h-5 w-5 shrink-0 ${active ? "text-white" : "text-ds-chevron"}`}
+                    className={`h-5 w-5 shrink-0 ${active ? "text-white dark:text-[#1a1a1a]" : "text-ds-chevron"}`}
                     aria-hidden
                   />
                 ) : null}
@@ -211,7 +217,7 @@ export function CourseDetailContent({
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <Link
             href={`/${course.lessons[0]?.slug ?? "hsk1-tema1"}`}
-            className="inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--ds-radius-md)] bg-ds-ink px-4 py-3 text-ds-body-sm font-medium text-white transition-opacity hover:opacity-90 sm:min-w-[200px]"
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-[var(--ds-radius-md)] bg-ds-ink px-4 py-3 text-ds-body-sm font-medium text-white transition-opacity hover:opacity-90 dark:bg-white dark:text-[#1a1a1a] dark:hover:opacity-95 sm:min-w-[200px]"
           >
             Начать с первой темы
           </Link>
