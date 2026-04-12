@@ -275,7 +275,30 @@ export async function loadMyConversationList(
     })
   }
 
-  return { items: sortConversationListItems(items), error: null, authUserId: myUserId }
+  /** Одна строка на собеседника: в БД могли остаться два uuid после старых гонок. */
+  const byPeer = new Map<string, ConversationListItem>()
+  for (const row of items) {
+    const pid = row.peer.id
+    const prev = byPeer.get(pid)
+    if (!prev) {
+      byPeer.set(pid, row)
+      continue
+    }
+    const prevMsg = prev.lastMessageAt ? Date.parse(prev.lastMessageAt) : 0
+    const curMsg = row.lastMessageAt ? Date.parse(row.lastMessageAt) : 0
+    if (curMsg > prevMsg) {
+      byPeer.set(pid, row)
+      continue
+    }
+    if (curMsg === prevMsg) {
+      const prevCreated = Date.parse(prev.conversationCreatedAt) || 0
+      const curCreated = Date.parse(row.conversationCreatedAt) || 0
+      if (curCreated >= prevCreated) byPeer.set(pid, row)
+    }
+  }
+  const deduped = [...byPeer.values()]
+
+  return { items: sortConversationListItems(deduped), error: null, authUserId: myUserId }
 }
 
 type ProfileStudentPickerRow = Pick<PeerProfileRow, "id" | "first_name" | "last_name" | "full_name"> & {
@@ -440,72 +463,8 @@ export async function sendChatMessage(
 export type ConversationIdResult = { conversationId: string } | { error: string }
 
 /**
- * Ищет беседу, где оба пользователя уже в `conversation_participants`.
- * Два запроса: список id у текущего пользователя, затем пересечение с peer.
- */
-async function findConversationBetweenUsers(
-  supabase: SupabaseClient,
-  currentUserId: string,
-  peerId: string
-): Promise<{ conversationId: string | null; error: string | null }> {
-  const { data: mine, error: e1 } = await supabase
-    .from("conversation_participants")
-    .select("conversation_id")
-    .eq("user_id", currentUserId)
-
-  if (e1) return { conversationId: null, error: e1.message }
-
-  const myConvIds = [...new Set((mine ?? []).map((r) => (r as ConversationParticipant).conversation_id))]
-  if (myConvIds.length === 0) return { conversationId: null, error: null }
-
-  const { data: overlap, error: e2 } = await supabase
-    .from("conversation_participants")
-    .select("conversation_id")
-    .eq("user_id", peerId)
-    .in("conversation_id", myConvIds)
-    .limit(1)
-
-  if (e2) return { conversationId: null, error: e2.message }
-
-  const row = overlap?.[0] as ConversationParticipant | undefined
-  return { conversationId: row?.conversation_id ?? null, error: null }
-}
-
-/** Создаёт новую беседу и двух участников (без поиска существующей). */
-async function insertDirectConversation(
-  supabase: SupabaseClient,
-  currentUserId: string,
-  peerId: string
-): Promise<ConversationIdResult> {
-  // Только id: RLS SELECT должен разрешать created_by до вставки участников (см. миграцию view own conversations).
-  const { data: conv, error: cErr } = await supabase
-    .from("conversations")
-    .insert({ created_by: currentUserId })
-    .select("id")
-    .single()
-
-  if (cErr || !conv) return { error: cErr?.message ?? "Не удалось создать беседу." }
-
-  const conversationId = (conv as Pick<Conversation, "id">).id
-
-  const { error: p1 } = await supabase.from("conversation_participants").insert({
-    conversation_id: conversationId,
-    user_id: currentUserId
-  })
-  if (p1) return { error: p1.message }
-
-  const { error: p2 } = await supabase.from("conversation_participants").insert({
-    conversation_id: conversationId,
-    user_id: peerId
-  })
-  if (p2) return { error: p2.message }
-
-  return { conversationId }
-}
-
-/**
- * Возвращает существующий диалог между двумя пользователями или создаёт новый
- * (`created_by` = текущий пользователь, оба участника в `conversation_participants`).
+ * Атомарно: один диалог на пару (см. `get_or_create_direct_conversation` в миграции).
+ * Раньше два последовательных запроса + insert давали второй uuid при гонке.
  */
 export async function getOrCreateConversation(
   supabase: SupabaseClient,
@@ -514,15 +473,16 @@ export async function getOrCreateConversation(
 ): Promise<ConversationIdResult> {
   if (currentUserId === peerId) return { error: "Нельзя создать чат с самим собой." }
 
-  const { conversationId: existing, error: findErr } = await findConversationBetweenUsers(
-    supabase,
-    currentUserId,
-    peerId
-  )
-  if (findErr) return { error: findErr }
-  if (existing) return { conversationId: existing }
+  const { data, error } = await supabase.rpc("get_or_create_direct_conversation", {
+    p_peer_id: peerId
+  })
 
-  return insertDirectConversation(supabase, currentUserId, peerId)
+  if (error) return { error: error.message }
+  if (data == null || typeof data !== "string") {
+    return { error: "Не удалось получить id беседы." }
+  }
+
+  return { conversationId: data }
 }
 
 export function conversationPeerTitle(peer: ChatProfileSnippet): string {
