@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { ArrowRight, Bell, BookOpen, GraduationCap, Users } from "lucide-react"
 import { readTeacherFeed, subscribeTeacherFeed, type TeacherFeedItem } from "@/lib/teacher-schedule-sync"
-import { TEACHER_STUDENTS_MOCK } from "@/lib/teacher-students-mock"
+import { TEACHER_STUDENTS_ACTIVE } from "@/lib/teacher-students-mock"
 
 export default function TeacherDashboardPage() {
   const [feed, setFeed] = useState<TeacherFeedItem[]>([])
@@ -54,7 +54,7 @@ export default function TeacherDashboardPage() {
             <Users className="mb-4 h-9 w-9 text-ds-ink opacity-85" aria-hidden />
             <div className="text-[19px] font-semibold text-ds-ink">Ученики</div>
             <div className="mt-2 text-[14px] leading-snug text-ds-text-secondary">
-              Журнал: {TEACHER_STUDENTS_MOCK.length} человек, карточки и расписание по каждому
+              Журнал: {TEACHER_STUDENTS_ACTIVE.length} ученик, карточка и расписание по связке с Supabase
             </div>
             <span className="mt-4 inline-flex items-center gap-1 text-[14px] font-medium text-ds-ink">
               Открыть

@@ -267,6 +267,17 @@ export const TEACHER_STUDENTS_MOCK: TeacherStudentMock[] = [
   }
 ]
 
+/** Боевой список: только ученики, реально связанные с чатом (chatProfileId из Supabase). */
+export const TEACHER_STUDENTS_ACTIVE = TEACHER_STUDENTS_MOCK.filter((s) => {
+  const id = s.chatProfileId?.trim()
+  return Boolean(id)
+})
+
 export function getTeacherStudentById(id: string): TeacherStudentMock | undefined {
   return TEACHER_STUDENTS_MOCK.find((s) => s.id === id)
+}
+
+export function getTeacherStudentByChatProfileId(chatProfileId: string): TeacherStudentMock | undefined {
+  const q = chatProfileId.trim()
+  return TEACHER_STUDENTS_MOCK.find((s) => (s.chatProfileId?.trim() ?? "") === q)
 }

@@ -8,19 +8,19 @@ import { useAuth } from "@/lib/auth-context"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import { hydrateTeacherStudentsFromProfiles } from "@/lib/supabase/teacher-student-cards"
 import { getUpcomingLessonsDisplay } from "@/lib/teacher-schedule-display"
-import { TEACHER_STUDENTS_MOCK, type TeacherStudentMock } from "@/lib/teacher-students-mock"
+import { TEACHER_STUDENTS_ACTIVE, type TeacherStudentMock } from "@/lib/teacher-students-mock"
 
 export default function TeacherStudentsPage() {
   const { usesSupabase } = useAuth()
-  const [students, setStudents] = useState<TeacherStudentMock[]>(TEACHER_STUDENTS_MOCK)
+  const [students, setStudents] = useState<TeacherStudentMock[]>(TEACHER_STUDENTS_ACTIVE)
 
   useEffect(() => {
     if (!usesSupabase) {
-      setStudents(TEACHER_STUDENTS_MOCK)
+      setStudents(TEACHER_STUDENTS_ACTIVE)
       return
     }
     const supabase = createBrowserSupabaseClient()
-    void hydrateTeacherStudentsFromProfiles(supabase, TEACHER_STUDENTS_MOCK).then(setStudents)
+    void hydrateTeacherStudentsFromProfiles(supabase, TEACHER_STUDENTS_ACTIVE).then(setStudents)
   }, [usesSupabase])
 
   return (

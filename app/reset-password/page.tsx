@@ -110,7 +110,9 @@ export default function ResetPasswordPage() {
         if (authUser) {
           const pr = await fetchProfileForAuthUser(supabase, authUser)
           if (pr.ok) {
-            router.replace(pr.user.role === "teacher" ? "/teacher/dashboard" : "/dashboard")
+            router.replace(
+              pr.user.role === "teacher" || pr.user.role === "curator" ? "/teacher/dashboard" : "/dashboard"
+            )
             return
           }
         }

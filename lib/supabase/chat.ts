@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { FIGMA_TEACHERS } from "@/lib/figma-dashboard"
+import { getTeacherStudentByChatProfileId } from "@/lib/teacher-students-mock"
 import { displayNameFromProfileFields, type ProfileRow } from "@/lib/supabase/profile"
 
 const FALLBACK_TEACHER_AVATAR =
@@ -13,6 +14,8 @@ export type ChatProfileSnippet = Pick<
 /** Строка `public.conversations`. */
 export type Conversation = {
   id: string
+  type: "direct" | "group"
+  title: string | null
   created_by: string
   created_at: string
 }
@@ -21,6 +24,8 @@ export type Conversation = {
 export type ConversationParticipant = {
   conversation_id: string
   user_id: string
+  created_at?: string
+  added_by?: string | null
 }
 
 export type MessageRow = {
@@ -41,6 +46,8 @@ export type ConversationListPeer = {
 
 export type ConversationListItem = {
   id: string
+  type: "direct" | "group"
+  title: string
   peer: ConversationListPeer
   lastMessage: string
   lastMessageAt: string | null
@@ -74,6 +81,7 @@ function roleLabelRu(role: string): string {
   const r = role.trim().toLowerCase()
   if (r === "teacher") return "Преподаватель"
   if (r === "student") return "Ученик"
+  if (r === "curator") return "Куратор"
   return role
 }
 
@@ -177,8 +185,9 @@ export function chatBubbleFromMessageRow(
 }
 
 /**
- * Список чатов: getUser → участия → conversations → участники (без join) → отдельно profiles по id → превью сообщений.
- * Показываются только беседы ровно с двумя участниками (вы + ровно один собеседник).
+ * Список чатов: direct и group без предположения «ровно два участника».
+ * direct: показываем peer (первый участник не я).
+ * group: показываем conversations.title (fallback: «Групповой чат»).
  */
 export async function loadMyConversationList(
   supabase: SupabaseClient
@@ -266,11 +275,16 @@ export async function loadMyConversationList(
   }
 
   const convPeerEntries: { conversationId: string; peerUserId: string }[] = []
+  const groupConvIds: string[] = []
   for (const convId of allowedIds) {
+    const conv = convById.get(convId)
+    if (conv?.type === "group") {
+      groupConvIds.push(convId)
+      continue
+    }
     const rows = byConv.get(convId) ?? []
     const others = rows.filter((r) => r.user_id !== myUserId)
-    if (rows.length !== 2 || others.length !== 1) {
-      console.warn("[chat] skipping conversation with no peer", convId)
+    if (others.length < 1) {
       continue
     }
     convPeerEntries.push({ conversationId: convId, peerUserId: others[0].user_id })
@@ -304,6 +318,8 @@ export async function loadMyConversationList(
     const conv = convById.get(conversationId)
     items.push({
       id: conversationId,
+      type: "direct",
+      title: peer.name,
       peer,
       lastMessage: last?.content?.trim() ? last.content.trim() : "Нет сообщений",
       lastMessageAt: last?.created_at ?? null,
@@ -311,30 +327,28 @@ export async function loadMyConversationList(
     })
   }
 
-  /** Одна строка на собеседника: в БД могли остаться два uuid после старых гонок. */
-  const byPeer = new Map<string, ConversationListItem>()
-  for (const row of items) {
-    const pid = row.peer.id
-    const prev = byPeer.get(pid)
-    if (!prev) {
-      byPeer.set(pid, row)
-      continue
-    }
-    const prevMsg = prev.lastMessageAt ? Date.parse(prev.lastMessageAt) : 0
-    const curMsg = row.lastMessageAt ? Date.parse(row.lastMessageAt) : 0
-    if (curMsg > prevMsg) {
-      byPeer.set(pid, row)
-      continue
-    }
-    if (curMsg === prevMsg) {
-      const prevCreated = Date.parse(prev.conversationCreatedAt) || 0
-      const curCreated = Date.parse(row.conversationCreatedAt) || 0
-      if (curCreated >= prevCreated) byPeer.set(pid, row)
-    }
+  for (const convId of groupConvIds) {
+    const conv = convById.get(convId)
+    if (!conv) continue
+    const last = lastByConv.get(convId)
+    const title = conv.title?.trim() ? conv.title.trim() : "Групповой чат"
+    items.push({
+      id: convId,
+      type: "group",
+      title,
+      peer: {
+        id: `group-${convId}`,
+        name: title,
+        avatarUrl: null,
+        role: "group"
+      },
+      lastMessage: last?.content?.trim() ? last.content.trim() : "Нет сообщений",
+      lastMessageAt: last?.created_at ?? null,
+      conversationCreatedAt: conv.created_at ?? ""
+    })
   }
-  const deduped = [...byPeer.values()]
 
-  return { items: sortConversationListItems(deduped), error: null, authUserId: myUserId }
+  return { items: sortConversationListItems(items), error: null, authUserId: myUserId }
 }
 
 type ProfileStudentPickerRow = Pick<PeerProfileRow, "id" | "first_name" | "last_name" | "full_name"> & {
@@ -511,6 +525,119 @@ export async function getOrCreateConversation(
   return { conversationId: data }
 }
 
+export async function createDirectConversation(
+  supabase: SupabaseClient,
+  currentUserId: string,
+  peerId: string
+): Promise<ConversationIdResult> {
+  return getOrCreateConversation(supabase, currentUserId, peerId)
+}
+
+export async function createGroupConversation(
+  supabase: SupabaseClient,
+  params: { title: string; teacherId: string; studentIds: string[]; curatorIds?: string[] }
+): Promise<ConversationIdResult> {
+  if (!params.teacherId.trim()) return { error: "Не указан преподаватель." }
+  if (!params.title.trim()) return { error: "Укажите название группы." }
+  const { data, error } = await supabase.rpc("create_group_conversation", {
+    p_title: params.title.trim(),
+    p_student_ids: params.studentIds,
+    p_curator_ids: params.curatorIds ?? []
+  })
+  if (error) return { error: error.message }
+  if (!data || typeof data !== "string") return { error: "Не удалось создать групповой чат." }
+  return { conversationId: data }
+}
+
+export async function addParticipantsToConversation(
+  supabase: SupabaseClient,
+  conversationId: string,
+  userIds: string[]
+): Promise<{ added: number; error: Error | null }> {
+  const ids = [...new Set(userIds.map((x) => x.trim()).filter(Boolean))]
+  if (ids.length === 0) return { added: 0, error: null }
+  const { data, error } = await supabase.rpc("add_participants_to_group_conversation", {
+    p_conversation_id: conversationId,
+    p_user_ids: ids
+  })
+  if (error) return { added: 0, error: new Error(error.message) }
+  return { added: typeof data === "number" ? data : 0, error: null }
+}
+
+export async function removeParticipantFromConversation(
+  supabase: SupabaseClient,
+  conversationId: string,
+  userId: string
+): Promise<{ removed: boolean; error: Error | null }> {
+  const { data, error } = await supabase.rpc("remove_participant_from_group_conversation", {
+    p_conversation_id: conversationId,
+    p_user_id: userId
+  })
+  if (error) return { removed: false, error: new Error(error.message) }
+  return { removed: data === true, error: null }
+}
+
+export async function renameConversation(
+  supabase: SupabaseClient,
+  conversationId: string,
+  title: string
+): Promise<{ ok: boolean; error: Error | null }> {
+  const { data, error } = await supabase.rpc("rename_group_conversation", {
+    p_conversation_id: conversationId,
+    p_title: title
+  })
+  if (error) return { ok: false, error: new Error(error.message) }
+  return { ok: data === true, error: null }
+}
+
+export async function moveStudentToAnotherConversation(
+  supabase: SupabaseClient,
+  params: { studentId: string; fromConversationId: string; toConversationId: string }
+): Promise<{ ok: boolean; error: Error | null }> {
+  const { data, error } = await supabase.rpc("move_student_to_another_group_conversation", {
+    p_student_id: params.studentId,
+    p_from_conversation_id: params.fromConversationId,
+    p_to_conversation_id: params.toConversationId
+  })
+  if (error) return { ok: false, error: new Error(error.message) }
+  return { ok: data === true, error: null }
+}
+
+export type ConversationParticipantProfile = {
+  id: string
+  role: string
+  name: string
+  avatarUrl: string | null
+}
+
+export async function loadConversationParticipants(
+  supabase: SupabaseClient,
+  conversationId: string
+): Promise<{ participants: ConversationParticipantProfile[]; error: Error | null }> {
+  const { data: rows, error } = await supabase
+    .from("conversation_participants")
+    .select("user_id")
+    .eq("conversation_id", conversationId)
+  if (error) return { participants: [], error: new Error(error.message) }
+  const ids = [...new Set((rows ?? []).map((r) => (r as { user_id: string }).user_id))]
+  if (ids.length === 0) return { participants: [], error: null }
+  const { data: profiles, error: pErr } = await supabase
+    .from("profiles")
+    .select("id, first_name, last_name, full_name, avatar_url, role")
+    .in("id", ids)
+  if (pErr) return { participants: [], error: new Error(pErr.message) }
+  const participants = (profiles ?? []).map((p) => {
+    const row = p as PeerProfileRow
+    return {
+      id: row.id,
+      role: row.role,
+      name: displayNameFromProfileFields(row, null),
+      avatarUrl: row.avatar_url?.trim() || null
+    }
+  })
+  return { participants, error: null }
+}
+
 export function conversationPeerTitle(peer: ChatProfileSnippet): string {
   return displayNameFromProfileFields(peer, null)
 }
@@ -524,4 +651,18 @@ export function formatListPeerRole(role: string): string {
   const r = role.trim()
   if (!r) return ""
   return roleLabelRu(r)
+}
+
+export function chatPeerProfileHref(
+  currentRole: "student" | "teacher" | "curator",
+  peer: ConversationListPeer
+): string | null {
+  const peerRole = peer.role.trim().toLowerCase()
+  if (peerRole === "group") return null
+  if (currentRole === "student" && peerRole === "teacher") return "/mentors/zhao-li"
+  if ((currentRole === "teacher" || currentRole === "curator") && peerRole === "student") {
+    const mapped = getTeacherStudentByChatProfileId(peer.id)
+    return mapped ? `/teacher/students/${mapped.id}` : null
+  }
+  return null
 }

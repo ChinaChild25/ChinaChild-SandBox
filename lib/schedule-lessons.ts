@@ -1,6 +1,7 @@
 /** Модель переносимых занятий в расписании (демо + localStorage). Дата слота — dateKey YYYY-MM-DD. */
 
 import { getAppNow } from "@/lib/app-time"
+import { TEACHER_HOURLY_SLOTS } from "@/lib/teacher-schedule"
 
 export const SCHEDULE_DEFAULT_TEACHER = "Чжао Ли"
 
@@ -9,6 +10,7 @@ export const SCHEDULE_MONTH_APRIL = 3 // 0-based
 
 export const SCHEDULE_SLOT_TIMES = ["18:00", "19:00", "20:00"] as const
 export type ScheduleSlotTime = (typeof SCHEDULE_SLOT_TIMES)[number]
+export const TEACHER_SCHEDULE_SLOT_TIMES: string[] = TEACHER_HOURLY_SLOTS
 
 export type ScheduledLesson = {
   id: string
@@ -63,6 +65,25 @@ export function isValidRescheduleTargetSlot(dateKey: string, timeStr: string): b
   const start = parseLessonStart(dateKey, timeStr).getTime()
   const now = getAppNow().getTime()
   if (start <= now + MS_24H) return false
+  if (start > now + MS_7D) return false
+  return true
+}
+
+/**
+ * Преподаватель: перенос будущего занятия без требования «до начала > 24 ч».
+ */
+export function canTeacherRescheduleLesson(dateKey: string, timeStr: string): boolean {
+  const start = parseLessonStart(dateKey, timeStr)
+  return getAppNow().getTime() < start.getTime()
+}
+
+/**
+ * Новый слот для переноса преподавателем: строго в будущем, не позже чем через 7 суток от «сейчас».
+ */
+export function isValidTeacherRescheduleTargetSlot(dateKey: string, timeStr: string): boolean {
+  const start = parseLessonStart(dateKey, timeStr).getTime()
+  const now = getAppNow().getTime()
+  if (start <= now) return false
   if (start > now + MS_7D) return false
   return true
 }

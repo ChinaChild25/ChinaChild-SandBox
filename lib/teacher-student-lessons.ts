@@ -6,7 +6,7 @@ import {
 import { readTeacherMirrorLessons } from "@/lib/teacher-schedule-sync"
 import {
   getTeacherStudentById,
-  TEACHER_STUDENTS_MOCK,
+  TEACHER_STUDENTS_ACTIVE,
   type TeacherStudentMock
 } from "@/lib/teacher-students-mock"
 
@@ -31,7 +31,7 @@ export type TeacherCalendarEvent = {
 
 export function getAllTeacherCalendarEvents(): TeacherCalendarEvent[] {
   const out: TeacherCalendarEvent[] = []
-  for (const s of TEACHER_STUDENTS_MOCK) {
+  for (const s of TEACHER_STUDENTS_ACTIVE) {
     const lessons = getLessonsForTeacherView(s.id)
     for (const l of lessons) {
       out.push({

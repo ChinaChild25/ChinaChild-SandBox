@@ -19,7 +19,7 @@ export default function AppLayout({
   const { isAuthenticated, user } = useAuth()
   const { t } = useUiLocale()
 
-  const isTeacher = user?.role === "teacher"
+  const isTeacher = user?.role === "teacher" || user?.role === "curator"
   const teacherOnSharedContent = isTeacher && isTeacherSharedContentPath(pathname)
 
   useEffect(() => {

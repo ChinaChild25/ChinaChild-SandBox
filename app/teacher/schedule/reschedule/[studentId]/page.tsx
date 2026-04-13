@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useParams } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import {
@@ -22,28 +23,27 @@ import {
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/lib/auth-context"
+import { getAppTodayStart } from "@/lib/app-time"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import { isSupabaseConfigured } from "@/lib/supabase/config"
 import { loadStudentScheduleFromDb, saveStudentScheduleToDb } from "@/lib/supabase/schedule"
-import { getAppTodayStart } from "@/lib/app-time"
-import { mirrorStudentLessonsForTeacher, pushTeacherFeedItem } from "@/lib/teacher-schedule-sync"
-import { formatSlotLabel as formatTeacherSlotLabel } from "@/lib/teacher-schedule"
+import { hydrateTeacherStudentsFromProfiles } from "@/lib/supabase/teacher-student-cards"
 import {
-  buildInitialAprilLessons,
-  canRescheduleLesson,
+  canTeacherRescheduleLesson,
   dateKeyFromDate,
   findLessonAt,
   isLessonPastOrStarted,
-  isValidRescheduleTargetSlot,
+  isValidTeacherRescheduleTargetSlot,
   parseLessonStart,
-  readStoredLessons,
   SCHEDULE_DEFAULT_TEACHER,
   SCHEDULE_MONTH_APRIL,
-  SCHEDULE_SLOT_TIMES,
+  TEACHER_SCHEDULE_SLOT_TIMES,
   SCHEDULE_YEAR,
-  writeStoredLessons,
   type ScheduledLesson
 } from "@/lib/schedule-lessons"
+import { mirrorStudentLessonsForTeacher, pushTeacherFeedItem } from "@/lib/teacher-schedule-sync"
+import { getLessonsForTeacherView } from "@/lib/teacher-student-lessons"
+import { getTeacherStudentById, type TeacherStudentMock } from "@/lib/teacher-students-mock"
 
 function addDays(d: Date, n: number) {
   const x = new Date(d)
@@ -117,11 +117,30 @@ type PendingReschedule = {
   toTime: string
 }
 
-export default function SchedulePage() {
-  const { user } = useAuth()
+export default function TeacherRescheduleStudentPage() {
+  const params = useParams()
+  const studentId = typeof params.studentId === "string" ? params.studentId : ""
+  const { user, usesSupabase } = useAuth()
+
+  const [student, setStudent] = useState<TeacherStudentMock | undefined>(() =>
+    studentId ? getTeacherStudentById(studentId) : undefined
+  )
+
+  useEffect(() => {
+    setStudent(studentId ? getTeacherStudentById(studentId) : undefined)
+  }, [studentId])
+
+  useEffect(() => {
+    if (!usesSupabase) return
+    const base = studentId ? getTeacherStudentById(studentId) : undefined
+    if (!base?.chatProfileId) return
+    const supabase = createBrowserSupabaseClient()
+    void hydrateTeacherStudentsFromProfiles(supabase, [base]).then(([next]) => setStudent(next))
+  }, [usesSupabase, studentId])
+
   const [weekOffset, setWeekOffset] = useState(initialWeekOffset)
-  const [lessons, setLessons] = useState<ScheduledLesson[]>(buildInitialAprilLessons)
-  const [storageReady, setStorageReady] = useState(false)
+  const [lessons, setLessons] = useState<ScheduledLesson[]>([])
+  const [ready, setReady] = useState(false)
   const [dbReady, setDbReady] = useState(false)
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null)
   const [draggingLessonId, setDraggingLessonId] = useState<string | null>(null)
@@ -132,72 +151,68 @@ export default function SchedulePage() {
 
   const [blockedOpen, setBlockedOpen] = useState(false)
   const [blockedLessonTitle, setBlockedLessonTitle] = useState("")
-  const [blockedKind, setBlockedKind] = useState<"24h" | "window">("24h")
-  const [teacherFreeSlots, setTeacherFreeSlots] = useState<string[]>([])
 
   useEffect(() => {
+    setDbReady(false)
+    setReady(false)
+    if (!studentId) {
+      setLessons([])
+      setReady(true)
+      return
+    }
     let cancelled = false
     void (async () => {
-      const s = readStoredLessons()
-      if (s && !cancelled) setLessons(s)
-
-      if (isSupabaseConfigured() && user?.role === "student" && user.id) {
+      const base = getTeacherStudentById(studentId)
+      if (!base) {
+        if (!cancelled) {
+          setLessons([])
+          setReady(true)
+        }
+        return
+      }
+      let list = getLessonsForTeacherView(base.id)
+      const pid = base.chatProfileId?.trim()
+      if (isSupabaseConfigured() && pid) {
         try {
           const supabase = createBrowserSupabaseClient()
-          const { lessons: fromDb } = await loadStudentScheduleFromDb(supabase, user.id)
-          if (!cancelled && fromDb.length > 0) setLessons(fromDb)
+          const { lessons: fromDb } = await loadStudentScheduleFromDb(supabase, pid)
+          if (!cancelled && fromDb.length > 0) list = fromDb
         } catch {
-          /* fallback уже применён */
+          /* демо-расписание */
         }
       }
       if (!cancelled) {
-        setStorageReady(true)
+        setLessons(list)
+        setReady(true)
         setDbReady(true)
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [user])
+  }, [studentId])
+
+  const profileId = student?.chatProfileId?.trim()
 
   useEffect(() => {
-    if (!storageReady) return
-    writeStoredLessons(lessons)
-  }, [lessons, storageReady])
-
-  useEffect(() => {
-    if (!dbReady || !isSupabaseConfigured() || user?.role !== "student" || !user?.id) return
+    if (!dbReady || !isSupabaseConfigured() || !profileId) return
     const supabase = createBrowserSupabaseClient()
-    void saveStudentScheduleToDb(supabase, user.id, lessons)
-  }, [lessons, dbReady, user])
+    void saveStudentScheduleToDb(supabase, profileId, lessons)
+  }, [lessons, dbReady, profileId])
 
   useEffect(() => {
-    if (!storageReady || user?.role !== "student" || !user.id) return
-    mirrorStudentLessonsForTeacher(user.id, lessons)
-  }, [lessons, storageReady, user])
-
-  useEffect(() => {
-    if (user?.role !== "student") return
-    const now = new Date()
-    const to = new Date(now)
-    to.setDate(to.getDate() + 7)
-    void fetch(`/api/schedule?from=${encodeURIComponent(now.toISOString())}&to=${encodeURIComponent(to.toISOString())}`)
-      .then((r) => r.json())
-      .then((payload: { slots?: Array<{ slot_at: string }> }) => {
-        const sorted = (payload.slots ?? []).map((s) => s.slot_at).sort()
-        setTeacherFreeSlots(sorted)
-      })
-      .catch(() => setTeacherFreeSlots([]))
-  }, [user])
+    if (!ready || !studentId) return
+    if (profileId) mirrorStudentLessonsForTeacher(profileId, lessons)
+    else mirrorStudentLessonsForTeacher(studentId, lessons)
+  }, [lessons, ready, profileId, studentId])
 
   const { monday, cells } = useMemo(() => {
     const monday0 = addDays(FIRST_WEEK_MONDAY, weekOffset * 7)
-    const cells = weekDays.map((_, i) => addDays(monday0, i))
-    return { monday: monday0, cells }
+    const cells0 = weekDays.map((_, i) => addDays(monday0, i))
+    return { monday: monday0, cells: cells0 }
   }, [weekOffset])
 
   const today = useMemo(() => getAppTodayStart(), [])
-
   const weekTitle = formatWeekLabel(monday)
 
   const attemptMove = useCallback(
@@ -219,16 +234,12 @@ export default function SchedulePage() {
         return
       }
 
-      if (!canRescheduleLesson(lesson.dateKey, lesson.time)) {
-        setBlockedKind("24h")
-        setBlockedLessonTitle(`${lesson.title}, ${formatSlotLabel(lesson.dateKey, lesson.time)}`)
-        setBlockedOpen(true)
+      if (!canTeacherRescheduleLesson(lesson.dateKey, lesson.time)) {
         setSelectedLessonId(null)
         return
       }
 
-      if (!isValidRescheduleTargetSlot(toDateKey, toTime)) {
-        setBlockedKind("window")
+      if (!isValidTeacherRescheduleTargetSlot(toDateKey, toTime)) {
         setBlockedLessonTitle(`${lesson.title} → ${formatSlotLabel(toDateKey, toTime)}`)
         setBlockedOpen(true)
         setSelectedLessonId(null)
@@ -260,7 +271,7 @@ export default function SchedulePage() {
   const onSelectLesson = useCallback(
     (id: string) => {
       const lesson = lessons.find((l) => l.id === id)
-      if (!lesson || !canRescheduleLesson(lesson.dateKey, lesson.time)) return
+      if (!lesson || !canTeacherRescheduleLesson(lesson.dateKey, lesson.time)) return
       setSelectedLessonId((prev) => (prev === id ? null : id))
     },
     [lessons]
@@ -300,82 +311,103 @@ export default function SchedulePage() {
   }, [])
 
   const confirmReschedule = useCallback(() => {
-    if (!pending) return
+    if (!pending || !student) return
     const p = pending
     setLessons((prev) =>
       prev.map((l) => (l.id === p.lessonId ? { ...l, dateKey: p.toDateKey, time: p.toTime } : l))
     )
-    if (typeof window !== "undefined" && user?.role === "student" && user.id) {
-      pushTeacherFeedItem({
-        studentId: user.id,
-        studentName: user.name,
-        title: "Перенос занятия",
-        message: `${user.name}: ${formatSlotLabel(p.fromDateKey, p.fromTime)} → ${formatSlotLabel(p.toDateKey, p.toTime)}`
-      })
-    }
+    const feedStudentId = profileId ?? student.id
+    pushTeacherFeedItem({
+      studentId: feedStudentId,
+      studentName: student.name,
+      title: "Перенос занятия",
+      message: `${user?.name?.trim() ? `${user.name} (преподаватель)` : "Преподаватель"}: ${student.name} — ${formatSlotLabel(p.fromDateKey, p.fromTime)} → ${formatSlotLabel(p.toDateKey, p.toTime)}`
+    })
     setConfirmOpen(false)
     setPending(null)
     setSelectedLessonId(null)
     toast({
       title: "Занятие перенесено",
-      description: "Новое время сохранено в расписании (демо, только на этом устройстве)."
+      description: profileId
+        ? "Расписание ученика обновлено в базе."
+        : "Изменение сохранено локально (демо, без профиля Supabase)."
     })
-  }, [pending, user])
+  }, [pending, student, profileId, user?.name])
+
+  if (!studentId) {
+    return (
+      <div className="ds-figma-page">
+        <p className="text-ds-text-secondary">Не указан ученик.</p>
+        <Link href="/teacher/schedule" className="mt-4 inline-block text-ds-ink underline">
+          К расписанию
+        </Link>
+      </div>
+    )
+  }
+
+  if (!student) {
+    return (
+      <div className="ds-figma-page">
+        <p className="text-ds-text-secondary">Ученик не найден.</p>
+        <Link href="/teacher/schedule" className="mt-4 inline-block text-ds-ink underline">
+          К расписанию
+        </Link>
+      </div>
+    )
+  }
+
+  if (!ready) {
+    return (
+      <div className="ds-figma-page">
+        <p className="text-ds-text-secondary">Загрузка расписания…</p>
+      </div>
+    )
+  }
 
   return (
     <div className="ds-figma-page">
       <div className="mx-auto w-full max-w-[var(--ds-shell-max-width)]">
-        <div className="mb-6 sm:mb-7">
-          <h1 className="text-[28px] font-bold leading-tight text-ds-ink sm:text-[36px] sm:leading-none">
+        <nav className="mb-4 text-[14px] text-ds-text-tertiary">
+          <Link href="/teacher/dashboard" className="text-ds-text-secondary no-underline hover:underline">
+            Главная
+          </Link>
+          <span className="mx-1.5">→</span>
+          <Link href="/teacher/schedule" className="text-ds-text-secondary no-underline hover:underline">
             Расписание
-          </h1>
-          <p className="mt-1 text-[15px] text-[var(--ds-text-secondary)]">
-            Недельный календарь (месяцы идут подряд), слоты {SCHEDULE_SLOT_TIMES.join(", ")}. Преподаватель:{" "}
-            {SCHEDULE_DEFAULT_TEACHER}. Стартовые уроки в демо — по понедельникам и пятницам в апреле {SCHEDULE_YEAR}.
-          </p>
-          <p className="mt-1 text-[13px] text-ds-text-tertiary">
-            «Сегодня» в расписании — 12 апреля {SCHEDULE_YEAR}, время суток как на вашем устройстве. Прошедшие
-            занятия не переносятся. Перетащите урок на другой слот или выберите карточку, затем нажмите свободный
-            слот; при перетаскивании подходящие ячейки подсвечиваются зелёным. Перенос: только если до начала урока
-            больше 24 часов, и новое время не позже чем через 7 суток от текущего момента.
-          </p>
-          {user?.role === "student" ? (
-            <div className="mt-3 rounded-xl border border-black/10 bg-[var(--ds-neutral-row)] p-3 dark:border-white/10">
-              <div className="mb-1 text-[13px] font-semibold text-ds-ink">Свободные слоты преподавателя (7 дней)</div>
-              {teacherFreeSlots.length === 0 ? (
-                <p className="text-[12px] text-ds-text-tertiary">Свободных слотов пока нет.</p>
-              ) : (
-                <ul className="grid gap-1 sm:grid-cols-2">
-                  {teacherFreeSlots.slice(0, 12).map((slotIso) => {
-                    const p = formatTeacherSlotLabel(slotIso)
-                    return (
-                      <li key={slotIso} className="text-[12px] text-ds-text-secondary">
-                        {p.dateKey} · {p.hour}
-                      </li>
-                    )
-                  })}
-                </ul>
-              )}
-            </div>
-          ) : null}
-        </div>
+          </Link>
+          <span className="mx-1.5">→</span>
+          <Link
+            href={`/teacher/students/${student.id}`}
+            className="text-ds-text-secondary no-underline hover:underline"
+          >
+            {student.name}
+          </Link>
+          <span className="mx-1.5">→</span>
+          <span className="font-medium text-ds-ink">Перенос</span>
+        </nav>
 
-        <div className="mb-5 flex items-center justify-between gap-3 sm:mb-6">
+        <h1 className="mb-1 text-[28px] font-bold text-ds-ink sm:text-[34px]">Перенос занятия</h1>
+        <p className="mb-6 text-[15px] text-[var(--ds-text-secondary)]">
+          Ученик: <span className="font-medium text-ds-ink">{student.name}</span>. 24 слота в день, с 08:00 до 20:00
+          (шаг 30 минут), преподаватель по умолчанию — {SCHEDULE_DEFAULT_TEACHER}. Для преподавателя можно переносить
+          даже если до начала урока осталось меньше 24 часов; новое время должно быть в будущем и не позже чем через 7
+          суток от текущего момента.
+        </p>
+
+        <div className="mb-5 flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={() => setWeekOffset((w) => w - 1)}
-            className="ds-neutral-pill flex h-10 w-10 shrink-0 items-center justify-center rounded-full sm:h-9 sm:w-9"
+            className="ds-neutral-pill flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
             aria-label="Предыдущая неделя"
           >
             <ChevronLeft size={18} aria-hidden />
           </button>
-          <div className="min-w-0 px-1 text-center text-[15px] font-semibold leading-tight text-ds-ink sm:text-[16px]">
-            {weekTitle}
-          </div>
+          <div className="min-w-0 px-1 text-center text-[15px] font-semibold text-ds-ink">{weekTitle}</div>
           <button
             type="button"
             onClick={() => setWeekOffset((w) => w + 1)}
-            className="ds-neutral-pill flex h-10 w-10 shrink-0 items-center justify-center rounded-full sm:h-9 sm:w-9"
+            className="ds-neutral-pill flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
             aria-label="Следующая неделя"
           >
             <ChevronRight size={18} aria-hidden />
@@ -393,13 +425,14 @@ export default function SchedulePage() {
               selectedLessonId={selectedLessonId}
               draggingLessonId={draggingLessonId}
               dropHover={dropHover}
-              variant="student"
+              variant="teacher"
               onSelectLesson={onSelectLesson}
               onSlotDrop={onSlotDrop}
               onEmptyClick={onEmptyClick}
               onDragHoverSlot={onDragHoverSlot}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
+              slotTimes={TEACHER_SCHEDULE_SLOT_TIMES}
             />
           ))}
         </div>
@@ -408,7 +441,7 @@ export default function SchedulePage() {
           {cells.map((cellDate, i) => {
             const dateKey = dateKeyFromDate(cellDate)
             const isToday = isSameDay(cellDate, today)
-            const showDropHints = dragHintsActive(lessons, draggingLessonId, "student")
+            const showDropHints = dragHintsActive(lessons, draggingLessonId, "teacher")
 
             return (
               <section
@@ -429,10 +462,10 @@ export default function SchedulePage() {
                   ) : null}
                 </div>
                 <div className="flex flex-col gap-2">
-                  {SCHEDULE_SLOT_TIMES.map((time) => {
+                  {TEACHER_SCHEDULE_SLOT_TIMES.map((time) => {
                     const lesson = findLessonAt(lessons, dateKey, time)
                     if (lesson) {
-                      const movable = canRescheduleLesson(lesson.dateKey, lesson.time)
+                      const movable = canTeacherRescheduleLesson(lesson.dateKey, lesson.time)
                       const isPast = isLessonPastOrStarted(lesson.dateKey, lesson.time)
                       return (
                         <ScheduleLessonCard
@@ -441,10 +474,10 @@ export default function SchedulePage() {
                           selected={selectedLessonId === lesson.id}
                           movable={movable}
                           isPast={isPast}
-                          variant="student"
+                          variant="teacher"
                           onSelect={() => onSelectLesson(lesson.id)}
                           onDragStart={(e) => {
-                            if (!canRescheduleLesson(lesson.dateKey, lesson.time)) {
+                            if (!canTeacherRescheduleLesson(lesson.dateKey, lesson.time)) {
                               e.preventDefault()
                               return
                             }
@@ -455,7 +488,7 @@ export default function SchedulePage() {
                       )
                     }
                     const draggingMovable = showDropHints
-                    const slotOk = isValidRescheduleTargetSlot(dateKey, time)
+                    const slotOk = isValidTeacherRescheduleTargetSlot(dateKey, time)
                     return (
                       <ScheduleEmptySlot
                         key={`${dateKey}-${time}`}
@@ -477,13 +510,6 @@ export default function SchedulePage() {
             )
           })}
         </div>
-
-        <div className="mt-6 flex flex-wrap gap-x-5 gap-y-3 border-t border-[#e8e8e8] pt-6 dark:border-white/10">
-          <div className="flex items-center gap-2">
-            <div className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#e2e3e8] dark:bg-zinc-600" />
-            <span className="text-[13px] text-[var(--ds-text-secondary)]">Онлайн-урок</span>
-          </div>
-        </div>
       </div>
 
       <Dialog
@@ -495,12 +521,12 @@ export default function SchedulePage() {
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Перенести занятие?</DialogTitle>
+            <DialogTitle>Перенести занятие ученика?</DialogTitle>
             <DialogDescription asChild>
               <div className="text-[15px] leading-relaxed text-ds-text-secondary">
                 {pending ? (
                   <>
-                    <p className="mb-2">Вы переносите урок на новое время:</p>
+                    <p className="mb-2">Новое время:</p>
                     <p className="font-medium text-ds-ink dark:text-white">
                       {formatSlotLabel(pending.fromDateKey, pending.fromTime)}
                     </p>
@@ -536,29 +562,19 @@ export default function SchedulePage() {
             <DialogTitle>Перенос недоступен</DialogTitle>
             <DialogDescription asChild>
               <div className="space-y-2 text-[15px] leading-relaxed text-ds-text-secondary">
-                {blockedKind === "24h" ? (
-                  <p>
-                    Перенести это занятие нельзя: до его начала осталось меньше 24 часов. Такие изменения
-                    согласуются с куратором и преподавателем.
-                  </p>
-                ) : (
-                  <p>
-                    Новое время должно быть позже чем через 24 часа от сейчас и не позже чем через 7 суток —
-                    выбранный слот в эти рамки не попадает. Уточните другое время или напишите куратору.
-                  </p>
-                )}
+                <p>
+                  Новое время должно быть в будущем и не позже чем через 7 суток от текущего момента — выбранный слот в
+                  эти рамки не попадает.
+                </p>
                 {blockedLessonTitle ? (
                   <p className="font-medium text-ds-ink dark:text-white">{blockedLessonTitle}</p>
                 ) : null}
               </div>
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="flex-col gap-2 sm:flex-col">
+          <DialogFooter>
             <Button type="button" variant="default" onClick={() => setBlockedOpen(false)}>
               Понятно
-            </Button>
-            <Button type="button" variant="outline" asChild className="w-full sm:w-full">
-              <Link href="/messages">Обсудить с куратором и преподавателем</Link>
             </Button>
           </DialogFooter>
         </DialogContent>

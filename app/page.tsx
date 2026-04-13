@@ -17,7 +17,7 @@ export default function AuthPage() {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      router.replace(user.role === "teacher" ? "/teacher/dashboard" : "/dashboard")
+      router.replace(user.role === "teacher" || user.role === "curator" ? "/teacher/dashboard" : "/dashboard")
     }
   }, [isAuthenticated, user, router])
 

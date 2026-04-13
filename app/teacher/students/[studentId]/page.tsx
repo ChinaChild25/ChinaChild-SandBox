@@ -189,6 +189,12 @@ export default function TeacherStudentDetailPage() {
               <p className="mb-4 text-[13px] leading-relaxed text-ds-text-secondary">
                 Слоты с учётом переносов из кабинета ученика (Яна — user-1) и демо-данных для остальных.
               </p>
+              <Link
+                href={`/teacher/schedule/reschedule/${s.id}`}
+                className="mb-4 inline-block text-[13px] font-medium text-ds-sage-strong no-underline hover:underline"
+              >
+                Перенести занятие
+              </Link>
               {schedule.length === 0 ? (
                 <p className="text-[14px] text-ds-text-tertiary">Нет предстоящих занятий.</p>
               ) : (

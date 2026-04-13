@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { ArrowLeft, Mail, Send, Search } from "lucide-react"
 
@@ -7,16 +8,23 @@ import { useAuth } from "@/lib/auth-context"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import { Textarea } from "@/components/ui/textarea"
 import {
+  addParticipantsToConversation,
   chatBubbleFromMessageRow,
+  chatPeerProfileHref,
   formatListPeerRole,
+  loadConversationParticipants,
   loadConversationPeerProfile,
   loadMessagesForConversation,
   loadMyConversationList,
+  moveStudentToAnotherConversation,
   peerAvatarUrlForUi,
+  removeParticipantFromConversation,
+  renameConversation,
   sendChatMessage,
   sortConversationListItems,
   formatChatTimeLabel,
   type ChatBubble,
+  type ConversationParticipantProfile,
   type ConversationListItem,
   type ConversationListPeer
 } from "@/lib/supabase/chat"
@@ -91,6 +99,8 @@ function pendingListItem(
   })()
   return {
     id: conversationId,
+    type: "direct",
+    title: peer.name,
     peer,
     lastMessage: "",
     lastMessageAt: null,
@@ -122,6 +132,7 @@ export function SupabaseMessages({
 }: SupabaseMessagesProps) {
   const { user } = useAuth()
   const myId = user?.id ?? null
+  const myRole = user?.role ?? null
 
   const urlConversationId = (initialConversationId ?? "").trim() || null
 
@@ -144,6 +155,8 @@ export function SupabaseMessages({
   const [inputText, setInputText] = useState("")
   const [sendError, setSendError] = useState<string | null>(null)
   const [pendingPeerOverride, setPendingPeerOverride] = useState<ConversationListPeer | null>(null)
+  const [participantsOpen, setParticipantsOpen] = useState(false)
+  const [participants, setParticipants] = useState<ConversationParticipantProfile[]>([])
 
   const emptyCopy = listEmptyCopy ?? DEFAULT_LIST_EMPTY
   const idleCopy = noSelectionCopy ?? DEFAULT_NO_SELECTION
@@ -167,6 +180,7 @@ export function SupabaseMessages({
     () => sidebarItems.find((c) => c.id === activeId) ?? null,
     [sidebarItems, activeId]
   )
+  const activeTitle = active?.type === "group" ? active.title : active?.peer.name ?? ""
 
   const refreshList = useCallback(async () => {
     setListLoading(true)
@@ -249,6 +263,12 @@ export function SupabaseMessages({
       cancelled = true
     }
   }, [myId, activeId])
+
+  useEffect(() => {
+    if (!participantsOpen || !activeId) return
+    const supabase = createBrowserSupabaseClient()
+    void loadConversationParticipants(supabase, activeId).then(({ participants: rows }) => setParticipants(rows))
+  }, [participantsOpen, activeId])
 
   const conversationIdsForRealtime = useMemo(
     () => [...new Set(sidebarItems.map((i) => i.id))].sort(),
@@ -400,7 +420,14 @@ export function SupabaseMessages({
   const showChat = wide || mobilePanel === "chat"
   const empty = !listLoading && !listError && sidebarItems.length === 0
 
-  const activeRoleLine = active ? formatListPeerRole(active.peer.role) : ""
+  const activeRoleLine =
+    active?.type === "group"
+      ? "Групповой чат"
+      : active
+        ? formatListPeerRole(active.peer.role)
+        : ""
+  const activePeerHref = active && myRole ? chatPeerProfileHref(myRole, active.peer) : null
+  const canManageGroup = !!active && active.type === "group" && (myRole === "teacher" || myRole === "curator")
   const canSend =
     !!inputText.trim() && !messagesLoading && !messagesError && !!myId && !!activeId && !!active
 
@@ -527,13 +554,36 @@ export function SupabaseMessages({
                       <ArrowLeft className="h-5 w-5" />
                     </button>
                   ) : null}
-                  <PeerAvatarImg peer={active.peer} size="header" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[16px] font-semibold leading-tight text-ds-ink">{active.peer.name}</p>
-                    {activeRoleLine ? (
-                      <p className="mt-0.5 truncate text-[13px] text-ds-text-secondary">{activeRoleLine}</p>
-                    ) : null}
-                  </div>
+                  {activePeerHref ? (
+                    <Link href={activePeerHref} className="flex min-w-0 flex-1 items-center gap-3 no-underline">
+                      <PeerAvatarImg peer={active.peer} size="header" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[16px] font-semibold leading-tight text-ds-ink">{activeTitle}</p>
+                        {activeRoleLine ? (
+                          <p className="mt-0.5 truncate text-[13px] text-ds-text-secondary">{activeRoleLine}</p>
+                        ) : null}
+                      </div>
+                    </Link>
+                  ) : (
+                    <>
+                      <PeerAvatarImg peer={active.peer} size="header" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[16px] font-semibold leading-tight text-ds-ink">{activeTitle}</p>
+                        {activeRoleLine ? (
+                          <p className="mt-0.5 truncate text-[13px] text-ds-text-secondary">{activeRoleLine}</p>
+                        ) : null}
+                      </div>
+                    </>
+                  )}
+                  {canManageGroup ? (
+                    <button
+                      type="button"
+                      onClick={() => setParticipantsOpen(true)}
+                      className="rounded-full border border-black/10 px-3 py-1.5 text-[12px] font-medium text-ds-ink dark:border-white/15"
+                    >
+                      Участники
+                    </button>
+                  ) : null}
                 </header>
 
                 <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-3 sm:p-4 md:p-5 lg:row-start-2 lg:min-h-0">
@@ -615,6 +665,93 @@ export function SupabaseMessages({
           </div>
         </div>
       </div>
+      {canManageGroup && participantsOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-ds-surface p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[15px] font-semibold text-ds-ink">Участники</p>
+              <button type="button" onClick={() => setParticipantsOpen(false)} className="text-[12px] text-ds-text-secondary">
+                Закрыть
+              </button>
+            </div>
+            <ul className="max-h-60 space-y-1 overflow-y-auto">
+              {participants.map((p) => (
+                <li key={p.id} className="flex items-center justify-between rounded-lg px-2 py-1.5 text-[13px]">
+                  <span className="truncate">{p.name}</span>
+                  {(myRole === "curator" || p.role === "student") && p.id !== myId ? (
+                    <button
+                      type="button"
+                      className="text-[12px] text-destructive"
+                      onClick={async () => {
+                        if (!activeId) return
+                        const supabase = createBrowserSupabaseClient()
+                        await removeParticipantFromConversation(supabase, activeId, p.id)
+                        const { participants: rows } = await loadConversationParticipants(supabase, activeId)
+                        setParticipants(rows)
+                      }}
+                    >
+                      Удалить
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="rounded-full border border-black/10 px-3 py-1 text-[12px] dark:border-white/15"
+                onClick={async () => {
+                  if (!activeId) return
+                  const id = window.prompt("UUID ученика для добавления")
+                  if (!id) return
+                  const supabase = createBrowserSupabaseClient()
+                  await addParticipantsToConversation(supabase, activeId, [id])
+                  const { participants: rows } = await loadConversationParticipants(supabase, activeId)
+                  setParticipants(rows)
+                }}
+              >
+                Добавить ученика
+              </button>
+              <button
+                type="button"
+                className="rounded-full border border-black/10 px-3 py-1 text-[12px] dark:border-white/15"
+                onClick={async () => {
+                  if (!activeId) return
+                  const title = window.prompt("Новое название группы", activeTitle)
+                  if (!title) return
+                  const supabase = createBrowserSupabaseClient()
+                  await renameConversation(supabase, activeId, title)
+                  await refreshList()
+                }}
+              >
+                Переименовать
+              </button>
+              {myRole === "curator" ? (
+                <button
+                  type="button"
+                  className="rounded-full border border-black/10 px-3 py-1 text-[12px] dark:border-white/15"
+                  onClick={async () => {
+                    if (!activeId) return
+                    const studentId = window.prompt("UUID ученика")
+                    const toConversationId = window.prompt("UUID целевого group-чата")
+                    if (!studentId || !toConversationId) return
+                    const supabase = createBrowserSupabaseClient()
+                    await moveStudentToAnotherConversation(supabase, {
+                      studentId,
+                      fromConversationId: activeId,
+                      toConversationId
+                    })
+                    const { participants: rows } = await loadConversationParticipants(supabase, activeId)
+                    setParticipants(rows)
+                  }}
+                >
+                  Перенести ученика
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

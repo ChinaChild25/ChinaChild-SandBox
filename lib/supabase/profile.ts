@@ -20,7 +20,7 @@ const PROFILE_COLUMNS =
 
 function parseRole(raw: string): UserRole | null {
   const r = String(raw).trim().toLowerCase()
-  if (r === "student" || r === "teacher") return r
+  if (r === "student" || r === "teacher" || r === "curator") return r
   return null
 }
 
@@ -42,7 +42,7 @@ function displayNameFromProfile(profile: ProfileRow, email: string | null): stri
 
 export function mapProfileRowToAppUser(profile: ProfileRow, email: string | null): User {
   const role = parseRole(profile.role) ?? "student"
-  const template = role === "teacher" ? mockTeacherUser : mockUser
+  const template = role === "teacher" || role === "curator" ? mockTeacherUser : mockUser
   const name = displayNameFromProfile(profile, email)
   const avatar =
     typeof profile.avatar_url === "string" && profile.avatar_url.trim()
@@ -104,7 +104,7 @@ export async function fetchProfileForAuthUser(
   if (!parseRole(row.role)) {
     return {
       ok: false,
-      message: `В профиле указана неподдерживаемая роль («${row.role}»). Допустимо: student или teacher.`
+      message: `В профиле указана неподдерживаемая роль («${row.role}»). Допустимо: student, teacher или curator.`
     }
   }
 

@@ -17,12 +17,12 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
       router.replace("/")
       return
     }
-    if (user?.role !== "teacher") {
+    if (user?.role !== "teacher" && user?.role !== "curator") {
       router.replace("/dashboard")
     }
   }, [isAuthenticated, user, router])
 
-  if (!isAuthenticated || user?.role !== "teacher") {
+  if (!isAuthenticated || (user?.role !== "teacher" && user?.role !== "curator")) {
     return (
       <div className="ds-app-canvas">
         <div className="flex min-h-screen items-center justify-center">

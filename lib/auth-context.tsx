@@ -50,9 +50,10 @@ function translateSupabaseError(message: string): string {
 }
 
 function roleMismatchMessage(selected: UserRole, actual: UserRole): string {
-  if (selected === "teacher") {
+  if (selected === "teacher" && actual !== "curator") {
     return "В профиле указана роль «ученик». Войдите как ученик или попросите администратора выставить role = teacher в public.profiles."
   }
+  if (selected === "teacher" && actual === "curator") return ""
   return "В профиле указана роль «преподаватель». Выберите вход как преподаватель."
 }
 
@@ -161,7 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsLoading(false)
           return { ok: false, message: pr.message }
         }
-        if (pr.user.role !== role) {
+        if (pr.user.role !== role && !(role === "teacher" && pr.user.role === "curator")) {
           await supabase.auth.signOut()
           setIsLoading(false)
           return { ok: false, message: roleMismatchMessage(role, pr.user.role) }

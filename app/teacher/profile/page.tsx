@@ -1,3 +1,5 @@
-"use client"
+import { redirect } from "next/navigation"
 
-export { default } from "@/app/(app)/profile/page"
+export default function TeacherProfileRedirectPage() {
+  redirect("/teacher/settings")
+}

@@ -129,7 +129,7 @@ export function TeacherSidebar({ variant = "sidebar" }: TeacherSidebarProps) {
       ) : null}
 
       <Link
-        href="/teacher/profile"
+        href="/teacher/settings"
         className={cn(
           "no-underline outline-offset-2 transition-colors hover:bg-black/[0.04] focus-visible:outline focus-visible:ring-2 focus-visible:ring-ds-ink/20 dark:hover:bg-white/[0.06]",
           drawer ? "mb-4 flex flex-row items-center gap-3 rounded-xl py-2 pr-2" : "mb-8 flex flex-col items-center rounded-2xl py-1"

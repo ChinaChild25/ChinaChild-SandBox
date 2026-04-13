@@ -78,7 +78,7 @@ export function AppSidebar({ variant = "sidebar" }: AppSidebarProps) {
   const firstName = user?.name?.split(" ")[0] ?? "Яна"
   const avatarSrc = user?.avatar ?? FIGMA_STUDENT_AVATAR
   const subtitle =
-    user?.role === "teacher"
+    user?.role === "teacher" || user?.role === "curator"
       ? (user?.profileSubtitle ?? "Преподаватель")
       : (user?.profileSubtitle ?? t("profile.subtitle", { level: levelLabel }))
 
