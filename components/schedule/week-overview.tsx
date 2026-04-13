@@ -19,10 +19,12 @@ function summary(intervals: Array<{ start: string; end: string }>) {
 
 export function WeekOverview({
   template,
+  dayStats,
   selectedDay,
   onSelectDay
 }: {
   template: WeeklyTemplate
+  dayStats: Record<WeekdayKey, { freeHours: number; bookedCount: number }>
   selectedDay: WeekdayKey
   onSelectDay: (day: WeekdayKey) => void
 }) {
@@ -30,6 +32,7 @@ export function WeekOverview({
     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
       {DAYS.map((d) => {
         const intervals = template[d.key]
+        const stats = dayStats[d.key]
         const active = selectedDay === d.key
         return (
           <button
@@ -53,6 +56,10 @@ export function WeekOverview({
               </span>
             </div>
             <p className="line-clamp-3 text-[12px] text-ds-text-secondary">{summary(intervals)}</p>
+            <div className="mt-2 flex items-center justify-between text-[11px] text-ds-text-tertiary">
+              <span>Свободно: {stats.freeHours} ч</span>
+              <span>Занято: {stats.bookedCount}</span>
+            </div>
           </button>
         )
       })}

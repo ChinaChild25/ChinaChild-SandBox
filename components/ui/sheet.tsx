@@ -48,9 +48,15 @@ function SheetContent({
   className,
   children,
   side = 'right',
+  sheetTitle = 'Menu',
+  sheetDescription,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: 'top' | 'right' | 'bottom' | 'left'
+  /** Shown to screen readers; rendered as the required Radix DialogTitle. */
+  sheetTitle?: React.ReactNode
+  /** Optional; when omitted, aria-describedby is cleared to avoid Radix’s missing-Description warning. */
+  sheetDescription?: React.ReactNode
 }) {
   return (
     <SheetPortal>
@@ -70,7 +76,12 @@ function SheetContent({
           className,
         )}
         {...props}
+        {...(sheetDescription == null ? { 'aria-describedby': undefined } : {})}
       >
+        <SheetPrimitive.Title className="sr-only">{sheetTitle}</SheetPrimitive.Title>
+        {sheetDescription != null ? (
+          <SheetPrimitive.Description className="sr-only">{sheetDescription}</SheetPrimitive.Description>
+        ) : null}
         {children}
         <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-3 right-3 grid size-11 place-content-center rounded-xl opacity-80 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
           <XIcon className="size-7" strokeWidth={2.25} />

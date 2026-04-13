@@ -8,7 +8,13 @@ import { ArrowLeft, CalendarDays } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import { hydrateTeacherStudentsFromProfiles } from "@/lib/supabase/teacher-student-cards"
-import { getUpcomingLessonsDisplay } from "@/lib/teacher-schedule-display"
+import {
+  getUpcomingLessonsDisplay,
+  getUpcomingLessonsDisplayFromLessons,
+  scheduledLessonsFromApiRows,
+  type ApiScheduleLessonRow,
+  type UpcomingLessonDisplay
+} from "@/lib/teacher-schedule-display"
 import { getTeacherStudentById, type TeacherStudentMock } from "@/lib/teacher-students-mock"
 import { StartChatWithStudentButton } from "@/components/teacher/start-chat-with-student-button"
 
@@ -30,6 +36,51 @@ export default function TeacherStudentDetailPage() {
     void hydrateTeacherStudentsFromProfiles(supabase, [base]).then(([next]) => setS(next))
   }, [usesSupabase, studentId])
 
+  const [scheduleItems, setScheduleItems] = useState<UpcomingLessonDisplay[]>(() =>
+    studentId ? getUpcomingLessonsDisplay(studentId, 14) : []
+  )
+  const [scheduleLoading, setScheduleLoading] = useState(false)
+  const [scheduleError, setScheduleError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!s) return
+    if (!usesSupabase || !s.chatProfileId?.trim()) {
+      setScheduleItems(getUpcomingLessonsDisplay(s.id, 14))
+      setScheduleLoading(false)
+      setScheduleError(null)
+      return
+    }
+    const pid = s.chatProfileId.trim()
+    let cancelled = false
+    setScheduleLoading(true)
+    setScheduleError(null)
+    void fetch(`/api/schedule/teacher-student-lessons?student_id=${encodeURIComponent(pid)}`)
+      .then(async (res) => {
+        const data = (await res.json().catch(() => ({}))) as { lessons?: unknown; error?: string }
+        if (cancelled) return
+        if (!res.ok) {
+          setScheduleError(typeof data.error === "string" ? data.error : "Не удалось загрузить расписание")
+          setScheduleItems([])
+          return
+        }
+        const raw = Array.isArray(data.lessons) ? data.lessons : []
+        const lessons = scheduledLessonsFromApiRows(raw as ApiScheduleLessonRow[])
+        setScheduleItems(getUpcomingLessonsDisplayFromLessons(lessons, 14))
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setScheduleError("Не удалось загрузить расписание")
+          setScheduleItems([])
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setScheduleLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [usesSupabase, s?.id, s?.chatProfileId])
+
   if (!s) {
     return (
       <div className="ds-figma-page">
@@ -40,8 +91,6 @@ export default function TeacherStudentDetailPage() {
       </div>
     )
   }
-
-  const schedule = getUpcomingLessonsDisplay(s.id, 14)
 
   return (
     <div className="ds-figma-page">
@@ -187,7 +236,9 @@ export default function TeacherStudentDetailPage() {
                 Расписание
               </div>
               <p className="mb-4 text-[13px] leading-relaxed text-ds-text-secondary">
-                Слоты с учётом переносов из кабинета ученика (Яна — user-1) и демо-данных для остальных.
+                {usesSupabase && s.chatProfileId
+                  ? "Занятия из базы: расписание ученика и подтверждённые слоты в вашем календаре."
+                  : "Демо-расписание (без Supabase или без привязки профиля ученика)."}
               </p>
               <Link
                 href={`/teacher/schedule/reschedule/${s.id}`}
@@ -195,11 +246,15 @@ export default function TeacherStudentDetailPage() {
               >
                 Перенести занятие
               </Link>
-              {schedule.length === 0 ? (
+              {scheduleLoading ? (
+                <p className="text-[14px] text-ds-text-tertiary">Загрузка…</p>
+              ) : scheduleError ? (
+                <p className="text-[14px] text-red-600 dark:text-red-300">{scheduleError}</p>
+              ) : scheduleItems.length === 0 ? (
                 <p className="text-[14px] text-ds-text-tertiary">Нет предстоящих занятий.</p>
               ) : (
                 <ul className="max-h-[min(70vh,520px)] space-y-2 overflow-y-auto pr-1">
-                  {schedule.map((u) => (
+                  {scheduleItems.map((u) => (
                     <li
                       key={`${u.lesson.id}-${u.start.getTime()}`}
                       className="rounded-xl border border-black/8 bg-ds-surface px-4 py-3 dark:border-white/10 dark:bg-[#0a0a0a]"

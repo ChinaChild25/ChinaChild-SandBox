@@ -43,7 +43,7 @@ export function AppHeader() {
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-72 border-r border-white/20 p-0">
+          <SheetContent side="left" sheetTitle="Меню навигации" className="w-72 border-r border-white/20 p-0">
             <AppSidebar />
           </SheetContent>
         </Sheet>

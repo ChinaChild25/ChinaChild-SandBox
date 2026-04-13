@@ -18,9 +18,6 @@ const supabasePattern = supabaseStorageRemotePattern()
 const remotePatterns = supabasePattern ? [supabasePattern] : []
 
 const nextConfig = {
-  typescript: {
-    ignoreBuildErrors: true
-  },
   images: {
     unoptimized: true,
     remotePatterns

@@ -394,6 +394,8 @@ export function SupabaseMessages({
           }
           const row: ConversationListItem = {
             id: activeId,
+            type: active?.type ?? "direct",
+            title: active?.type === "group" ? active.title : peer.name,
             peer,
             lastMessage: message.text,
             lastMessageAt: message.createdAt,

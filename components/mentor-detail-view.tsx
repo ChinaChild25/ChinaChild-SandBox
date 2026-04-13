@@ -252,7 +252,7 @@ function CuratorPageBody({ mentor, t }: { mentor: MentorProfile; t: (k: string, 
           <section
             className={cn(
               mentorCardRadius,
-              "bg-[#fce8ec] p-6 dark:bg-[#2d2426] md:p-7"
+              "bg-[var(--ds-group-card-bg)] p-6 dark:bg-[var(--ds-group-card-bg-dark)] md:p-7"
             )}
           >
             <div className="mb-4 flex items-center gap-2 text-[17px] font-semibold text-ds-ink dark:text-white">
@@ -387,7 +387,7 @@ function TeacherPageBody({ mentor, t }: { mentor: MentorProfile; t: (k: string, 
           <section
             className={cn(
               mentorCardRadius,
-              "bg-[#fce8ec] p-6 dark:bg-[#2d2426] md:p-7"
+              "bg-[var(--ds-group-card-bg)] p-6 dark:bg-[var(--ds-group-card-bg-dark)] md:p-7"
             )}
           >
             <div className="mb-4 flex items-center gap-2 text-[17px] font-semibold text-ds-ink dark:text-white">

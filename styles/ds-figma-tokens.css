@@ -32,6 +32,8 @@
   --ds-neutral-chrome-hover: #d8d8d8;
   --ds-neutral-row: #f5f5f5;
   --ds-neutral-row-hover: #ebebeb;
+  --ds-group-card-bg: #f5f5f5;
+  --ds-group-card-bg-dark: #2a2a2a;
 
   /* —— Text hierarchy (exact Figma greys) —— */
   --ds-text-primary: #1a1a1a;
@@ -252,6 +254,107 @@
   --ds-neutral-row-hover: #262626;
 }
 
+/* Tailwind v4: bridge semantic CSS variables → theme utilities (border-border, bg-background, …) */
+@theme inline {
+  --font-sans: var(--ds-font-sans);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Figma / dashboard tokens → Tailwind color utilities (bg-ds-*, text-ds-*, border-ds-*, …) */
+  --color-ds-canvas: var(--ds-canvas);
+  --color-ds-surface: var(--ds-surface);
+  --color-ds-ink: var(--ds-ink);
+  --color-ds-border-strong: var(--ds-border-strong);
+  --color-ds-sidebar: var(--ds-sidebar);
+  --color-ds-sidebar-hover: var(--ds-sidebar-hover);
+  --color-ds-neutral-chrome: var(--ds-neutral-chrome);
+  --color-ds-neutral-chrome-hover: var(--ds-neutral-chrome-hover);
+  --color-ds-neutral-row: var(--ds-neutral-row);
+  --color-ds-neutral-row-hover: var(--ds-neutral-row-hover);
+  --color-ds-group-card-bg: var(--ds-group-card-bg);
+  --color-ds-group-card-bg-dark: var(--ds-group-card-bg-dark);
+  --color-ds-text-primary: var(--ds-text-primary);
+  --color-ds-text-secondary: var(--ds-text-secondary);
+  --color-ds-text-muted: var(--ds-text-muted);
+  --color-ds-text-tertiary: var(--ds-text-tertiary);
+  --color-ds-text-quaternary: var(--ds-text-quaternary);
+  --color-ds-text-soft: var(--ds-text-soft);
+  --color-ds-text-soft-dark: var(--ds-text-soft-dark);
+  --color-ds-text-placeholder: var(--ds-text-placeholder);
+  --color-ds-chevron: var(--ds-chevron);
+  --color-ds-surface-muted: var(--ds-surface-muted);
+  --color-ds-surface-pill: var(--ds-surface-pill);
+  --color-ds-surface-hover: var(--ds-surface-hover);
+  --color-ds-sage: var(--ds-sage);
+  --color-ds-sage-strong: var(--ds-sage-strong);
+  --color-ds-sage-hover: var(--ds-sage-hover);
+  --color-ds-pink: var(--ds-pink);
+  --color-ds-pink-strong: var(--ds-pink-strong);
+  --color-ds-gray-tile: var(--ds-gray-tile);
+  --color-ds-panel-muted: var(--ds-panel-muted);
+  --color-ds-icon-on-dark: var(--ds-icon-on-dark);
+  --color-ds-stat-muted-on-dark: var(--ds-stat-muted-on-dark);
+  --color-ds-stat-fraction-muted: var(--ds-stat-fraction-muted);
+  --color-ds-stat-fraction-muted-dark: var(--ds-stat-fraction-muted-dark);
+  --color-ds-white-60: var(--ds-white-60);
+  --color-ds-white-60-progress: var(--ds-white-60-progress);
+
+  /* Figma type scale → text-ds-* font-size utilities */
+  --text-ds-2xs: var(--ds-text-2xs);
+  --text-ds-xs: var(--ds-text-xs);
+  --text-ds-sm: var(--ds-text-sm);
+  --text-ds-sm-plus: var(--ds-text-sm-plus);
+  --text-ds-body-sm: var(--ds-text-body-sm);
+  --text-ds-body: var(--ds-text-body);
+  --text-ds-body-lg: var(--ds-text-body-lg);
+  --text-ds-body-xl: var(--ds-text-body-xl);
+  --text-ds-lg: var(--ds-text-lg);
+  --text-ds-xl: var(--ds-text-xl);
+  --text-ds-2xl: var(--ds-text-2xl);
+  --text-ds-3xl: var(--ds-text-3xl);
+  --text-ds-4xl: var(--ds-text-4xl);
+  --text-ds-5xl: var(--ds-text-5xl);
+  --text-ds-6xl: var(--ds-text-6xl);
+  --text-ds-7xl: var(--ds-text-7xl);
+  --text-ds-8xl: var(--ds-text-8xl);
+  --text-ds-stat: var(--ds-text-stat);
+}
+
 /* Light theme colour accents (Figma «Зелёная» / «Розовая») */
 html:not(.dark)[data-ui-accent="sage"] {
   --ds-canvas: #e8efe0;
@@ -262,6 +365,7 @@ html:not(.dark)[data-ui-accent="sage"] {
   --ds-sage: #d4e7b0;
   --ds-sage-strong: #8ab84a;
   --ds-sage-hover: #6d9838;
+  --ds-group-card-bg: color-mix(in srgb, var(--ds-sage) 34%, #f5f5f5);
 }
 
 html:not(.dark)[data-ui-accent="pink"] {
@@ -273,6 +377,7 @@ html:not(.dark)[data-ui-accent="pink"] {
   --ds-sage: #efd6d6;
   --ds-sage-strong: #c06060;
   --ds-sage-hover: #a84848;
+  --ds-group-card-bg: color-mix(in srgb, var(--ds-sage) 34%, #f5f5f5);
 }
 
 html:not(.dark)[data-ui-accent="blue"] {
@@ -284,6 +389,7 @@ html:not(.dark)[data-ui-accent="blue"] {
   --ds-sage: #d4dff4;
   --ds-sage-strong: #3d6ea8;
   --ds-sage-hover: #2f5685;
+  --ds-group-card-bg: color-mix(in srgb, var(--ds-sage) 34%, #f5f5f5);
 }
 
 html:not(.dark)[data-ui-accent="orange"] {
@@ -295,6 +401,7 @@ html:not(.dark)[data-ui-accent="orange"] {
   --ds-sage: #fce8d4;
   --ds-sage-strong: #c0631a;
   --ds-sage-hover: #9e4f14;
+  --ds-group-card-bg: color-mix(in srgb, var(--ds-sage) 34%, #f5f5f5);
 }
 
 /**
@@ -316,6 +423,7 @@ html.dark[data-ui-accent="sage"] {
   --accent-foreground: #e8f2e4;
   --sidebar-accent: #243320;
   --sidebar-accent-foreground: #e8f2e4;
+  --ds-group-card-bg-dark: color-mix(in srgb, var(--ds-sage) 48%, #1e1e1e);
 }
 
 html.dark[data-ui-accent="pink"] {
@@ -333,6 +441,7 @@ html.dark[data-ui-accent="pink"] {
   --accent-foreground: #fce8e8;
   --sidebar-accent: #322428;
   --sidebar-accent-foreground: #fce8e8;
+  --ds-group-card-bg-dark: color-mix(in srgb, var(--ds-sage) 48%, #1e1e1e);
 }
 
 html.dark[data-ui-accent="blue"] {
@@ -350,6 +459,7 @@ html.dark[data-ui-accent="blue"] {
   --accent-foreground: #e4eef8;
   --sidebar-accent: #1c2636;
   --sidebar-accent-foreground: #e4eef8;
+  --ds-group-card-bg-dark: color-mix(in srgb, var(--ds-sage) 48%, #1e1e1e);
 }
 
 html.dark[data-ui-accent="orange"] {
@@ -367,6 +477,7 @@ html.dark[data-ui-accent="orange"] {
   --accent-foreground: #f8eee4;
   --sidebar-accent: #2e2418;
   --sidebar-accent-foreground: #f8eee4;
+  --ds-group-card-bg-dark: color-mix(in srgb, var(--ds-sage) 48%, #1e1e1e);
 }
 
 @layer components {
@@ -535,8 +646,8 @@ html.dark[data-ui-accent="orange"] {
 
   .ds-mobile-top-chrome__menu-btn {
     display: inline-flex;
-    height: 2.75rem;
-    width: 2.75rem;
+    height: 2.25rem;
+    width: 2.25rem;
     flex-shrink: 0;
     align-items: center;
     justify-content: center;

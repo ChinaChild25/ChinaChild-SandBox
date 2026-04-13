@@ -12,18 +12,78 @@ import {
   type NotificationPreferences
 } from "@/lib/notification-preferences"
 import { TelegramIcon, telegramProfileUrl } from "@/components/telegram-icon"
-import { FIGMA_CALENDAR, FIGMA_DASHBOARD_LESSONS } from "@/lib/figma-dashboard"
 import { curatorAndTeacherForUser } from "@/lib/student-staff"
 import { localeToBcp47, useUiLocale } from "@/lib/ui-locale"
+import { getAppNow } from "@/lib/app-time"
+
+type DashboardLesson = {
+  id: string
+  dateKey: string
+  date: number
+  time: string
+  description: string
+  href: string
+}
 
 export default function DashboardPage() {
   const { user } = useAuth()
   const { t, locale } = useUiLocale()
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(readNotificationPreferences)
+  const [upcomingLessons, setUpcomingLessons] = useState<DashboardLesson[]>([])
+  const [calendarLessonDateKeys, setCalendarLessonDateKeys] = useState<string[]>([])
+  const [upcomingLoading, setUpcomingLoading] = useState(true)
 
   useEffect(() => {
     setNotifPrefs(readNotificationPreferences())
     return subscribeNotificationPreferences(() => setNotifPrefs(readNotificationPreferences()))
+  }, [])
+
+  useEffect(() => {
+    let alive = true
+    async function loadUpcomingLessons() {
+      try {
+        setUpcomingLoading(true)
+        const res = await fetch("/api/schedule/student-lessons", { cache: "no-store" })
+        if (!res.ok) return
+        const json = (await res.json()) as {
+          lessons?: Array<{ id: string; dateKey: string; time: string; title?: string; teacher?: string }>
+        }
+        const nowTs = getAppNow().getTime()
+        const rawLessons = json.lessons ?? []
+        if (alive) setCalendarLessonDateKeys(rawLessons.map((l) => l.dateKey))
+        const lessons = rawLessons
+          .map((lesson) => {
+            const [y, m, d] = lesson.dateKey.split("-").map((chunk) => Number.parseInt(chunk, 10))
+            const [h, mm] = lesson.time.split(":").map((chunk) => Number.parseInt(chunk, 10))
+            const start = new Date(y, (m || 1) - 1, d || 1, h || 0, mm || 0, 0, 0)
+            return {
+              raw: lesson,
+              start
+            }
+          })
+          .filter(({ start }) => Number.isFinite(start.getTime()) && start.getTime() > nowTs)
+          .sort((a, b) => a.start.getTime() - b.start.getTime())
+          .slice(0, 4)
+          .map(({ raw, start }) => ({
+            id: raw.id,
+            dateKey: raw.dateKey,
+            date: start.getDate(),
+            time: `${raw.time}–${String((start.getHours() + 1) % 24).padStart(2, "0")}:00`,
+            description: raw.teacher ? `${raw.title || "Занятие"} · ${raw.teacher}` : raw.title || "Занятие",
+            href: "/schedule"
+          }))
+        if (alive) setUpcomingLessons(lessons)
+      } catch {
+        if (alive) setUpcomingLessons([])
+        if (alive) setCalendarLessonDateKeys([])
+      } finally {
+        if (alive) setUpcomingLoading(false)
+      }
+    }
+    void loadUpcomingLessons()
+    return () => {
+      alive = false
+    }
   }, [])
 
   const dashboardStats = user?.dashboardStats ?? {
@@ -38,27 +98,35 @@ export default function DashboardPage() {
     ? curatorAndTeacherForUser(user)
     : curatorAndTeacherForUser(null)
 
-  const calendarDays = Array.from({ length: 30 }, (_, i) => {
+  const appNow = getAppNow()
+  const calendarYear = appNow.getFullYear()
+  const calendarMonth = appNow.getMonth()
+  const calendarToday = appNow.getDate()
+  const calendarStartOffset = new Date(calendarYear, calendarMonth, 1).getDay()
+  const calendarDaysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate()
+  const lessonDateSet = new Set(calendarLessonDateKeys)
+  const calendarDays = Array.from({ length: calendarDaysInMonth }, (_, i) => {
     const day = i + 1
+    const dateKey = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
     return {
       day,
-      hasEvent: (FIGMA_CALENDAR.eventDays as readonly number[]).includes(day),
-      isToday: day === FIGMA_CALENDAR.today
+      hasEvent: lessonDateSet.has(dateKey),
+      isToday: day === calendarToday
     }
   })
 
   const weekdays = useMemo(() => t("dashboard.weekdays").split(","), [t])
   const calendarMonthTitle = useMemo(
     () =>
-      new Date(FIGMA_CALENDAR.year, 3, 1).toLocaleDateString(localeToBcp47(locale), {
+      new Date(calendarYear, calendarMonth, 1).toLocaleDateString(localeToBcp47(locale), {
         month: "long"
       }),
-    [locale]
+    [calendarMonth, calendarYear, locale]
   )
 
   const upcomingLessonHeading = useCallback(
-    (dayOfMonth: number) =>
-      new Date(FIGMA_CALENDAR.year, 3, dayOfMonth).toLocaleDateString(localeToBcp47(locale), {
+    (dateKey: string) =>
+      new Date(`${dateKey}T00:00:00`).toLocaleDateString(localeToBcp47(locale), {
         day: "numeric",
         month: "long"
       }),
@@ -145,40 +213,47 @@ export default function DashboardPage() {
         <div className="ds-dashboard-grid">
           <div>
             <h2 className="mb-4 text-[20px] font-semibold leading-none text-ds-ink">{t("dashboard.upcoming")}</h2>
-            <ul className="flex list-none flex-col gap-6 p-0 sm:gap-7">
-              {FIGMA_DASHBOARD_LESSONS.map((lesson) => (
-                <li key={lesson.id}>
-                  <Link
-                    href={lesson.href}
-                    className="group flex items-center gap-4 rounded-[var(--ds-radius-xl)] px-3 py-2 -mx-3 no-underline transition-colors duration-150 hover:bg-black/[0.06] dark:hover:bg-white/[0.07]"
-                  >
-                    <div className="flex h-[92px] w-[92px] shrink-0 flex-col items-center justify-center rounded-full border-0 bg-[var(--ds-sage)] text-center text-ds-ink sm:h-[104px] sm:w-[104px] dark:text-white">
-                      <span className="mb-1 text-[30px] font-normal leading-none tabular-nums sm:mb-1.5 sm:text-[36px]">
-                        {lesson.date}
-                      </span>
-                      <span className="text-[12px] leading-tight opacity-90 sm:text-[13px]">{lesson.time}</span>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="mb-1 text-[17px] font-normal leading-snug text-ds-ink sm:text-[20px] sm:leading-none">
-                        {upcomingLessonHeading(lesson.date)}
-                      </p>
-                      <p className="flex items-center gap-2 text-[13px] text-[#666] dark:text-[var(--ds-text-secondary)]">
-                        <span className="truncate">{lesson.description}</span>
-                        {"hasIndicator" in lesson && lesson.hasIndicator ? (
-                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ds-ink" aria-hidden />
-                        ) : null}
-                      </p>
-                    </div>
-                    <ChevronRight
-                      size={34}
-                      strokeWidth={2.25}
-                      className="shrink-0 text-[#ccc] opacity-0 transition-opacity group-hover:opacity-100 dark:text-zinc-500"
-                      aria-hidden
-                    />
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            {upcomingLoading ? (
+              <div className="rounded-[var(--ds-radius-xl)] bg-[var(--ds-neutral-row)] px-4 py-6 text-[14px] text-[#666] dark:text-[var(--ds-text-secondary)]">
+                Загружаем занятия...
+              </div>
+            ) : upcomingLessons.length > 0 ? (
+              <ul className="flex list-none flex-col gap-6 p-0 sm:gap-7">
+                {upcomingLessons.map((lesson) => (
+                  <li key={lesson.id}>
+                    <Link
+                      href={lesson.href}
+                      className="group flex items-center gap-4 rounded-[var(--ds-radius-xl)] px-3 py-2 -mx-3 no-underline transition-colors duration-150 hover:bg-black/[0.06] dark:hover:bg-white/[0.07]"
+                    >
+                      <div className="flex h-[92px] w-[92px] shrink-0 flex-col items-center justify-center rounded-full border-0 bg-[var(--ds-sage)] text-center text-ds-ink sm:h-[104px] sm:w-[104px] dark:text-white">
+                        <span className="mb-1 text-[30px] font-normal leading-none tabular-nums sm:mb-1.5 sm:text-[36px]">
+                          {lesson.date}
+                        </span>
+                        <span className="text-[12px] leading-tight opacity-90 sm:text-[13px]">{lesson.time}</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="mb-1 text-[17px] font-normal leading-snug text-ds-ink sm:text-[20px] sm:leading-none">
+                        {upcomingLessonHeading(lesson.dateKey)}
+                        </p>
+                        <p className="flex items-center gap-2 text-[13px] text-[#666] dark:text-[var(--ds-text-secondary)]">
+                          <span className="truncate">{lesson.description}</span>
+                        </p>
+                      </div>
+                      <ChevronRight
+                        size={34}
+                        strokeWidth={2.25}
+                        className="shrink-0 text-[#ccc] opacity-0 transition-opacity group-hover:opacity-100 dark:text-zinc-500"
+                        aria-hidden
+                      />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="rounded-[var(--ds-radius-xl)] bg-[var(--ds-neutral-row)] px-4 py-6 text-[14px] text-[#666] dark:text-[var(--ds-text-secondary)]">
+                {t("dashboard.noUpcoming")}
+              </div>
+            )}
 
             <div className="mt-6 text-center">
               <Link href="/classes" className="ds-dashboard-stat-link inline-flex justify-center">
@@ -194,7 +269,7 @@ export default function DashboardPage() {
                 <span className="ds-calendar-title-bold capitalize text-ds-ink">
                   {calendarMonthTitle}{" "}
                 </span>
-                <span className="ds-calendar-title-reg text-ds-ink">{FIGMA_CALENDAR.year}</span>
+                <span className="ds-calendar-title-reg text-ds-ink">{calendarYear}</span>
               </div>
 
               <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
@@ -203,7 +278,7 @@ export default function DashboardPage() {
                     {d}
                   </div>
                 ))}
-                {Array.from({ length: FIGMA_CALENDAR.startOffset }).map((_, i) => (
+                {Array.from({ length: calendarStartOffset }).map((_, i) => (
                   <div key={`pad-${i}`} />
                 ))}
                 {calendarDays.map((item) => {

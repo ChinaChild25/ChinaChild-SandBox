@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { reconcileStudentScheduleFireAndForget } from "@/lib/schedule/reconcile-student-schedule"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 type ProfileLite = {
@@ -52,5 +53,6 @@ export async function POST(req: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   if (!data) return NextResponse.json({ error: "Booking not found" }, { status: 404 })
 
+  void reconcileStudentScheduleFireAndForget(supabase, me.id)
   return NextResponse.json({ slot: data })
 }

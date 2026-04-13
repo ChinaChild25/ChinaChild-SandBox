@@ -56,7 +56,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
         </Link>
       </div>
 
-      {ready ? (
+      {ready && file.data ? (
         <InteractiveLesson data={file.data} heroMedia={file.heroMedia} />
       ) : (
         <PendingLesson title={catalog.title} file={file} />

@@ -1,12 +1,30 @@
-@import 'tailwindcss';
-@import 'tw-animate-css';
-@import '../styles/ds-figma-tokens.css';
-@import './figma-theme.css';
-@import '../styles/cc-design-system.css';
+@import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
+@import "tw-animate-css";
 
+/* ВАЖНО: сначала токены */
+@import "../styles/ds-figma-tokens.css";
+
+/* затем темы */
+@import "./figma-theme.css";
+
+/* затем твоя дизайн-система */
+@import "../styles/cc-design-system.css";
+
+/* базовые слои Tailwind */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* анимации */
 @keyframes ds-auth-float {
-  0%,
-  100% {
+  0%, 100% {
     transform: translateY(0) scale(1);
   }
   50% {
@@ -24,6 +42,7 @@
   }
 }
 
+/* компоненты */
 @layer components {
   .ek-auth-title {
     @apply text-[2rem] font-semibold leading-none tracking-[-0.03em] text-foreground;
@@ -38,7 +57,6 @@
     @apply block;
   }
 
-  /** Dashboard / list panels — radius + motion aligned with Figma course cards */
   .ek-surface {
     border-radius: var(--ds-radius-xl);
     transition:
@@ -52,7 +70,6 @@
     border-radius: var(--ds-radius-md);
   }
 
-  /* Нейтральный серый: не использовать --ds-sidebar-hover — он тонируется под ui-accent на десктопе */
   .figma-nav-link:hover {
     background-color: #d8d8d8;
   }
@@ -77,12 +94,10 @@
     color: #141414;
   }
 
-  /** Компактные ячейки в мобильном drawer (сетка 2×N) */
   .figma-nav-link--compact {
     @apply px-2 py-2.5;
   }
 
-  /** Drawer: один столбец; выравнивание текста слева (ряд уже в .figma-nav-link) */
   .figma-nav-link--drawer-list {
     @apply px-3 py-2.5 text-left;
   }

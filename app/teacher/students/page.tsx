@@ -7,12 +7,24 @@ import { ArrowRight, CalendarClock } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import { hydrateTeacherStudentsFromProfiles } from "@/lib/supabase/teacher-student-cards"
-import { getUpcomingLessonsDisplay } from "@/lib/teacher-schedule-display"
+import {
+  getUpcomingLessonsDisplay,
+  getUpcomingLessonsDisplayFromLessons,
+  scheduledLessonsFromApiRows,
+  type ApiScheduleLessonRow
+} from "@/lib/teacher-schedule-display"
 import { TEACHER_STUDENTS_ACTIVE, type TeacherStudentMock } from "@/lib/teacher-students-mock"
+import type { ScheduledLesson } from "@/lib/schedule-lessons"
+
+type RemoteUpcomingState =
+  | { status: "mock" }
+  | { status: "loading" }
+  | { status: "ready"; lessonsByCardId: Record<string, ScheduledLesson[]> }
 
 export default function TeacherStudentsPage() {
   const { usesSupabase } = useAuth()
   const [students, setStudents] = useState<TeacherStudentMock[]>(TEACHER_STUDENTS_ACTIVE)
+  const [remoteUpcoming, setRemoteUpcoming] = useState<RemoteUpcomingState>({ status: "mock" })
 
   useEffect(() => {
     if (!usesSupabase) {
@@ -22,6 +34,47 @@ export default function TeacherStudentsPage() {
     const supabase = createBrowserSupabaseClient()
     void hydrateTeacherStudentsFromProfiles(supabase, TEACHER_STUDENTS_ACTIVE).then(setStudents)
   }, [usesSupabase])
+
+  useEffect(() => {
+    if (!usesSupabase) {
+      setRemoteUpcoming({ status: "mock" })
+      return
+    }
+    let cancelled = false
+    const withUuid = students.filter((s) => s.chatProfileId?.trim())
+    if (withUuid.length === 0) {
+      setRemoteUpcoming({ status: "ready", lessonsByCardId: {} })
+      return
+    }
+
+    setRemoteUpcoming({ status: "loading" })
+    void (async () => {
+      const entries = await Promise.all(
+        withUuid.map(async (s) => {
+          const studentUuid = s.chatProfileId!.trim()
+          try {
+            const res = await fetch(
+              `/api/schedule/teacher-student-lessons?student_id=${encodeURIComponent(studentUuid)}`
+            )
+            if (!res.ok) return [s.id, []] as const
+            const data = (await res.json()) as { lessons?: ApiScheduleLessonRow[] }
+            return [s.id, scheduledLessonsFromApiRows(data.lessons ?? [])] as const
+          } catch {
+            return [s.id, []] as const
+          }
+        })
+      )
+      if (cancelled) return
+      setRemoteUpcoming({
+        status: "ready",
+        lessonsByCardId: Object.fromEntries(entries)
+      })
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [usesSupabase, students])
 
   return (
     <div className="ds-figma-page">
@@ -45,15 +98,25 @@ export default function TeacherStudentsPage() {
             </Link>
           </div>
           <p className="mt-2 max-w-[52rem] text-[15px] leading-relaxed text-[var(--ds-text-secondary)]">
-            Карточки группы: цели HSK, посещаемость и ближайшие слоты. Переносы из кабинета ученика подтягиваются в
-            расписание (демо через локальное хранилище). Кнопка «Написать» на карточке появится, если в данных ученика
+            Карточки группы: цели HSK, посещаемость и ближайшие слоты. При работе с Supabase ближайшие занятия берутся из
+            той же выборки, что и в кабинете ученика. В демо без БД используются заготовки и локальное зеркало. Кнопка
+            «Написать» на карточке появится, если в данных ученика
             задан <code className="text-[13px]">chatProfileId</code> (UUID из Supabase).
           </p>
         </header>
 
         <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-2 xl:gap-6 2xl:grid-cols-3">
           {students.map((s) => {
-            const upcoming = getUpcomingLessonsDisplay(s.id, 4)
+            const linked = Boolean(s.chatProfileId?.trim())
+            const apiLessons =
+              usesSupabase && remoteUpcoming.status === "ready" && linked
+                ? (remoteUpcoming.lessonsByCardId[s.id] ?? [])
+                : undefined
+            const upcoming =
+              apiLessons !== undefined
+                ? getUpcomingLessonsDisplayFromLessons(apiLessons, 4)
+                : getUpcomingLessonsDisplay(s.id, 4)
+            const upcomingLoading = usesSupabase && remoteUpcoming.status === "loading" && linked
             return (
               <article
                 key={s.id}
@@ -117,8 +180,12 @@ export default function TeacherStudentsPage() {
                     <CalendarClock className="h-3.5 w-3.5" aria-hidden />
                     Ближайшие занятия
                   </div>
-                  {upcoming.length === 0 ? (
-                    <p className="text-[13px] text-ds-text-secondary">Нет предстоящих слотов в демо.</p>
+                  {upcomingLoading ? (
+                    <p className="text-[13px] text-ds-text-secondary">Загрузка расписания…</p>
+                  ) : upcoming.length === 0 ? (
+                    <p className="text-[13px] text-ds-text-secondary">
+                      {usesSupabase && linked ? "Нет предстоящих занятий." : "Нет предстоящих слотов в демо."}
+                    </p>
                   ) : (
                     <ul className="space-y-2 text-[14px]">
                       {upcoming.map((u) => (

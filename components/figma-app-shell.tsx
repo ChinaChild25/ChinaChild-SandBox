@@ -54,6 +54,7 @@ export function FigmaAppShell({
                   </SheetTrigger>
                   <SheetContent
                     side="left"
+                    sheetTitle={t("sidebar.navAria")}
                     className="flex h-full w-[min(100vw-1.5rem,320px)] max-w-[320px] flex-col overflow-hidden border-r border-black/10 bg-[var(--ds-neutral-chrome)] p-0 dark:border-white/10"
                   >
                     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-[max(1rem,env(safe-area-inset-top))]">

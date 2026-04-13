@@ -312,6 +312,30 @@
   margin: 0 0 var(--cc-space-sm);
 }
 
+/* Hide scrollbar visuals, keep scroll behavior */
+.ds-hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.ds-hide-scrollbar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* Global: hide native scrollbar visuals in app UI */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
 .cc-lesson-note {
   font-size: 0.98rem;
   line-height: 1.55;

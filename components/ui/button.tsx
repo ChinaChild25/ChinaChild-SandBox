@@ -18,6 +18,9 @@ const buttonVariants = cva(
         secondary: 'bg-ds-sidebar text-ds-ink hover:bg-ds-sidebar-hover',
         ghost: 'text-ds-ink hover:bg-ds-surface-hover',
         link: 'rounded-none text-ds-sage-strong underline-offset-4 hover:text-ds-sage-hover hover:underline',
+        /** Lingua / cc-glass header: прозрачные кнопки на «стеклянной» панели */
+        chinaGlass:
+          'border-0 bg-transparent text-foreground shadow-none backdrop-blur-sm hover:bg-black/[0.06] dark:hover:bg-white/[0.08]',
       },
       size: {
         default: 'h-10 px-4 py-2 has-[>svg]:px-3',

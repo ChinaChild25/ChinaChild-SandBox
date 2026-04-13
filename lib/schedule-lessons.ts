@@ -21,6 +21,8 @@ export type ScheduledLesson = {
   title: string
   type: "lesson"
   teacher?: string
+  teacherId?: string
+  teacherAvatarUrl?: string
 }
 
 const STORAGE_KEY = "chinachild-schedule-lessons-v2"
