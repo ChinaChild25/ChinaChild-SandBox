@@ -565,7 +565,7 @@ export function SupabaseMessages({
                             msg.from === "me" ? "ds-msg-bubble-me" : "ds-msg-bubble-them"
                           )}
                         >
-                          <p>{msg.text}</p>
+                          <p className="break-words [overflow-wrap:anywhere]">{msg.text}</p>
                           <p
                             className={cn(
                               "mt-1 text-right text-[11px] opacity-50",
@@ -584,7 +584,7 @@ export function SupabaseMessages({
                   {sendError ? (
                     <p className="text-center text-[12px] text-destructive">{sendError}</p>
                   ) : null}
-                  <div className="flex items-end gap-2 sm:gap-3">
+                  <div className="flex min-w-0 items-end gap-2 sm:gap-3">
                     <Textarea
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
@@ -597,7 +597,7 @@ export function SupabaseMessages({
                       placeholder="Сообщение…"
                       rows={1}
                       disabled={messagesLoading || !!messagesError}
-                      className="min-h-[44px] max-h-[9rem] flex-1 resize-none rounded-2xl border-0 bg-[#f5f5f5] px-4 py-3 text-[14px] leading-snug text-ds-ink shadow-none outline-none ring-0 placeholder:text-ds-text-placeholder focus-visible:border-0 focus-visible:ring-2 focus-visible:ring-ds-ink/15 disabled:opacity-50 dark:bg-white/[0.06]"
+                      className="min-h-[44px] max-h-[9rem] min-w-0 flex-1 resize-none rounded-2xl border-0 bg-[#f5f5f5] px-4 py-3 text-base leading-snug text-ds-ink shadow-none outline-none ring-0 placeholder:text-ds-text-placeholder focus-visible:border-0 focus-visible:ring-2 focus-visible:ring-ds-ink/15 disabled:opacity-50 md:text-[14px] md:leading-snug dark:bg-white/[0.06]"
                     />
                     <button
                       type="button"

@@ -2,11 +2,27 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { useEffect, useState } from "react"
 import { ArrowRight, CalendarClock } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
+import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
+import { hydrateTeacherStudentsFromProfiles } from "@/lib/supabase/teacher-student-cards"
 import { getUpcomingLessonsDisplay } from "@/lib/teacher-schedule-display"
-import { TEACHER_STUDENTS_MOCK } from "@/lib/teacher-students-mock"
+import { TEACHER_STUDENTS_MOCK, type TeacherStudentMock } from "@/lib/teacher-students-mock"
 
 export default function TeacherStudentsPage() {
+  const { usesSupabase } = useAuth()
+  const [students, setStudents] = useState<TeacherStudentMock[]>(TEACHER_STUDENTS_MOCK)
+
+  useEffect(() => {
+    if (!usesSupabase) {
+      setStudents(TEACHER_STUDENTS_MOCK)
+      return
+    }
+    const supabase = createBrowserSupabaseClient()
+    void hydrateTeacherStudentsFromProfiles(supabase, TEACHER_STUDENTS_MOCK).then(setStudents)
+  }, [usesSupabase])
+
   return (
     <div className="ds-figma-page">
       <div className="mx-auto w-full max-w-[min(100%,1440px)]">
@@ -36,7 +52,7 @@ export default function TeacherStudentsPage() {
         </header>
 
         <div className="mt-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-2 xl:gap-6 2xl:grid-cols-3">
-          {TEACHER_STUDENTS_MOCK.map((s) => {
+          {students.map((s) => {
             const upcoming = getUpcomingLessonsDisplay(s.id, 4)
             return (
               <article

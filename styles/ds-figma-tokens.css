@@ -378,6 +378,8 @@ html.dark[data-ui-accent="orange"] {
     max-width: none;
     min-height: 100svh;
     min-height: 100dvh;
+    /* Поверх dvh: реальная высота после клавиатуры iOS (задаётся VisualViewportSync) */
+    min-height: var(--visual-viewport-height, 100dvh);
     flex-direction: column;
     margin: 0;
     padding: 0;
@@ -2620,27 +2622,36 @@ html.dark[data-ui-accent="orange"] {
     .ds-messages-page {
       flex: 1 1 auto;
       width: 100%;
-      min-height: calc(100dvh - var(--ds-mobile-messages-offset, 7.5rem));
-      min-height: calc(100svh - var(--ds-mobile-messages-offset, 7.5rem));
+      max-width: 100%;
+      min-width: 0;
+      overflow-x: hidden;
+      min-height: calc(var(--visual-viewport-height, 100dvh) - var(--ds-mobile-messages-offset, 7.5rem));
     }
 
     .ds-messages-page__frame {
       display: flex;
       min-height: 0;
+      min-width: 0;
       flex: 1;
       flex-direction: column;
+      max-width: 100%;
+      overflow-x: hidden;
     }
 
     .ds-messages-sidebar {
       max-height: min(36dvh, 300px);
+      min-width: 0;
     }
 
     .ds-messages-chat-panel {
       display: flex;
       min-height: 0;
+      min-width: 0;
       flex: 1;
       flex-direction: column;
       width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
     }
   }
 

@@ -3,15 +3,32 @@
 import Image from "next/image"
 import Link from "next/link"
 import { useParams } from "next/navigation"
+import { useEffect, useState } from "react"
 import { ArrowLeft, CalendarDays } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
+import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
+import { hydrateTeacherStudentsFromProfiles } from "@/lib/supabase/teacher-student-cards"
 import { getUpcomingLessonsDisplay } from "@/lib/teacher-schedule-display"
-import { getTeacherStudentById } from "@/lib/teacher-students-mock"
+import { getTeacherStudentById, type TeacherStudentMock } from "@/lib/teacher-students-mock"
 import { StartChatWithStudentButton } from "@/components/teacher/start-chat-with-student-button"
 
 export default function TeacherStudentDetailPage() {
   const params = useParams()
   const studentId = typeof params.studentId === "string" ? params.studentId : ""
-  const s = getTeacherStudentById(studentId)
+  const { usesSupabase } = useAuth()
+  const [s, setS] = useState<TeacherStudentMock | undefined>(() => getTeacherStudentById(studentId))
+
+  useEffect(() => {
+    setS(getTeacherStudentById(studentId))
+  }, [studentId])
+
+  useEffect(() => {
+    if (!usesSupabase) return
+    const base = getTeacherStudentById(studentId)
+    if (!base?.chatProfileId) return
+    const supabase = createBrowserSupabaseClient()
+    void hydrateTeacherStudentsFromProfiles(supabase, [base]).then(([next]) => setS(next))
+  }, [usesSupabase, studentId])
 
   if (!s) {
     return (

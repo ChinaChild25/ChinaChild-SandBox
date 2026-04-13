@@ -58,9 +58,9 @@ function seedAprilMonFri(prefix: string, days: number[]): ScheduledLesson[] {
 export const TEACHER_STUDENTS_MOCK: TeacherStudentMock[] = [
   {
     id: "user-1",
-    /** Совпадает с закреплением в БД (profiles.assigned_teacher_id). */
+    /** Совпадает с закреплением в БД (profiles.assigned_teacher_id). Имя/фото в UI с Supabase подтягиваются из profiles. */
     chatProfileId: "92bba875-b74e-4836-be1c-9d5aecb574f9",
-    name: "Яна",
+    name: "Ирина Т.",
     avatar: "/students/yana.png",
     group: "HSK2 · вечер",
     homeworks: { done: 8, total: 48 },

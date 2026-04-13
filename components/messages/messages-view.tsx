@@ -232,7 +232,7 @@ export function MessagesView({
                           msg.from === "me" ? "ds-msg-bubble-me" : "ds-msg-bubble-them"
                         )}
                       >
-                        <p>{msg.text}</p>
+                          <p className="break-words [overflow-wrap:anywhere]">{msg.text}</p>
                         <p
                           className={cn(
                             "mt-1 text-right text-[11px] opacity-50",
@@ -246,13 +246,13 @@ export function MessagesView({
                   ))}
                 </div>
 
-                <div className="flex shrink-0 items-center gap-3 border-t border-[#e8e8e8] bg-ds-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-[#333333] lg:row-start-3">
+                <div className="flex min-w-0 shrink-0 items-center gap-3 border-t border-[#e8e8e8] bg-ds-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] dark:border-[#333333] lg:row-start-3">
                   <input
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
                     placeholder="Напишите сообщение..."
-                    className="min-h-[44px] flex-1 rounded-2xl border-0 bg-[#f5f5f5] px-4 py-2.5 text-[14px] text-ds-ink outline-none placeholder:text-[#aaa] focus-visible:ring-2 focus-visible:ring-ds-ink/20 dark:bg-white/5 dark:placeholder:text-ds-text-placeholder"
+                    className="min-h-[44px] min-w-0 flex-1 rounded-2xl border-0 bg-[#f5f5f5] px-4 py-2.5 text-base text-ds-ink outline-none placeholder:text-[#aaa] focus-visible:ring-2 focus-visible:ring-ds-ink/20 md:text-[14px] dark:bg-white/5 dark:placeholder:text-ds-text-placeholder"
                   />
                   <button
                     type="button"

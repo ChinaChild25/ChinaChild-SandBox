@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Menu } from "lucide-react"
 import { ChinaChildSidebarLogo } from "@/components/brand-logo"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { VisualViewportSync } from "@/components/visual-viewport-sync"
 import { useUiLocale } from "@/lib/ui-locale"
 
 export type FigmaSidebarSlotProps = { variant?: "sidebar" | "drawer" }
@@ -22,6 +23,7 @@ export function FigmaAppShell({
 
   return (
     <div className="ds-figma-shell-outer">
+      <VisualViewportSync />
       <div className="ds-figma-shell-row">
         <aside className="ds-figma-shell-sidebar">{renderSidebar({})}</aside>
 

@@ -22,6 +22,9 @@ export const viewport: Viewport = {
   themeColor: "#f5f5f5",
   width: "device-width",
   initialScale: 1,
+  viewportFit: "cover",
+  /** Android Chrome: вьюпорт подстраивается под клавиатуру, меньше рассинхрона с iOS-фиксом выше */
+  interactiveWidget: "resizes-content"
 }
 
 export default function RootLayout({
