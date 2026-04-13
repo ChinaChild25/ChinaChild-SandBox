@@ -18,6 +18,7 @@ import { TeacherReviewFormBlock } from "@/components/teacher-review-form"
 import { TelegramIcon, telegramProfileUrl } from "@/components/telegram-icon"
 import { useAuth } from "@/lib/auth-context"
 import type { MentorProfile } from "@/lib/mentors"
+import { hasSoftHyphens, russianWeekdayWithSoftHyphens } from "@/lib/russian-weekday-soft-hyphens"
 import { getMyReviewForTeacher } from "@/lib/teacher-review-storage"
 import { useUiLocale } from "@/lib/ui-locale"
 import { cn } from "@/lib/utils"
@@ -141,8 +142,8 @@ function CuratorPageBody({ mentor, t }: { mentor: MentorProfile; t: (k: string, 
   const focus = mentor.curatorFocus ?? []
 
   return (
-    <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8">
-      <div className="space-y-6 lg:col-span-7">
+    <div className="mt-10 grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8">
+      <div className="min-w-0 space-y-6 lg:col-span-7">
         <section
           className={cn(
             mentorCardRadius,
@@ -188,7 +189,7 @@ function CuratorPageBody({ mentor, t }: { mentor: MentorProfile; t: (k: string, 
         </section>
       </div>
 
-      <div className="space-y-6 lg:col-span-5">
+      <div className="min-w-0 space-y-6 lg:col-span-5">
         <section
           className={cn(
             mentorCardRadius,
@@ -235,16 +236,26 @@ function CuratorPageBody({ mentor, t }: { mentor: MentorProfile; t: (k: string, 
             <CalendarDays className="h-5 w-5 shrink-0 text-indigo-600 dark:text-indigo-300" aria-hidden />
             {t("mentor.curatorAvailabilityTitle")}
           </div>
-          <ul className="flex flex-col gap-2 p-0 list-none">
-            {mentor.scheduleSlots.map((row) => (
-              <li
-                key={`${row.day}-${row.time}`}
-                className="flex items-center justify-between gap-4 rounded-[var(--ds-radius-md)] bg-indigo-50/80 px-4 py-3.5 dark:bg-white/[0.06]"
-              >
-                <span className="text-[15px] font-medium text-ds-ink dark:text-white">{row.day}</span>
-                <span className="text-[15px] tabular-nums text-ds-text-secondary">{row.time}</span>
-              </li>
-            ))}
+          <ul lang="ru" className="flex flex-col gap-2 p-0 list-none">
+            {mentor.scheduleSlots.map((row) => {
+              const dayLine = russianWeekdayWithSoftHyphens(row.day)
+              return (
+                <li
+                  key={`${row.day}-${row.time}`}
+                  className="flex items-center justify-between gap-4 rounded-[var(--ds-radius-md)] bg-indigo-50/80 px-4 py-3.5 dark:bg-white/[0.06]"
+                >
+                  <span
+                    className={cn(
+                      "text-[15px] font-medium text-ds-ink dark:text-white",
+                      hasSoftHyphens(dayLine) ? "hyphens-manual" : "hyphens-auto"
+                    )}
+                  >
+                    {dayLine}
+                  </span>
+                  <span className="shrink-0 whitespace-nowrap text-[15px] tabular-nums text-ds-text-secondary">{row.time}</span>
+                </li>
+              )
+            })}
           </ul>
         </section>
 
@@ -284,8 +295,8 @@ function TeacherPageBody({ mentor, t }: { mentor: MentorProfile; t: (k: string, 
   )
 
   return (
-    <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8">
-      <div className="space-y-6 lg:col-span-7">
+    <div className="mt-10 grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-12 lg:gap-8">
+      <div className="min-w-0 space-y-6 lg:col-span-7">
         <section className={cn(mentorCardRadius, "bg-[#e2f0d9] p-6 dark:bg-[#2d3d28] md:p-8")}>
           <h2 className="text-[18px] font-semibold text-ds-ink dark:text-white">{t("mentor.about")}</h2>
           <p className="mt-4 text-[15px] leading-[1.65] text-[#3d3d3d] dark:text-white/85">{mentor.about}</p>
@@ -341,7 +352,7 @@ function TeacherPageBody({ mentor, t }: { mentor: MentorProfile; t: (k: string, 
         </section>
       </div>
 
-      <div className="space-y-6 lg:col-span-5">
+      <div className="min-w-0 space-y-6 lg:col-span-5">
         <section className="ds-mentor-subjects-card">
           <div className="ds-mentor-subjects-card__head">
             <BookOpen className="h-5 w-5" strokeWidth={2} aria-hidden />
@@ -365,21 +376,38 @@ function TeacherPageBody({ mentor, t }: { mentor: MentorProfile; t: (k: string, 
           </ul>
         </section>
 
-        <section className={cn("overflow-hidden", mentorCardRadius, "bg-[#1a1a1a] p-6 text-white md:p-7 dark:bg-[#0a0a0a]")}>
+        <section
+          className={cn(
+            "min-w-0 overflow-hidden",
+            mentorCardRadius,
+            "bg-[#1a1a1a] p-6 text-white shadow-none md:p-7",
+            "dark:bg-[#1c1c1c] dark:shadow-[0_8px_40px_-8px_rgb(0_0_0_/_0.55)]"
+          )}
+        >
           <div className="mb-5 flex items-center gap-2 text-[17px] font-semibold">
-            <CalendarDays className="h-5 w-5 shrink-0 text-white/90" aria-hidden />
+            <CalendarDays className="h-5 w-5 shrink-0 text-ds-sage-hover" aria-hidden />
             {t("mentor.scheduleTitle")}
           </div>
-          <ul className="flex flex-col gap-2 p-0 list-none">
-            {mentor.scheduleSlots.map((row) => (
-              <li
-                key={`${row.day}-${row.time}`}
-                className="flex items-center justify-between gap-4 rounded-[var(--ds-radius-md)] bg-[#2c2c2c] px-4 py-3.5 dark:bg-white/[0.08]"
-              >
-                <span className="text-[15px] font-medium text-white/95">{row.day}</span>
-                <span className="text-[15px] tabular-nums text-white/75">{row.time}</span>
-              </li>
-            ))}
+          <ul lang="ru" className="flex min-w-0 flex-col gap-2 p-0 list-none">
+            {mentor.scheduleSlots.map((row) => {
+              const dayLine = russianWeekdayWithSoftHyphens(row.day)
+              return (
+                <li
+                  key={`${row.day}-${row.time}`}
+                  className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 rounded-[var(--ds-radius-md)] bg-[#2c2c2c] px-4 py-3.5 dark:bg-[#252525]"
+                >
+                  <span
+                    className={cn(
+                      "min-w-0 text-[15px] font-medium leading-snug text-white/95",
+                      hasSoftHyphens(dayLine) ? "hyphens-manual" : "hyphens-auto"
+                    )}
+                  >
+                    {dayLine}
+                  </span>
+                  <span className="justify-self-end whitespace-nowrap text-[15px] tabular-nums text-white/75">{row.time}</span>
+                </li>
+              )
+            })}
           </ul>
         </section>
 

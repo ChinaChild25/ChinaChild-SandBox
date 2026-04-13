@@ -137,8 +137,10 @@
   letter-spacing: -0.04em;
   line-height: 1.05;
   margin: var(--cc-space-sm) 0 0;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .cc-lesson-module-line {
@@ -340,7 +342,10 @@
   font-size: 0.98rem;
   line-height: 1.55;
   color: var(--cc-hsk-text);
-  overflow-wrap: anywhere;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .cc-lesson-note strong {

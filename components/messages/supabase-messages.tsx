@@ -617,7 +617,7 @@ export function SupabaseMessages({
                             msg.from === "me" ? "ds-msg-bubble-me" : "ds-msg-bubble-them"
                           )}
                         >
-                          <p className="break-words [overflow-wrap:anywhere]">{msg.text}</p>
+                          <p className="ds-hyphenate-safe min-w-0 max-w-full">{msg.text}</p>
                           <p
                             className={cn(
                               "mt-1 text-right text-[11px] opacity-50",

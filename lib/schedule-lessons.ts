@@ -1,6 +1,8 @@
 /** Модель переносимых занятий в расписании (демо + localStorage). Дата слота — dateKey YYYY-MM-DD. */
 
 import { getAppNow } from "@/lib/app-time"
+import { SCHEDULE_WALL_CLOCK_TIMEZONE, wallClockFromDateInSchoolTz } from "@/lib/schedule-display-tz"
+import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
 import { TEACHER_HOURLY_SLOTS } from "@/lib/teacher-schedule"
 
 export const SCHEDULE_DEFAULT_TEACHER = "Чжао Ли"
@@ -62,14 +64,27 @@ export function canRescheduleLesson(dateKey: string, timeStr: string): boolean {
 }
 
 /**
+ * UTC-моменты слота и «сейчас» в одной шкале: настенные dateKey+time в SCHEDULE_WALL_CLOCK_TIMEZONE,
+ * как у ответа API и wallClockFromSlotAt. Иначе parseLessonStart (локаль браузера) расходится с ключами слотов.
+ */
+function scheduleNowUtcMs(): number {
+  const { dateKey, time } = wallClockFromDateInSchoolTz(getAppNow())
+  const t = normalizeScheduleSlotTime(time)
+  return new Date(wallClockSlotAtIso(dateKey, t, SCHEDULE_WALL_CLOCK_TIMEZONE)).getTime()
+}
+
+/**
  * Слот можно выбрать как новое время только если до начала строго больше 24 ч
- * и в пределах горизонта планирования. «Сейчас» — getAppNow() (календарь сценария + реальные часы).
+ * и в пределах горизонта планирования.
  */
 export function isValidRescheduleTargetSlot(dateKey: string, timeStr: string): boolean {
-  const start = parseLessonStart(dateKey, timeStr).getTime()
-  const now = getAppNow().getTime()
-  if (start <= now + MS_24H) return false
-  if (start > now + MS_STUDENT_RESCHEDULE_MAX_HORIZON) return false
+  const tz = SCHEDULE_WALL_CLOCK_TIMEZONE
+  const t = normalizeScheduleSlotTime(timeStr)
+  const slotMs = new Date(wallClockSlotAtIso(dateKey, t, tz)).getTime()
+  const nowMs = scheduleNowUtcMs()
+  if (Number.isNaN(slotMs)) return false
+  if (slotMs <= nowMs + MS_24H) return false
+  if (slotMs > nowMs + MS_STUDENT_RESCHEDULE_MAX_HORIZON) return false
   return true
 }
 

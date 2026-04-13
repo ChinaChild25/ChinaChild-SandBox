@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { wallClockFromSlotAt } from "@/lib/schedule-display-tz"
+import { resolveTeacherIdFromStudentSlots } from "@/lib/schedule/resolve-teacher-from-student-slots"
 import { normalizeScheduleSlotTime } from "@/lib/schedule/slot-time"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
@@ -48,13 +49,16 @@ export async function GET() {
     .maybeSingle<ProfileLite>()
   if (!me || me.role !== "student") return NextResponse.json({ error: "Student access required" }, { status: 403 })
 
+  const effectiveTeacherId =
+    me.assigned_teacher_id ?? (await resolveTeacherIdFromStudentSlots(supabase, me.id))
+
   let teacherName: string | undefined
   let teacherAvatarUrl: string | undefined
-  if (me.assigned_teacher_id) {
+  if (effectiveTeacherId) {
     const { data: teacherProfile } = await supabase
       .from("profiles")
       .select("id, first_name, last_name, full_name, avatar_url")
-      .eq("id", me.assigned_teacher_id)
+      .eq("id", effectiveTeacherId)
       .maybeSingle<{
         id: string
         first_name: string | null
@@ -90,7 +94,7 @@ export async function GET() {
   const teacherAvatarByName = new Map<string, string>()
   const teacherNameById = new Map<string, string>()
   const teacherIds = [...new Set((teacherBookedRows ?? []).map((r) => (r as { teacher_id?: string }).teacher_id).filter((x): x is string => Boolean(x)))]
-  if (me.assigned_teacher_id && !teacherIds.includes(me.assigned_teacher_id)) teacherIds.push(me.assigned_teacher_id)
+  if (effectiveTeacherId && !teacherIds.includes(effectiveTeacherId)) teacherIds.push(effectiveTeacherId)
   if (teacherIds.length > 0) {
     const { data: teacherProfiles } = await supabase
       .from("profiles")
@@ -191,7 +195,7 @@ export async function GET() {
       time: timeNorm,
       title: r.title,
       type: "lesson",
-      teacherId: me.assigned_teacher_id ?? undefined,
+      teacherId: effectiveTeacherId ?? undefined,
       teacher: r.teacher_name ?? teacherName ?? undefined,
       teacherAvatarUrl:
         teacherAvatarUrl ||

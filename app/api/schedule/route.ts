@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { SCHEDULE_WALL_CLOCK_TIMEZONE, wallClockFromSlotAt } from "@/lib/schedule-display-tz"
+import { resolveTeacherIdFromStudentSlots } from "@/lib/schedule/resolve-teacher-from-student-slots"
 import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { startOfLocalDay } from "@/lib/teacher-schedule"
@@ -7,9 +8,22 @@ import {
   emptyWeeklyTemplate,
   intervalsToHourlyStatuses,
   WEEKDAY_KEYS,
+  type AvailabilityInterval,
   type WeekdayKey,
   type WeeklyTemplate
 } from "@/lib/teacher-availability-template"
+
+/** Если в БД нет ни одного «зелёного» интервала — синтезируем окно 9–21, иначе перенос пустой при пустом json. */
+const DEFAULT_STUDENT_OPEN_HOURS: AvailabilityInterval[] = [{ start: "09:00", end: "21:00" }]
+const DEFAULT_STUDENT_WEEKLY_IF_NO_TEMPLATE: WeeklyTemplate = {
+  sunday: DEFAULT_STUDENT_OPEN_HOURS,
+  monday: DEFAULT_STUDENT_OPEN_HOURS,
+  tuesday: DEFAULT_STUDENT_OPEN_HOURS,
+  wednesday: DEFAULT_STUDENT_OPEN_HOURS,
+  thursday: DEFAULT_STUDENT_OPEN_HOURS,
+  friday: DEFAULT_STUDENT_OPEN_HOURS,
+  saturday: DEFAULT_STUDENT_OPEN_HOURS
+}
 
 type ProfileLite = {
   id: string
@@ -86,6 +100,10 @@ export async function GET(req: NextRequest) {
       .limit(1)
       .maybeSingle<{ teacher_id: string }>()
     teacherId = booked?.teacher_id ?? me.assigned_teacher_id ?? ""
+    if (!teacherId) {
+      const fromLessons = await resolveTeacherIdFromStudentSlots(supabase, me.id)
+      if (fromLessons) teacherId = fromLessons
+    }
   }
   if (!teacherId) {
     teacherId = me.role === "teacher" ? me.id : me.assigned_teacher_id ?? ""
@@ -153,7 +171,10 @@ export async function GET(req: NextRequest) {
     .select("weekly_template, timezone")
     .eq("teacher_id", teacherId)
     .maybeSingle<{ weekly_template: WeeklyTemplate | null; timezone: string | null }>()
-  const weekly = (tmpl?.weekly_template as WeeklyTemplate | null) ?? emptyWeeklyTemplate()
+  const weeklyFromDb = (tmpl?.weekly_template as WeeklyTemplate | null) ?? emptyWeeklyTemplate()
+  const weeklyForSynth = weeklyTemplateHasAnyFreeHour(weeklyFromDb)
+    ? weeklyFromDb
+    : DEFAULT_STUDENT_WEEKLY_IF_NO_TEMPLATE
   const teacherTz = tmpl?.timezone?.trim() || SCHEDULE_WALL_CLOCK_TIMEZONE
 
   const synthesized: Array<{
@@ -169,7 +190,7 @@ export async function GET(req: NextRequest) {
 
   for (let dk = startKey; dk <= lastKey; dk = addOneDayYmd(dk)) {
     const weekday = weekdayKeyFromDateKey(dk)
-    const hourly = intervalsToHourlyStatuses(weekly[weekday] ?? [])
+    const hourly = intervalsToHourlyStatuses(weeklyForSynth[weekday] ?? [])
     for (let hour = 0; hour < 24; hour++) {
       const timeStr = `${String(hour).padStart(2, "0")}:00`
       if (hourly[hour] !== "free") continue
@@ -187,7 +208,7 @@ export async function GET(req: NextRequest) {
 
   // Шаблон в БД пустой / ни одного «зелёного» часа — в календаре преподавателя слоты всё равно могут быть
   // материализованы как free после «Сохранить». Показываем их ученику, иначе перенос невозможен.
-  if (synthesized.length === 0 && !weeklyTemplateHasAnyFreeHour(weekly)) {
+  if (synthesized.length === 0 && !weeklyTemplateHasAnyFreeHour(weeklyFromDb)) {
     const seenIso = new Set<string>()
     for (const r of rows) {
       if (r.status !== "free") continue

@@ -333,10 +333,10 @@ export default function DashboardPage() {
                           <div className="text-[11px] font-semibold uppercase tracking-wide text-[#888] dark:text-ds-text-tertiary">
                             {kind === "curator" ? t("dashboard.roleCurator") : t("dashboard.roleTeacher")}
                           </div>
-                          <div className="mb-0.5 break-words text-[18px] font-semibold leading-snug text-ds-ink">
+                          <div className="mb-0.5 min-w-0 hyphens-auto text-[18px] font-semibold leading-snug text-ds-ink">
                             {m.name}
                           </div>
-                          <div className="break-words text-[13px] leading-snug text-[#666] dark:text-[var(--ds-text-secondary)]">
+                          <div className="min-w-0 hyphens-auto text-[13px] leading-snug text-[#666] dark:text-[var(--ds-text-secondary)]">
                             {m.role}
                           </div>
                         </div>

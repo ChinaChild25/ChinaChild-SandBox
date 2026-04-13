@@ -89,6 +89,7 @@ export const mentorsBySlug: Record<string, MentorProfile> = {
     ],
     subjects: ["Разговорный клуб", "Произношение", "Культура Китая", "HSK1", "HSK2"],
     languages: ["Китайский", "Русский", "Английский"],
+    /** Fallback; при mentor_page_slug = "eo-mi-ran" и шаблоне в БД подставляется weekly_template. */
     scheduleSlots: [
       { day: "Понедельник", time: "09:00–22:00 (МСК)" },
       { day: "Вторник", time: "09:00–22:00 (МСК)" },
@@ -134,6 +135,7 @@ export const mentorsBySlug: Record<string, MentorProfile> = {
     ],
     subjects: ["Грамматика", "Иероглифы", "Подготовка к HSK", "HSK1", "HSK2", "Аудирование"],
     languages: ["Китайский", "Русский"],
+    /** Fallback, если в БД нет строки шаблона или не задан profiles.mentor_page_slug = "zhao-li". */
     scheduleSlots: [
       { day: "Понедельник", time: "10:00–12:00" },
       { day: "Пятница", time: "14:00–16:00" },
