@@ -1,5 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
+import { FIGMA_TEACHERS } from "@/lib/figma-dashboard"
 import { displayNameFromProfileFields, type ProfileRow } from "@/lib/supabase/profile"
+
+const FALLBACK_TEACHER_AVATAR =
+  FIGMA_TEACHERS.find((t) => t.slug === "zhao-li")?.photo ?? "/staff/zhao-li.png"
 
 export type ChatProfileSnippet = Pick<
   ProfileRow,
@@ -143,6 +147,35 @@ function conversationPeerFromProfile(peerUserId: string, profile: PeerProfileRow
   }
 }
 
+/** Текст сообщения: в миграции изначально была колонка `body`, клиент использует `content`. */
+export function messageTextFromDbRow(row: { content?: unknown; body?: unknown }): string {
+  const c = typeof row.content === "string" ? row.content.trim() : ""
+  if (c) return c
+  const b = typeof row.body === "string" ? row.body.trim() : ""
+  return b
+}
+
+/** Аватар в UI: URL из БД или запасное фото преподавателя из макета (если в profiles нет avatar_url). */
+export function peerAvatarUrlForUi(peer: ConversationListPeer): string | null {
+  const u = peer.avatarUrl?.trim()
+  if (u) return u
+  if (peer.role.trim().toLowerCase() === "teacher") return FALLBACK_TEACHER_AVATAR
+  return null
+}
+
+export function chatBubbleFromMessageRow(
+  row: { id: string; sender_id: string; created_at: string; content?: unknown; body?: unknown },
+  myUserId: string
+): ChatBubble {
+  return {
+    id: row.id,
+    from: row.sender_id === myUserId ? "me" : "them",
+    text: messageTextFromDbRow(row),
+    createdAt: row.created_at,
+    timeLabel: formatChatTimeLabel(row.created_at)
+  }
+}
+
 /**
  * Список чатов: getUser → участия → conversations → участники (без join) → отдельно profiles по id → превью сообщений.
  * Показываются только беседы ровно с двумя участниками (вы + ровно один собеседник).
@@ -215,9 +248,12 @@ export async function loadMyConversationList(
 
   const lastByConv = new Map<string, { content: string; created_at: string }>()
   for (const row of msgs ?? []) {
-    const m = row as { conversation_id: string; content: string; created_at: string }
+    const m = row as { conversation_id: string; content?: unknown; body?: unknown; created_at: string }
     if (!lastByConv.has(m.conversation_id)) {
-      lastByConv.set(m.conversation_id, { content: m.content, created_at: m.created_at })
+      lastByConv.set(m.conversation_id, {
+        content: messageTextFromDbRow(m),
+        created_at: m.created_at
+      })
     }
   }
 
@@ -412,16 +448,12 @@ export async function loadMessagesForConversation(
 
   if (error) return { messages: [], error: new Error(error.message) }
 
-  const messages: ChatBubble[] = (data ?? []).map((row) => {
-    const r = row as Pick<MessageRow, "id" | "sender_id" | "content" | "created_at">
-    return {
-      id: r.id,
-      from: r.sender_id === myUserId ? "me" : "them",
-      text: r.content,
-      createdAt: r.created_at,
-      timeLabel: formatChatTimeLabel(r.created_at)
-    }
-  })
+  const messages: ChatBubble[] = (data ?? []).map((row) =>
+    chatBubbleFromMessageRow(
+      row as { id: string; sender_id: string; created_at: string; content?: unknown; body?: unknown },
+      myUserId
+    )
+  )
 
   return { messages, error: null }
 }
@@ -447,15 +479,9 @@ export async function sendChatMessage(
 
   if (error) return { message: null, error: new Error(error.message) }
 
-  const row = data as Pick<MessageRow, "id" | "sender_id" | "content" | "created_at">
+  const row = data as { id: string; sender_id: string; created_at: string; content?: unknown; body?: unknown }
   return {
-    message: {
-      id: row.id,
-      from: row.sender_id === senderId ? "me" : "them",
-      text: row.content,
-      createdAt: row.created_at,
-      timeLabel: formatChatTimeLabel(row.created_at)
-    },
+    message: chatBubbleFromMessageRow(row, senderId),
     error: null
   }
 }

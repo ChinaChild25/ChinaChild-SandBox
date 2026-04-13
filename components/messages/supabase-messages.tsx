@@ -1,17 +1,18 @@
 "use client"
 
-import Image from "next/image"
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { ArrowLeft, Mail, Send, Search } from "lucide-react"
 
 import { useAuth } from "@/lib/auth-context"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import { Textarea } from "@/components/ui/textarea"
 import {
+  chatBubbleFromMessageRow,
   formatListPeerRole,
   loadConversationPeerProfile,
   loadMessagesForConversation,
   loadMyConversationList,
+  peerAvatarUrlForUi,
   sendChatMessage,
   sortConversationListItems,
   formatChatTimeLabel,
@@ -37,6 +38,28 @@ function peerInitialLetter(name: string): string {
   const t = name.trim()
   if (!t || t === "User") return "U"
   return (t[0] ?? "U").toUpperCase()
+}
+
+function PeerAvatarImg({ peer, size }: { peer: ConversationListPeer; size: "list" | "header" }) {
+  const url = peerAvatarUrlForUi(peer)
+  const initial = peerInitialLetter(peer.name)
+  const box =
+    size === "list" ? "h-12 w-12 text-[15px]" : "h-11 w-11 text-[15px]"
+  return (
+    <div
+      className={cn(
+        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/10",
+        box
+      )}
+    >
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element -- внешние Supabase URL; next/image не требуется
+        <img src={url} alt={peer.name} className="absolute inset-0 h-full w-full object-cover" />
+      ) : (
+        <span className="font-semibold text-ds-text-secondary">{initial}</span>
+      )}
+    </div>
+  )
 }
 
 /** Строка до появления беседы в списке: профиль из БД, подсказка из picker или «User». */
@@ -111,6 +134,8 @@ export function SupabaseMessages({
   const [items, setItems] = useState<ConversationListItem[]>([])
 
   const [activeId, setActiveId] = useState<string | null>(null)
+  const activeIdRef = useRef<string | null>(null)
+  activeIdRef.current = activeId
 
   const [messagesLoading, setMessagesLoading] = useState(false)
   const [messagesError, setMessagesError] = useState<string | null>(null)
@@ -225,6 +250,82 @@ export function SupabaseMessages({
     }
   }, [myId, activeId])
 
+  const conversationIdsForRealtime = useMemo(
+    () => [...new Set(sidebarItems.map((i) => i.id))].sort(),
+    [sidebarItems]
+  )
+
+  useEffect(() => {
+    if (!myId || conversationIdsForRealtime.length === 0) return
+
+    const supabase = createBrowserSupabaseClient()
+    const channel = supabase.channel(`messages:${myId.slice(0, 8)}`)
+
+    for (const convId of conversationIdsForRealtime) {
+      channel.on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `conversation_id=eq.${convId}`
+        },
+        (payload) => {
+          const row = payload.new as {
+            id?: string
+            conversation_id?: string
+            sender_id?: string
+            created_at?: string
+            content?: unknown
+            body?: unknown
+          }
+          if (!row.id || !row.conversation_id || !row.sender_id || !row.created_at) return
+
+          const bubble = chatBubbleFromMessageRow(
+            {
+              id: row.id,
+              sender_id: row.sender_id,
+              created_at: row.created_at,
+              content: row.content,
+              body: row.body
+            },
+            myId
+          )
+
+          const cid = row.conversation_id
+
+          setMessages((prev) => {
+            if (cid !== activeIdRef.current) return prev
+            if (prev.some((m) => m.id === bubble.id)) return prev
+            return [...prev, bubble]
+          })
+
+          setItems((prev) => {
+            const idx = prev.findIndex((r) => r.id === cid)
+            if (idx === -1) return prev
+            const next = [...prev]
+            next[idx] = {
+              ...next[idx],
+              lastMessage: bubble.text,
+              lastMessageAt: bubble.createdAt
+            }
+            return sortConversationListItems(next)
+          })
+        }
+      )
+    }
+
+    channel.subscribe((status) => {
+      if (status === "CHANNEL_ERROR") {
+        console.warn("[SupabaseMessages] Realtime channel error — проверьте publication supabase_realtime для messages.")
+      }
+    })
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [myId, conversationIdsForRealtime])
+
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return sidebarItems
@@ -299,7 +400,6 @@ export function SupabaseMessages({
   const showChat = wide || mobilePanel === "chat"
   const empty = !listLoading && !listError && sidebarItems.length === 0
 
-  const peerInitial = active ? peerInitialLetter(active.peer.name) : "U"
   const activeRoleLine = active ? formatListPeerRole(active.peer.role) : ""
   const canSend =
     !!inputText.trim() && !messagesLoading && !messagesError && !!myId && !!activeId && !!active
@@ -361,7 +461,6 @@ export function SupabaseMessages({
                   const selected = row.id === activeId
                   const { peer } = row
                   const timeLabel = row.lastMessageAt ? formatChatTimeLabel(row.lastMessageAt) : ""
-                  const initial = peerInitialLetter(peer.name)
                   const preview = row.lastMessage.trim() || "Нет сообщений"
                   return (
                     <button
@@ -375,19 +474,7 @@ export function SupabaseMessages({
                           : "border-l-[3px] border-l-transparent hover:bg-black/[0.05] active:bg-black/[0.07] dark:hover:bg-white/[0.06] dark:active:bg-white/[0.08]"
                       )}
                     >
-                      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/10">
-                        {peer.avatarUrl ? (
-                          <Image
-                            src={peer.avatarUrl}
-                            alt={peer.name}
-                            fill
-                            className="object-cover"
-                            sizes="48px"
-                          />
-                        ) : (
-                          <span className="text-[15px] font-semibold text-ds-text-secondary">{initial}</span>
-                        )}
-                      </div>
+                      <PeerAvatarImg peer={peer} size="list" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <span className="truncate text-[15px] font-semibold leading-tight text-ds-ink">
@@ -440,21 +527,7 @@ export function SupabaseMessages({
                       <ArrowLeft className="h-5 w-5" />
                     </button>
                   ) : null}
-                  <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/10">
-                    {active.peer.avatarUrl ? (
-                      <Image
-                        src={active.peer.avatarUrl}
-                        alt={active.peer.name}
-                        fill
-                        className="object-cover"
-                        sizes="44px"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-[15px] font-semibold text-ds-text-secondary">
-                        {peerInitial}
-                      </div>
-                    )}
-                  </div>
+                  <PeerAvatarImg peer={active.peer} size="header" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[16px] font-semibold leading-tight text-ds-ink">{active.peer.name}</p>
                     {activeRoleLine ? (
