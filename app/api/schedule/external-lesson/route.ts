@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { wallClockFromSlotAt } from "@/lib/schedule-display-tz"
+import { SCHEDULE_WALL_CLOCK_TIMEZONE, wallClockFromSlotAt } from "@/lib/schedule-display-tz"
 import { reconcileStudentScheduleFireAndForget } from "@/lib/schedule/reconcile-student-schedule"
 import { findBookedTeacherSlotAt } from "@/lib/schedule/teacher-booked-slot"
 import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
@@ -11,6 +11,7 @@ type Body = {
   to_date_key?: string
   to_hour?: number
   scope?: "single" | "following"
+  timezone?: string
 }
 
 type ProfileLite = { id: string; role: "teacher" | "curator" | "student" }
@@ -49,6 +50,8 @@ export async function POST(req: Request) {
   if (!me || (me.role !== "teacher" && me.role !== "curator")) {
     return NextResponse.json({ error: "Teacher access required" }, { status: 403 })
   }
+
+  const timeZone = body?.timezone?.trim() || SCHEDULE_WALL_CLOCK_TIMEZONE
 
   const { dateKey: oldDateKey, time: oldTime } = lessonWallKeys(lesson)
   const oldWeekday = weekdayFromDateKey(oldDateKey)
@@ -100,7 +103,7 @@ export async function POST(req: Request) {
           .eq("time", row.time)
         const slotAtFree =
           (await findBookedTeacherSlotAt(supabase, me.id, lesson.student_id, row.date_key, row.time)) ??
-          wallClockSlotAtIso(row.date_key, row.time)
+          wallClockSlotAtIso(row.date_key, row.time, timeZone)
         await supabase
           .from("teacher_schedule_slots")
           .upsert(
@@ -123,7 +126,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid reschedule target" }, { status: 400 })
     }
     const toTime = `${String(toHour).padStart(2, "0")}:00`
-    const newSlotAt = wallClockSlotAtIso(toDateKey, toTime)
+    const newSlotAt = wallClockSlotAtIso(toDateKey, toTime, timeZone)
 
     if (scope === "single") {
       const { error: delErr } = await supabase
@@ -199,7 +202,7 @@ export async function POST(req: Request) {
         .eq("time", row.time)
       const slotAtOldFree =
         (await findBookedTeacherSlotAt(supabase, me.id, lesson.student_id, row.date_key, row.time)) ??
-        wallClockSlotAtIso(row.date_key, row.time)
+        wallClockSlotAtIso(row.date_key, row.time, timeZone)
       await supabase
         .from("teacher_schedule_slots")
         .upsert(
@@ -227,7 +230,7 @@ export async function POST(req: Request) {
         .upsert(
           {
             teacher_id: me.id,
-            slot_at: wallClockSlotAtIso(targetDateKey, toTime),
+            slot_at: wallClockSlotAtIso(targetDateKey, toTime, timeZone),
             status: "booked",
             booked_student_id: lesson.student_id
           },

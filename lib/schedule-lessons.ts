@@ -29,6 +29,8 @@ const STORAGE_KEY = "chinachild-schedule-lessons-v2"
 
 export const MS_24H = 24 * 60 * 60 * 1000
 export const MS_7D = 7 * MS_24H
+/** Окно выбора нового слота учеником — как запрос слотов в ЛК (см. openLesson /api/schedule …+21d). */
+export const MS_STUDENT_RESCHEDULE_MAX_HORIZON = 21 * MS_24H
 
 export function dateKeyFromDate(d: Date): string {
   const y = d.getFullYear()
@@ -61,13 +63,13 @@ export function canRescheduleLesson(dateKey: string, timeStr: string): boolean {
 
 /**
  * Слот можно выбрать как новое время только если до начала строго больше 24 ч
- * и не позже чем через 7 суток от «сейчас» (верхняя граница включительно).
+ * и в пределах горизонта планирования. «Сейчас» — getAppNow() (календарь сценария + реальные часы).
  */
 export function isValidRescheduleTargetSlot(dateKey: string, timeStr: string): boolean {
   const start = parseLessonStart(dateKey, timeStr).getTime()
   const now = getAppNow().getTime()
   if (start <= now + MS_24H) return false
-  if (start > now + MS_7D) return false
+  if (start > now + MS_STUDENT_RESCHEDULE_MAX_HORIZON) return false
   return true
 }
 

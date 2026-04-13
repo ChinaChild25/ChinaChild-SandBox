@@ -22,6 +22,48 @@
   }
 }
 
+/* подсветка после поиска: кольцо через spread box-shadow (повторяет border-radius элемента; outline в Chrome даёт «чужие» скругления) */
+@keyframes schedule-lesson-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.95);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.82);
+  }
+}
+
+.dark .schedule-lesson-search-pulse {
+  animation: schedule-lesson-pulse-dark 1s ease-in-out 3 forwards;
+}
+
+@keyframes schedule-lesson-pulse-dark {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgba(138, 180, 248, 0.95);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(138, 180, 248, 0.88);
+  }
+}
+
+.schedule-lesson-search-pulse {
+  animation: schedule-lesson-pulse 1s ease-in-out 3 forwards;
+  position: relative;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .schedule-lesson-search-pulse {
+    animation: none;
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.92);
+  }
+
+  .dark .schedule-lesson-search-pulse {
+    animation: none;
+    box-shadow: 0 0 0 2px rgba(138, 180, 248, 0.92);
+  }
+}
+
 /* анимации */
 @keyframes ds-auth-float {
   0%, 100% {

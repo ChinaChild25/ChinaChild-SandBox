@@ -1,8 +1,29 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import { Ban, Bell, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Clipboard, ClipboardPaste, Copy, Menu, Plus, Search, Settings, Trash2, X } from "lucide-react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import {
+  Ban,
+  Bell,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  Clipboard,
+  ClipboardPaste,
+  Copy,
+  Loader2,
+  Menu,
+  Plus,
+  Search,
+  Settings,
+  Trash2,
+  X
+} from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { firstRecurringSlotDateKey } from "@/lib/schedule/calendar-ymd"
+import { isFirstScheduledSlotInPast, nextEligibleStartDateKey } from "@/lib/schedule/recurring-slot-eligibility"
 import { addDays, buildHourlyIsoSlots, startOfWeekMonday } from "@/lib/teacher-schedule"
 import {
   type AvailabilityInterval,
@@ -39,6 +60,11 @@ type ExternalLesson = {
   type?: "lesson" | "completed" | "charged_absence" | string
 }
 
+/** Подсветка занятия на сетке после выбора из поиска */
+type ScheduleSearchPulse =
+  | { kind: "booked"; dateKey: string; startHour: number; endHourExclusive: number }
+  | { kind: "external"; slotAt: string }
+
 type StudentOption = {
   id: string
   name: string
@@ -57,6 +83,36 @@ const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(
 const END_HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => `${String(h + 1).padStart(2, "0")}:00`)
 const WEEKDAY_SHORT = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"]
 const WEEKDAY_RU = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"]
+
+/** Дательный падеж мн.ч. для «по понедельникам, …» */
+const WEEKDAY_RU_DATIVE_PLURAL = [
+  "воскресеньям",
+  "понедельникам",
+  "вторникам",
+  "средам",
+  "четвергам",
+  "пятницам",
+  "субботам"
+]
+
+function formatDateKeyLongRuForHint(dateKey: string): string {
+  const [y, m, d] = dateKey.split("-").map((x) => parseInt(x, 10))
+  if (![y, m, d].every((n) => Number.isFinite(n))) return dateKey
+  const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0))
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC"
+  }).format(dt)
+}
+
+/** День недели 0–6 (Вс–Сб), как в create-event и `Date.getUTCDay()`. */
+function jsWeekdayFromYmd(dateKey: string): number {
+  const [y, m, d] = dateKey.split("-").map((x) => parseInt(x, 10))
+  if (![y, m, d].every((n) => Number.isFinite(n))) return 1
+  return new Date(Date.UTC(y, m - 1, d, 12, 0, 0)).getUTCDay()
+}
 const WEEKDAY_KEYS_ORDER: WeekdayKey[] = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
 const TIMEZONE_OPTIONS = [
   "Europe/Moscow",
@@ -101,12 +157,18 @@ export default function TeacherSchedulePage() {
   const [nowTs, setNowTs] = useState(Date.now())
   const [saving, setSaving] = useState(false)
   const [ready, setReady] = useState(false)
+  const [calendarRangeLoading, setCalendarRangeLoading] = useState(false)
+  const initialCalendarBootstrapDone = useRef(false)
+  const calendarFetchGen = useRef(0)
   const [createOpen, setCreateOpen] = useState(false)
   const [availabilityOpen, setAvailabilityOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [showWeekends, setShowWeekends] = useState(true)
   const [searchText, setSearchText] = useState("")
+  const [scheduleSearchPulse, setScheduleSearchPulse] = useState<ScheduleSearchPulse | null>(null)
+  const [createScheduleKind, setCreateScheduleKind] = useState<"recurring" | "single">("recurring")
+  const createWeekdaysBackupRef = useRef<number[]>([1, 4])
   const [createWeekdays, setCreateWeekdays] = useState<number[]>([1, 4])
   const [createStartDateKey, setCreateStartDateKey] = useState(localDateKey(new Date()))
   const [createHour, setCreateHour] = useState(10)
@@ -115,13 +177,18 @@ export default function TeacherSchedulePage() {
   const [createStudentId, setCreateStudentId] = useState<string>("")
   const [createTitle, setCreateTitle] = useState("Занятие")
   const [createFeedback, setCreateFeedback] = useState<string | null>(null)
+  const [createSaving, setCreateSaving] = useState(false)
   const [createSuccessOpen, setCreateSuccessOpen] = useState(false)
   const [createSuccessPayload, setCreateSuccessPayload] = useState<{
     lessonTitle: string
-    slotsCreated: number
-    studentLessonsCreated: number
     mode: "busy" | "booked"
     warning: string | null
+    startDateKey: string
+    weekdays: number[]
+    hour: number
+    weeks: number
+    timeZoneId: string
+    scheduleKind: "recurring" | "single"
   } | null>(null)
   const [copiedIntervals, setCopiedIntervals] = useState<AvailabilityInterval[] | null>(null)
   const [availabilityNotice, setAvailabilityNotice] = useState<string | null>(null)
@@ -159,6 +226,10 @@ export default function TeacherSchedulePage() {
   }, [])
 
   useEffect(() => {
+    if (createOpen) setNowTs(Date.now())
+  }, [createOpen])
+
+  useEffect(() => {
     if (!user || (user.role !== "teacher" && user.role !== "curator")) return
     const sync = () => setScheduleNotifications(readScheduleNotifications("teacher", user.id))
     sync()
@@ -171,42 +242,109 @@ export default function TeacherSchedulePage() {
   }, [notificationsOpen, user])
 
   useEffect(() => {
-    const load = async () => {
-      const rangeFrom = new Date(visibleDays[0])
-      rangeFrom.setHours(0, 0, 0, 0)
-      const rangeTo = addDays(rangeFrom, viewMode === "week" ? 7 : 1)
-      const queryFrom = addDays(rangeFrom, -1)
-      const queryTo = addDays(rangeTo, 1)
-      const [tmplRes, slotsRes, studentsRes] = await Promise.all([
-        fetch("/api/schedule/template"),
-        fetch(`/api/schedule/slots?from=${encodeURIComponent(queryFrom.toISOString())}&to=${encodeURIComponent(queryTo.toISOString())}`),
-        fetch("/api/schedule/students")
-      ])
-      if (tmplRes.ok) {
-        const payload = (await tmplRes.json()) as { template: WeeklyTemplate; timezone: string }
-        setTemplate(payload.template ?? emptyWeeklyTemplate())
-        setTimezone(payload.timezone ?? "Europe/Moscow")
+    if (!scheduleSearchPulse) return
+    const pulse = scheduleSearchPulse
+    const t = window.setTimeout(() => setScheduleSearchPulse(null), 3000)
+    const scroll = () => {
+      let el: Element | null = null
+      if (pulse.kind === "external") {
+        document.querySelectorAll("[data-external-slot-at]").forEach((n) => {
+          if (n.getAttribute("data-external-slot-at") === pulse.slotAt) el = n
+        })
+      } else {
+        el = document.querySelector(`[data-booked-pulse-anchor="${pulse.dateKey}-${pulse.startHour}"]`)
       }
-      if (slotsRes.ok) {
-        const payload = (await slotsRes.json()) as {
-          slots?: Array<{ slot_at: string; status: SlotStatus; booked_student_name: string | null }>
-          external_lessons?: ExternalLesson[]
-        }
-        const next: Record<string, SlotMeta> = {}
-        for (const s of payload.slots ?? []) {
-          next[s.slot_at] = { status: s.status, studentName: s.booked_student_name }
-        }
-        setSlotMap(next)
-        setExternalLessons(payload.external_lessons ?? [])
-      }
-      if (studentsRes.ok) {
-        const payload = (await studentsRes.json()) as { students?: StudentOption[] }
-        setStudents(payload.students ?? [])
-      }
-      setReady(true)
+      el?.scrollIntoView({ block: "center", behavior: "smooth", inline: "nearest" })
     }
+    const raf = requestAnimationFrame(() => requestAnimationFrame(scroll))
+    return () => {
+      window.clearTimeout(t)
+      cancelAnimationFrame(raf)
+    }
+  }, [scheduleSearchPulse])
+
+  useLayoutEffect(() => {
     if (!user || (user.role !== "teacher" && user.role !== "curator")) return
+    setCalendarRangeLoading(true)
+  }, [user, visibleDays, viewMode])
+
+  useEffect(() => {
+    if (!user || (user.role !== "teacher" && user.role !== "curator")) {
+      setCalendarRangeLoading(false)
+      return
+    }
+
+    const gen = ++calendarFetchGen.current
+    const ac = new AbortController()
+
+    const rangeFrom = new Date(visibleDays[0])
+    rangeFrom.setHours(0, 0, 0, 0)
+    const rangeTo = addDays(rangeFrom, viewMode === "week" ? 7 : 1)
+    const queryFrom = addDays(rangeFrom, -1)
+    const queryTo = addDays(rangeTo, 1)
+    const slotsUrl = `/api/schedule/slots?from=${encodeURIComponent(queryFrom.toISOString())}&to=${encodeURIComponent(queryTo.toISOString())}`
+
+    const applySlotsPayload = (payload: {
+      slots?: Array<{ slot_at: string; status: SlotStatus; booked_student_name: string | null }>
+      external_lessons?: ExternalLesson[]
+    }) => {
+      const next: Record<string, SlotMeta> = {}
+      for (const s of payload.slots ?? []) {
+        next[s.slot_at] = { status: s.status, studentName: s.booked_student_name }
+      }
+      setSlotMap(next)
+      setExternalLessons(payload.external_lessons ?? [])
+    }
+
+    const load = async () => {
+      try {
+        if (!initialCalendarBootstrapDone.current) {
+          const [tmplRes, slotsRes, studentsRes] = await Promise.all([
+            fetch("/api/schedule/template", { signal: ac.signal }),
+            fetch(slotsUrl, { signal: ac.signal }),
+            fetch("/api/schedule/students", { signal: ac.signal })
+          ])
+          if (gen !== calendarFetchGen.current) return
+          if (tmplRes.ok) {
+            const payload = (await tmplRes.json()) as { template: WeeklyTemplate; timezone: string }
+            setTemplate(payload.template ?? emptyWeeklyTemplate())
+            setTimezone(payload.timezone ?? "Europe/Moscow")
+          }
+          if (slotsRes.ok) {
+            const payload = (await slotsRes.json()) as {
+              slots?: Array<{ slot_at: string; status: SlotStatus; booked_student_name: string | null }>
+              external_lessons?: ExternalLesson[]
+            }
+            applySlotsPayload(payload)
+          }
+          if (studentsRes.ok) {
+            const payload = (await studentsRes.json()) as { students?: StudentOption[] }
+            setStudents(payload.students ?? [])
+          }
+          initialCalendarBootstrapDone.current = true
+          setReady(true)
+        } else {
+          const slotsRes = await fetch(slotsUrl, { signal: ac.signal })
+          if (gen !== calendarFetchGen.current) return
+          if (slotsRes.ok) {
+            const payload = (await slotsRes.json()) as {
+              slots?: Array<{ slot_at: string; status: SlotStatus; booked_student_name: string | null }>
+              external_lessons?: ExternalLesson[]
+            }
+            applySlotsPayload(payload)
+          }
+        }
+      } finally {
+        if (gen === calendarFetchGen.current) {
+          setCalendarRangeLoading(false)
+        }
+      }
+    }
+
     void load()
+    return () => {
+      ac.abort()
+    }
   }, [user, visibleDays, viewMode])
 
   const monthTitle = `${anchorDate.toLocaleDateString("ru-RU", { month: "long" })} ${anchorDate.getFullYear()}`
@@ -368,21 +506,33 @@ export default function TeacherSchedulePage() {
     const inBooked = visibleDays.flatMap((day, dayIdx) =>
       (bookedBlocks[dayIdx] ?? [])
         .filter((b) => b.label.toLowerCase().includes(q))
-        .map((b) => ({ day, label: b.label, time: b.time, source: "booked" as const }))
+        .map((b) => {
+          const dateKey = getDateKeyInTimeZone(day, timezone)
+          const endHourExclusive = b.startHour + Math.round(b.height / ROW_HEIGHT)
+          const pulse: ScheduleSearchPulse = {
+            kind: "booked",
+            dateKey,
+            startHour: b.startHour,
+            endHourExclusive
+          }
+          return { day, label: b.label, time: b.time, source: "booked" as const, pulse }
+        })
     )
     const inExternal = externalLessons
       .filter((l) => `${l.student_name} ${l.title}`.toLowerCase().includes(q))
       .map((l) => {
         const d = new Date(l.slot_at)
+        const parts = getDateTimePartsInTimeZone(new Date(l.slot_at), timezone)
         return {
           day: d,
           label: l.student_name || l.title,
-          time: `${String(d.getHours()).padStart(2, "0")}:00`,
-          source: "external" as const
+          time: l.time ?? `${parts.hour}:00`,
+          source: "external" as const,
+          pulse: { kind: "external" as const, slotAt: l.slot_at }
         }
       })
     return [...inBooked, ...inExternal]
-  }, [bookedBlocks, externalLessons, searchText, visibleDays])
+  }, [bookedBlocks, externalLessons, searchText, timezone, visibleDays])
 
   const nowLine = useMemo(() => {
     const now = new Date(nowTs)
@@ -400,55 +550,103 @@ export default function TeacherSchedulePage() {
     return Array.from({ length: 42 }, (_, i) => addDays(gridStart, i))
   }, [anchorDate])
 
+  const createEffectiveWeekdays = useMemo(
+    () =>
+      createScheduleKind === "single" ? [jsWeekdayFromYmd(createStartDateKey)] : createWeekdays,
+    [createScheduleKind, createStartDateKey, createWeekdays]
+  )
+  const createEffectiveWeeks = createScheduleKind === "single" ? 1 : createWeeks
+
+  const createPastSlotHint = useMemo(() => {
+    if (createEffectiveWeekdays.length === 0) {
+      return { firstInPast: false, suggestedStart: null as string | null }
+    }
+    const firstInPast = isFirstScheduledSlotInPast(
+      createStartDateKey,
+      createEffectiveWeekdays,
+      createEffectiveWeeks,
+      createHour,
+      timezone,
+      nowTs
+    )
+    const wallTime = `${String(createHour).padStart(2, "0")}:00`
+    const suggestedStart = firstInPast
+      ? nextEligibleStartDateKey(createStartDateKey, createEffectiveWeekdays, wallTime, timezone, nowTs)
+      : null
+    return { firstInPast, suggestedStart }
+  }, [
+    createStartDateKey,
+    createEffectiveWeekdays,
+    createEffectiveWeeks,
+    createHour,
+    timezone,
+    nowTs
+  ])
+
   const createRecurringEvent = async () => {
     setCreateFeedback(null)
-    const res = await fetch("/api/schedule/create-event", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        weekdays: createWeekdays,
-        start_date_key: createStartDateKey,
-        hour: createHour,
-        weeks: createWeeks,
-        status: createMode,
-        student_id: createMode === "booked" ? createStudentId : null,
-        title: createTitle
+    setCreateSaving(true)
+    try {
+      const res = await fetch("/api/schedule/create-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          weekdays: createEffectiveWeekdays,
+          start_date_key: createStartDateKey,
+          hour: createHour,
+          weeks: createEffectiveWeeks,
+          status: createMode,
+          student_id: createMode === "booked" ? createStudentId : null,
+          title: createTitle,
+          timezone
+        })
       })
-    })
-    const payload = (await res.json().catch(() => ({}))) as {
-      error?: string
-      created?: number
-      studentLessonsCreated?: number
-      warning?: string | null
-    }
-    if (!res.ok) {
-      setCreateFeedback(payload.error || "Не удалось создать регулярные занятия")
+      const payload = (await res.json().catch(() => ({}))) as {
+        error?: string
+        created?: number
+        studentLessonsCreated?: number
+        warning?: string | null
+        suggested_start_date_key?: string | null
+      }
+      if (!res.ok) {
+        let msg = payload.error || "Не удалось создать регулярные занятия"
+        if (payload.suggested_start_date_key) {
+          msg += ` Предлагаем начать с ${formatDateKeyLongRuForHint(payload.suggested_start_date_key)} — нажмите «Начать с этой даты» в форме или укажите эту дату вручную.`
+        }
+        setCreateFeedback(msg)
+        await refreshCalendarData()
+        return
+      }
+      const created = payload.created ?? 0
+      const studentCreated = payload.studentLessonsCreated ?? 0
       await refreshCalendarData()
-      return
-    }
-    const created = payload.created ?? 0
-    const studentCreated = payload.studentLessonsCreated ?? 0
-    await refreshCalendarData()
 
-    if (created > 0) {
-      setCreateOpen(false)
-      setCreateFeedback(null)
-      setCreateSuccessPayload({
-        lessonTitle: createTitle.trim() || "Занятие",
-        slotsCreated: created,
-        studentLessonsCreated: studentCreated,
-        mode: createMode,
-        warning: payload.warning ?? null
-      })
-      setCreateSuccessOpen(true)
-      return
-    }
+      if (created > 0) {
+        setCreateOpen(false)
+        setCreateFeedback(null)
+        setCreateSuccessPayload({
+          lessonTitle: createTitle.trim() || "Занятие",
+          mode: createMode,
+          warning: payload.warning ?? null,
+          startDateKey: createStartDateKey,
+          weekdays: [...createEffectiveWeekdays],
+          hour: createHour,
+          weeks: createEffectiveWeeks,
+          timeZoneId: timezone,
+          scheduleKind: createScheduleKind
+        })
+        setCreateSuccessOpen(true)
+        return
+      }
 
-    const baseMessage =
-      createMode === "booked"
-        ? `Новых слотов не добавлено (возможно, выбранные слоты уже заняты). Создано: ${created}, у ученика: ${studentCreated}.`
-        : `Новых слотов не добавлено. Создано: ${created}.`
-    setCreateFeedback(payload.warning ? `${baseMessage} Предупреждение: ${payload.warning}` : baseMessage)
+      const baseMessage =
+        createMode === "booked"
+          ? `Новых слотов не добавлено (возможно, выбранные слоты уже заняты). Создано: ${created}, у ученика: ${studentCreated}.`
+          : `Новых слотов не добавлено. Создано: ${created}.`
+      setCreateFeedback(payload.warning ? `${baseMessage} Предупреждение: ${payload.warning}` : baseMessage)
+    } finally {
+      setCreateSaving(false)
+    }
   }
 
   const cancelExternalLesson = async (lesson: ExternalLesson) => {
@@ -466,7 +664,8 @@ export default function TeacherSchedulePage() {
         lesson: lessonDecision.lesson,
         to_date_key: lessonDecision.toDateKey,
         to_hour: lessonDecision.toHour,
-        scope
+        scope,
+        timezone
       })
     })
     setRescheduleOpen(false)
@@ -493,7 +692,7 @@ export default function TeacherSchedulePage() {
     await fetch("/api/schedule/external-lesson", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "cancel", lesson: lessonDecision.lesson, scope })
+      body: JSON.stringify({ action: "cancel", lesson: lessonDecision.lesson, scope, timezone })
     })
     pushScheduleNotification({
       audience: "student",
@@ -606,9 +805,29 @@ export default function TeacherSchedulePage() {
             <h1 className="truncate text-[20px] font-normal capitalize text-[#3c4043] dark:text-white sm:text-[22px]">{monthTitle}</h1>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
-            <div className="inline-flex overflow-hidden rounded-lg border border-black/10 dark:border-white/15">
-              <button className={`px-3 py-1.5 text-sm ${viewMode === "day" ? "bg-white text-[#3c4043]" : "bg-[#f1f3f4] text-[#5f6368]"}`} onClick={() => setViewMode("day")}>День</button>
-              <button className={`px-3 py-1.5 text-sm ${viewMode === "week" ? "bg-white text-[#3c4043]" : "bg-[#f1f3f4] text-[#5f6368]"}`} onClick={() => setViewMode("week")}>Неделя</button>
+            <div className="inline-flex overflow-hidden rounded-lg border border-black/10 bg-[#f1f3f4] p-0.5 dark:border-white/15 dark:bg-[#252a31]">
+              <button
+                type="button"
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  viewMode === "day"
+                    ? "bg-white text-[#3c4043] shadow-sm dark:bg-[#323944] dark:text-white dark:shadow-md dark:shadow-black/40"
+                    : "bg-transparent text-[#5f6368] hover:bg-black/[0.04] hover:text-[#202124] dark:text-[#b0b6c0] dark:hover:bg-white/[0.06] dark:hover:text-white"
+                }`}
+                onClick={() => setViewMode("day")}
+              >
+                День
+              </button>
+              <button
+                type="button"
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  viewMode === "week"
+                    ? "bg-white text-[#3c4043] shadow-sm dark:bg-[#323944] dark:text-white dark:shadow-md dark:shadow-black/40"
+                    : "bg-transparent text-[#5f6368] hover:bg-black/[0.04] hover:text-[#202124] dark:text-[#b0b6c0] dark:hover:bg-white/[0.06] dark:hover:text-white"
+                }`}
+                onClick={() => setViewMode("week")}
+              >
+                Неделя
+              </button>
             </div>
             <TooltipIconButton tooltip="Создать занятие" onClick={() => setCreateOpen(true)}>
               <Plus size={18} />
@@ -662,7 +881,7 @@ export default function TeacherSchedulePage() {
               ) : null}
             </div>
             <button
-              className="rounded-lg border border-black/10 bg-black px-4 py-1.5 text-sm text-white hover:bg-black/85 disabled:opacity-60 dark:border-white/20 dark:bg-white dark:text-black"
+              className="rounded-lg border border-black/10 bg-black px-4 py-1.5 text-sm font-medium text-white hover:bg-black/85 disabled:opacity-60 dark:border-[#b8d97a]/40 dark:bg-[var(--ds-sage-strong)] dark:text-[#121212] dark:hover:bg-[var(--ds-sage-hover)] dark:hover:text-[#0f0f0f]"
               disabled={!ready || saving}
               onClick={() => void saveChanges()}
             >
@@ -674,14 +893,14 @@ export default function TeacherSchedulePage() {
         <div className="flex min-h-0 flex-1 gap-0 p-0">
           <aside className={`hidden rounded-[14px] bg-transparent px-3 py-4 transition-all dark:bg-transparent md:block ${sidebarCollapsed ? "w-16" : "w-72 lg:w-80"}`}>
             <button
-              className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg bg-[#f1f3f4] px-3 py-2 text-sm hover:bg-[#e8eaed] dark:bg-[#23272d] dark:hover:bg-[#2d333b]"
+              className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg bg-[#f1f3f4] px-3 py-2 text-sm text-[#202124] hover:bg-[#e8eaed] dark:bg-[#23272d] dark:text-[#e8eaed] dark:hover:bg-[#2d333b]"
               onClick={() => setAvailabilityOpen(true)}
             >
               <Settings size={16} />
               {!sidebarCollapsed ? "Указать доступность" : null}
             </button>
             <button
-              className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[#f1f3f4] px-3 py-2 text-sm hover:bg-[#e8eaed] dark:bg-[#23272d] dark:hover:bg-[#2d333b]"
+              className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[#f1f3f4] px-3 py-2 text-sm text-[#202124] hover:bg-[#e8eaed] dark:bg-[#23272d] dark:text-[#e8eaed] dark:hover:bg-[#2d333b]"
               onClick={() => setCreateOpen(true)}
             >
               <Plus size={16} />
@@ -689,18 +908,18 @@ export default function TeacherSchedulePage() {
             </button>
             {!sidebarCollapsed ? (
               <>
-                <div className="mb-4 rounded-[var(--ds-radius-xl)] border border-black/10 bg-white p-3">
+                <div className="mb-4 rounded-[var(--ds-radius-xl)] border border-black/10 bg-white p-3 dark:border-white/10 dark:bg-[#23272d]">
                   <div className="mb-3">
-                    <span className="text-[17px] font-semibold capitalize leading-none text-ds-ink">
+                    <span className="text-[17px] font-semibold capitalize leading-none text-ds-ink dark:text-[#e8eaed]">
                       {anchorDate.toLocaleDateString("ru-RU", { month: "long" })}{" "}
                     </span>
-                    <span className="text-[17px] font-normal leading-none text-ds-ink">
+                    <span className="text-[17px] font-normal leading-none text-ds-ink dark:text-[#e8eaed]">
                       {anchorDate.toLocaleDateString("ru-RU", { year: "numeric" })}
                     </span>
                   </div>
                   <div className="grid grid-cols-7 gap-0.5 text-center sm:gap-1">
                     {["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"].map((d) => (
-                      <div key={d} className="pb-1 text-center text-[11px] text-[#888]">
+                      <div key={d} className="pb-1 text-center text-[11px] text-[#888] dark:text-[#9aa0a6]">
                         {d}
                       </div>
                     ))}
@@ -710,8 +929,13 @@ export default function TeacherSchedulePage() {
                       return (
                         <button
                           key={d.toISOString()}
-                          className={`mx-auto flex h-10 w-10 items-center justify-center rounded-[var(--ds-radius-md)] text-center text-[13px] no-underline ${
-                            active ? "bg-ds-sage text-ds-ink" : inMonth ? "text-ds-ink hover:bg-ds-surface-hover" : "text-[#9aa0a6]"
+                          type="button"
+                          className={`mx-auto flex h-10 w-10 items-center justify-center rounded-[var(--ds-radius-md)] text-center text-[13px] no-underline transition-colors ${
+                            active
+                              ? "bg-ds-sage text-ds-ink dark:bg-[var(--ds-sage-strong)] dark:text-[#121212]"
+                              : inMonth
+                                ? "text-ds-ink hover:bg-ds-surface-hover dark:text-[#e8eaed] dark:hover:bg-white/10"
+                                : "text-[#9aa0a6] dark:text-[#6b7280]"
                           }`}
                           onClick={() => setAnchorDate(d)}
                         >
@@ -719,13 +943,6 @@ export default function TeacherSchedulePage() {
                         </button>
                       )
                     })}
-                  </div>
-                </div>
-                <div>
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#5f6368]">Мои календари</div>
-                  <div className="space-y-2 text-sm text-[#3c4043]">
-                    <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#34a853]" /> Доступность</div>
-                    <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-[#a142f4]" /> Занятия</div>
                   </div>
                 </div>
               </>
@@ -761,6 +978,18 @@ export default function TeacherSchedulePage() {
                 headerScrollRef.current.scrollLeft = (e.currentTarget as HTMLDivElement).scrollLeft
               }}
             >
+              {calendarRangeLoading ? (
+                <div
+                  className="pointer-events-auto absolute inset-0 z-[45] flex items-center justify-center bg-white/60 backdrop-blur-[1px] dark:bg-[#1a1d21]/55"
+                  aria-busy
+                  aria-live="polite"
+                >
+                  <div className="flex flex-col items-center gap-2 rounded-xl border border-black/10 bg-white/95 px-4 py-3 shadow-lg dark:border-white/10 dark:bg-[#23272d]/95">
+                    <Loader2 className="h-7 w-7 animate-spin text-[#1a73e8] dark:text-[#8ab4f8]" aria-hidden />
+                    <span className="text-xs text-[#5f6368] dark:text-[#b0b6c0]">Загрузка расписания…</span>
+                  </div>
+                </div>
+              ) : null}
               <div className="relative grid min-w-[760px]" style={{ gridTemplateColumns: `64px repeat(${dayColumnCount}, minmax(132px, 1fr))` }}>
                 <div>
                   {HOURS.map((hour) => (
@@ -772,10 +1001,21 @@ export default function TeacherSchedulePage() {
                 </div>
 
                 {visibleDays.map((day, dayIdx) => (
-                  <div key={day.toISOString()} className="relative mx-[1px] overflow-hidden rounded-lg border border-black/10 bg-[#fdfdfd] dark:border-white/10 dark:bg-[#1f2329]">
+                  <div key={day.toISOString()} className="relative mx-[1px] overflow-hidden rounded-lg border border-black/10 bg-[#fdfdfd] dark:border-white/10 dark:bg-[#1a1e24]">
                     {HOURS.map((hour) => {
                       const status = getHourStatus(day, hour)
-                      const bgClass = status === "free" ? "bg-[#e6f4ea]" : "bg-[#eef1f4]"
+                      const dateKeyCol = getDateKeyInTimeZone(day, timezone)
+                      const bookedPulse =
+                        scheduleSearchPulse?.kind === "booked" &&
+                        scheduleSearchPulse.dateKey === dateKeyCol &&
+                        hour >= scheduleSearchPulse.startHour &&
+                        hour < scheduleSearchPulse.endHourExclusive
+                      const bookedPulseAnchor =
+                        bookedPulse && hour === scheduleSearchPulse.startHour && status === "booked"
+                      const bgClass =
+                        status === "free"
+                          ? "bg-[#e6f4ea] dark:bg-[#1e2a22]"
+                          : "bg-[#eef1f4] dark:bg-[#252a32]"
                       const isDraggingCell =
                         drag &&
                         drag.dayIdx === dayIdx &&
@@ -786,7 +1026,8 @@ export default function TeacherSchedulePage() {
                       return (
                         <div
                           key={`${day.toISOString()}-${hour}`}
-                          className={`${hour === HOURS.length - 1 ? "mb-0" : "mb-[2px]"} mx-[2px] h-[32px] cursor-pointer rounded-[6px] ${bgClass} ${isDraggingCell || isDropTarget ? "bg-[#d2e3fc] ring-1 ring-[#1a73e8]/40" : ""} hover:bg-[#eef3fd] dark:hover:bg-[#2a3140]`}
+                          data-booked-pulse-anchor={bookedPulseAnchor ? `${dateKeyCol}-${hour}` : undefined}
+                          className={`${hour === HOURS.length - 1 ? "mb-0" : "mb-[2px]"} mx-[2px] h-[32px] cursor-pointer rounded-[6px] ${bgClass} ${bookedPulse ? "schedule-lesson-search-pulse" : ""} ${isDraggingCell || isDropTarget ? "bg-[#d2e3fc] ring-1 ring-[#1a73e8]/40 dark:bg-[#2a3f5c] dark:ring-[#8ab4f8]/50" : ""} hover:bg-[#eef3fd] dark:hover:bg-[#2f3642]`}
                           onPointerDown={(e) => {
                             if (status === "booked") return
                             setPopover(null)
@@ -831,14 +1072,18 @@ export default function TeacherSchedulePage() {
                     <div className="pointer-events-none absolute inset-0 z-20">
                       {(externalBlocks[dayIdx] ?? []).map((b, i) => {
                         const lesson = b.lesson
+                        const externalPulse =
+                          scheduleSearchPulse?.kind === "external" && scheduleSearchPulse.slotAt === lesson.slot_at
                         return (
                           <button
                           key={`${dayIdx}-external-${i}`}
+                          type="button"
+                          data-external-slot-at={lesson.slot_at}
                           className={`pointer-events-auto absolute left-[2px] right-[2px] rounded-[6px] p-1.5 pl-7 text-left text-[11px] transition hover:ring-2 ${
                             lesson.type === "charged_absence"
-                              ? "bg-[#f6c7c3] text-[#7f1d1d] hover:bg-[#f0b4ae] hover:ring-[#b3261e]/20"
-                              : "bg-[#81c995]/70 text-[#0d652d] hover:bg-[#81c995] hover:ring-[#0d652d]/20"
-                          } ${b.isPast ? "opacity-70" : ""}`}
+                              ? "bg-[#f6c7c3] text-[#7f1d1d] hover:bg-[#f0b4ae] hover:ring-[#b3261e]/20 dark:bg-[#4a2528] dark:text-[#fecaca] dark:hover:bg-[#5c2e32] dark:hover:ring-[#f87171]/25"
+                              : "bg-[#81c995]/70 text-[#0d652d] hover:bg-[#81c995] hover:ring-[#0d652d]/20 dark:bg-[#1e3d2e]/95 dark:text-[#b9f6ca] dark:hover:bg-[#255238] dark:hover:ring-[#81c995]/30"
+                          } ${b.isPast ? "opacity-70" : ""} ${externalPulse ? "schedule-lesson-search-pulse" : ""}`}
                           style={{ top: b.top + 1, height: SLOT_HEIGHT }}
                           draggable
                           onDragStart={() => {
@@ -987,7 +1232,10 @@ export default function TeacherSchedulePage() {
           >
             Отметить статус
           </button>
-          <button className="w-full rounded-lg px-3 py-2 text-left text-sm text-[#b3261e] hover:bg-[#fce8e6]" onClick={() => void cancelExternalLesson(lessonActions.lesson)}>
+          <button
+            className="w-full rounded-lg px-3 py-2 text-left text-sm text-[#b3261e] transition-colors hover:bg-[#fce8e6] dark:text-[#f87171] dark:hover:bg-[#b3261e]/18"
+            onClick={() => void cancelExternalLesson(lessonActions.lesson)}
+          >
             Отменить
           </button>
               </>
@@ -1006,15 +1254,23 @@ export default function TeacherSchedulePage() {
               Это регулярное занятие. Применить действие только к этому занятию или ко всем последующим?
             </p>
             <div className="mt-4 flex flex-wrap justify-end gap-2">
-              <button className="rounded-lg px-3 py-2 text-sm hover:bg-black/5" onClick={() => setLessonDecision(null)}>Отмена</button>
               <button
-                className="rounded-lg border border-black/10 px-3 py-2 text-sm hover:bg-black/5 dark:border-white/15 dark:hover:bg-white/10"
+                type="button"
+                className="rounded-lg px-3 py-2 text-sm text-[#202124] transition-colors hover:bg-black/[0.06] active:bg-black/10 dark:text-[#e8eaed] dark:hover:bg-white/[0.1] dark:active:bg-white/[0.14]"
+                onClick={() => setLessonDecision(null)}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-black/10 px-3 py-2 text-sm text-[#202124] transition-colors hover:bg-black/[0.06] dark:border-white/15 dark:text-[#e8eaed] dark:hover:bg-white/[0.1] dark:active:bg-white/[0.14]"
                 onClick={() => (lessonDecision.action === "cancel" ? void confirmCancelExternalLesson("single") : void rescheduleExternalLesson("single"))}
               >
                 Только это
               </button>
               <button
-                className="rounded-lg border border-black/10 bg-black px-3 py-2 text-sm text-white hover:bg-black/85 dark:bg-white dark:text-black"
+                type="button"
+                className="rounded-lg border border-black/10 bg-black px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-black/85 active:bg-black/90 dark:border-[#b8d97a]/40 dark:bg-[var(--ds-sage-strong)] dark:text-[#121212] dark:hover:bg-[var(--ds-sage-hover)] dark:active:opacity-95"
                 onClick={() => (lessonDecision.action === "cancel" ? void confirmCancelExternalLesson("following") : void rescheduleExternalLesson("following"))}
               >
                 Все последующие
@@ -1028,22 +1284,22 @@ export default function TeacherSchedulePage() {
         <div className="fixed inset-0 z-[75] flex items-center justify-center bg-black/35 p-4">
           <div className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl dark:bg-[#1a1d21]">
             <div className="mb-3 flex items-center justify-between">
-              <h4 className="text-lg font-semibold text-[#202124]">Перенести занятие</h4>
+              <h4 className="text-lg font-semibold text-[#202124] dark:text-white">Перенести занятие</h4>
               <TooltipIconButton tooltip="Закрыть" onClick={() => setRescheduleOpen(false)}>
                 <X size={16} />
               </TooltipIconButton>
             </div>
-            <label className="mb-3 block text-sm text-[#5f6368] dark:text-[#b0b6c0]">
-              Дата
+            <div className="mb-3 text-sm text-[#5f6368] dark:text-[#b0b6c0]">
+              <span className="block">Дата</span>
               <div className="mt-1">
                 <DateMiniSelect
                   value={rescheduleSlot.date}
                   onChange={(next) => setRescheduleSlot((prev) => ({ ...prev, date: next }))}
                 />
               </div>
-            </label>
-            <label className="block text-sm text-[#5f6368] dark:text-[#b0b6c0]">
-              Время
+            </div>
+            <div className="text-sm text-[#5f6368] dark:text-[#b0b6c0]">
+              <span className="block">Время</span>
               <div className="mt-1">
                 <TimeSelect
                   value={`${String(Number(rescheduleSlot.hour)).padStart(2, "0")}:00`}
@@ -1052,10 +1308,18 @@ export default function TeacherSchedulePage() {
                   fullWidth
                 />
               </div>
-            </label>
+            </div>
             <div className="mt-4 flex justify-end gap-2">
-              <button className="rounded-lg px-4 py-2 text-sm hover:bg-black/5" onClick={() => setRescheduleOpen(false)}>Отмена</button>
-              <button className="rounded-lg border border-black/10 bg-black px-5 py-2 text-sm text-white hover:bg-black/85 dark:bg-white dark:text-black" onClick={() => void rescheduleExternalLesson("single")}>
+              <button
+                className="rounded-lg px-4 py-2 text-sm text-[#202124] hover:bg-black/5 dark:text-[#e8eaed] dark:hover:bg-white/10"
+                onClick={() => setRescheduleOpen(false)}
+              >
+                Отмена
+              </button>
+              <button
+                className="rounded-lg border border-black/10 bg-black px-5 py-2 text-sm text-white hover:bg-black/85 dark:border-[#b8d97a]/40 dark:bg-[var(--ds-sage-strong)] dark:text-[#121212] dark:hover:bg-[var(--ds-sage-hover)]"
+                onClick={() => void rescheduleExternalLesson("single")}
+              >
                 Сохранить
               </button>
             </div>
@@ -1078,29 +1342,51 @@ export default function TeacherSchedulePage() {
             <div className="space-y-2">
               <button
                 type="button"
-                className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${statusValue === "lesson" ? "border-[#1a73e8] bg-[#e8f0fe]" : "border-black/10 bg-white hover:bg-black/5"}`}
+                className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                  statusValue === "lesson"
+                    ? "border-[#1a73e8] bg-[#e8f0fe] text-[#174ea6] dark:border-[#8ab4f8] dark:bg-[#1a2f4a] dark:text-[#d2e3fc]"
+                    : "border-black/10 bg-white text-[#202124] hover:bg-black/[0.06] dark:border-white/15 dark:bg-[#252a32] dark:text-[#e8eaed] dark:hover:bg-white/[0.08]"
+                }`}
                 onClick={() => setStatusValue("lesson")}
               >
                 Запланировано / обычный статус
               </button>
               <button
                 type="button"
-                className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${statusValue === "completed" ? "border-[#0d652d] bg-[#e6f4ea]" : "border-black/10 bg-white hover:bg-black/5"}`}
+                className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                  statusValue === "completed"
+                    ? "border-[#0d652d] bg-[#e6f4ea] text-[#0d652d] dark:border-[#81c995] dark:bg-[#1e3d2e] dark:text-[#b9f6ca]"
+                    : "border-black/10 bg-white text-[#202124] hover:bg-black/[0.06] dark:border-white/15 dark:bg-[#252a32] dark:text-[#e8eaed] dark:hover:bg-white/[0.08]"
+                }`}
                 onClick={() => setStatusValue("completed")}
               >
                 Проведено
               </button>
               <button
                 type="button"
-                className={`w-full rounded-lg border px-3 py-2 text-left text-sm ${statusValue === "charged_absence" ? "border-[#b3261e] bg-[#fce8e6]" : "border-black/10 bg-white hover:bg-black/5"}`}
+                className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                  statusValue === "charged_absence"
+                    ? "border-[#b3261e] bg-[#fce8e6] text-[#7f1d1d] dark:border-[#f87171] dark:bg-[#3d2226] dark:text-[#fecaca]"
+                    : "border-black/10 bg-white text-[#202124] hover:bg-black/[0.06] dark:border-white/15 dark:bg-[#252a32] dark:text-[#e8eaed] dark:hover:bg-white/[0.08]"
+                }`}
                 onClick={() => setStatusValue("charged_absence")}
               >
                 Поздняя отмена (засчитать занятие)
               </button>
             </div>
             <div className="mt-4 flex justify-end gap-2">
-              <button className="rounded-lg px-3 py-2 text-sm hover:bg-black/5" onClick={() => setLessonStatusOpen(false)}>Отмена</button>
-              <button className="rounded-lg border border-black/10 bg-black px-3 py-2 text-sm text-white hover:bg-black/85 dark:bg-white dark:text-black" onClick={() => void saveLessonStatus()}>
+              <button
+                type="button"
+                className="rounded-lg px-3 py-2 text-sm text-[#202124] transition-colors hover:bg-black/[0.06] active:bg-black/10 dark:text-[#e8eaed] dark:hover:bg-white/[0.1] dark:active:bg-white/[0.14]"
+                onClick={() => setLessonStatusOpen(false)}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-black/10 bg-black px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-black/85 active:bg-black/90 dark:border-[#b8d97a]/40 dark:bg-[var(--ds-sage-strong)] dark:text-[#121212] dark:hover:bg-[var(--ds-sage-hover)] dark:active:opacity-95"
+                onClick={() => void saveLessonStatus()}
+              >
                 Сохранить
               </button>
             </div>
@@ -1112,7 +1398,7 @@ export default function TeacherSchedulePage() {
         <div className="fixed inset-0 z-[60] flex justify-start bg-black/25">
           <div className="h-full w-full max-w-[540px] overflow-auto rounded-r-[16px] border-r border-black/10 bg-white p-5 shadow-2xl dark:border-white/10 dark:bg-[#1a1d21]">
             <div className="mb-5 flex items-center justify-between">
-              <h3 className="text-2xl font-semibold text-[#202124]">Стандартный период времени для встреч</h3>
+              <h3 className="text-2xl font-semibold text-[#202124] dark:text-white">Стандартный период времени для встреч</h3>
               <TooltipIconButton tooltip="Закрыть" onClick={() => setAvailabilityOpen(false)}>
                 <X size={18} />
               </TooltipIconButton>
@@ -1129,7 +1415,7 @@ export default function TeacherSchedulePage() {
               {WEEKDAY_KEYS_ORDER.map((dayKey, idx) => (
                 <div key={dayKey} className="rounded-lg bg-[#f1f3f4] p-4 dark:bg-[#23272d]">
                   <div className="mb-3 flex items-center justify-between">
-                    <div className="text-xl font-semibold text-[#202124]">{WEEKDAY_RU[idx]}</div>
+                    <div className="text-xl font-semibold text-[#202124] dark:text-[#e8eaed]">{WEEKDAY_RU[idx]}</div>
                     <div className="flex items-center gap-1">
                       <TooltipIconButton tooltip="Добавить ещё один период для этого дня" onClick={() => addAvailabilityInterval(dayKey)}>
                         <Plus size={18} />
@@ -1149,7 +1435,9 @@ export default function TeacherSchedulePage() {
                     </div>
                   </div>
                   {(template[dayKey] ?? []).length === 0 ? (
-                    <div className="rounded-lg bg-[#e8eaed] px-4 py-3 text-base text-[#5f6368] dark:bg-[#2b3038]">Нельзя запланировать</div>
+                    <div className="rounded-lg bg-[#e8eaed] px-4 py-3 text-base text-[#5f6368] dark:bg-[#2b3038] dark:text-[#b0b6c0]">
+                      Нельзя запланировать
+                    </div>
                   ) : (
                     <div className="space-y-2">
                       {(template[dayKey] ?? []).map((interval, i) => (
@@ -1164,7 +1452,7 @@ export default function TeacherSchedulePage() {
                             options={startOpts.length > 0 ? startOpts : HOUR_OPTIONS}
                             onChange={(value) => updateAvailabilityInterval(dayKey, i, { start: value })}
                           />
-                          <span className="text-[#5f6368]">-</span>
+                          <span className="text-[#5f6368] dark:text-[#b0b6c0]">-</span>
                           <TimeSelect
                             value={interval.end}
                             options={endOpts.length > 0 ? endOpts : END_HOUR_OPTIONS}
@@ -1185,7 +1473,8 @@ export default function TeacherSchedulePage() {
             </div>
             <div className="mt-5 flex justify-end">
               <button
-                className="rounded-lg border border-black/10 bg-black px-6 py-2.5 text-base text-white hover:bg-black/85 dark:bg-white dark:text-black"
+                type="button"
+                className="rounded-lg border border-black/10 bg-black px-6 py-2.5 text-base font-medium text-white transition-colors hover:bg-black/85 active:bg-black/90 dark:border-[#b8d97a]/40 dark:bg-[var(--ds-sage-strong)] dark:text-[#121212] dark:hover:bg-[var(--ds-sage-hover)] dark:active:opacity-95"
                 onClick={() => void saveChanges()}
               >
                 Сохранить
@@ -1197,9 +1486,54 @@ export default function TeacherSchedulePage() {
 
       {createOpen ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/35 p-4">
-          <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-2xl font-semibold text-[#202124]">Создать регулярное занятие</h2>
+          <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl dark:bg-[#1a1d21]">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0 flex-1 pr-2">
+                <h2 className="text-2xl font-semibold text-[#202124] dark:text-white">Создать занятие</h2>
+                <div
+                  className="mt-3 flex w-full max-w-md gap-2 rounded-[12px] bg-[#f1f3f4] p-1.5 dark:bg-[#2a2d31]"
+                  role="tablist"
+                  aria-label="Тип занятия"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={createScheduleKind === "recurring"}
+                    className={`flex-1 rounded-[10px] py-2.5 text-sm font-medium transition-all duration-150 ${
+                      createScheduleKind === "recurring"
+                        ? "border border-black/[0.08] bg-white text-[#202124] shadow-sm dark:border-white/10 dark:bg-[#1a1d21] dark:text-white"
+                        : "border border-transparent bg-transparent text-[#5f6368] hover:bg-black/[0.04] hover:text-[#202124] dark:text-[#b0b6c0] dark:hover:bg-white/[0.06] dark:hover:text-white"
+                    }`}
+                    onClick={() => {
+                      if (createScheduleKind === "recurring") return
+                      setCreateWeekdays(
+                        createWeekdaysBackupRef.current.length > 0 ? [...createWeekdaysBackupRef.current] : [1, 4]
+                      )
+                      setCreateScheduleKind("recurring")
+                    }}
+                  >
+                    Регулярное
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={createScheduleKind === "single"}
+                    className={`flex-1 rounded-[10px] py-2.5 text-sm font-medium transition-all duration-150 ${
+                      createScheduleKind === "single"
+                        ? "border border-black/[0.08] bg-white text-[#202124] shadow-sm dark:border-white/10 dark:bg-[#1a1d21] dark:text-white"
+                        : "border border-transparent bg-transparent text-[#5f6368] hover:bg-black/[0.04] hover:text-[#202124] dark:text-[#b0b6c0] dark:hover:bg-white/[0.06] dark:hover:text-white"
+                    }`}
+                    onClick={() => {
+                      if (createScheduleKind === "single") return
+                      createWeekdaysBackupRef.current =
+                        createWeekdays.length > 0 ? [...createWeekdays] : createWeekdaysBackupRef.current
+                      setCreateScheduleKind("single")
+                    }}
+                  >
+                    Разовое
+                  </button>
+                </div>
+              </div>
               <TooltipIconButton
                 tooltip="Закрыть"
                 onClick={() => {
@@ -1211,33 +1545,40 @@ export default function TeacherSchedulePage() {
               </TooltipIconButton>
             </div>
             <div className="space-y-4">
-              <div>
-                <div className="mb-2 text-sm font-medium text-[#5f6368]">Дни недели</div>
-                <div className="flex flex-wrap gap-2">
-                  {WEEKDAY_RU.map((label, idx) => (
-                    <button
-                      key={label}
-                      className={`rounded-lg px-4 py-2 text-sm transition-colors ${createWeekdays.includes(idx) ? "bg-[#d2e3fc] text-[#174ea6] hover:bg-[#c5daf8]" : "bg-[#f1f3f4] text-[#5f6368] hover:bg-[#e3e7eb]"}`}
-                      onClick={() =>
-                        setCreateWeekdays((prev) => (prev.includes(idx) ? prev.filter((d) => d !== idx) : [...prev, idx]))
-                      }
-                    >
-                      {label}
-                    </button>
-                  ))}
+              {createScheduleKind === "recurring" ? (
+                <div>
+                  <div className="mb-2 text-sm font-medium text-[#5f6368] dark:text-[#b0b6c0]">Дни недели</div>
+                  <div className="flex flex-wrap gap-2">
+                    {WEEKDAY_RU.map((label, idx) => (
+                      <button
+                        key={label}
+                        type="button"
+                        className={`rounded-lg px-4 py-2 text-sm transition-colors ${createWeekdays.includes(idx) ? "bg-[#d2e3fc] text-[#174ea6] hover:bg-[#c5daf8]" : "bg-[#f1f3f4] text-[#5f6368] hover:bg-[#e3e7eb] dark:bg-[#2a2d31] dark:text-[#b0b6c0] dark:hover:bg-[#3a3f46]"}`}
+                        onClick={() =>
+                          setCreateWeekdays((prev) => (prev.includes(idx) ? prev.filter((d) => d !== idx) : [...prev, idx]))
+                        }
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <p className="text-sm text-[#5f6368] dark:text-[#b0b6c0]">
+                  Одна дата и время — занятие появится только в выбранный день.
+                </p>
+              )}
               <div className="grid grid-cols-2 gap-3">
-                <label className="col-span-2 text-sm text-[#5f6368]">
-                  Начиная с даты
+                <div className="col-span-2 text-sm text-[#5f6368] dark:text-[#b0b6c0]">
+                  <span className="block">{createScheduleKind === "single" ? "Дата занятия" : "Начиная с даты"}</span>
                   <div className="mt-1">
                     <DateMiniSelect
                       value={createStartDateKey}
                       onChange={setCreateStartDateKey}
                     />
                   </div>
-                </label>
-                <div className="text-sm text-[#5f6368]">
+                </div>
+                <div className="text-sm text-[#5f6368] dark:text-[#b0b6c0]">
                   <span className="block">Время</span>
                   <div className="mt-1">
                     <TimeSelect
@@ -1248,37 +1589,39 @@ export default function TeacherSchedulePage() {
                     />
                   </div>
                 </div>
-                <label className="text-sm text-[#5f6368]">
-                  Горизонт (недель)
-                  <div className="mt-1 flex w-full items-stretch overflow-hidden rounded-lg border border-black/10 bg-[#f8f9fa] dark:border-white/10 dark:bg-[#23272d]">
-                    <input
-                      type="number"
-                      min={1}
-                      max={26}
-                      value={createWeeks}
-                      onChange={(e) => setCreateWeeks(Math.min(26, Math.max(1, Number(e.target.value) || 1)))}
-                      className="w-full bg-transparent px-3 py-2 text-[#202124] outline-none [appearance:textfield] dark:text-white [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    />
-                    <div className="flex flex-col border-l border-black/10 dark:border-white/10">
-                      <button
-                        type="button"
-                        className="flex h-5 w-10 items-center justify-center text-[#5f6368] hover:bg-black/5 dark:text-[#b0b6c0] dark:hover:bg-white/10"
-                        onClick={() => setCreateWeeks((prev) => Math.min(26, prev + 1))}
-                        aria-label="Увеличить горизонт недель"
-                      >
-                        <ChevronUp size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        className="flex h-5 w-10 items-center justify-center text-[#5f6368] hover:bg-black/5 dark:text-[#b0b6c0] dark:hover:bg-white/10"
-                        onClick={() => setCreateWeeks((prev) => Math.max(1, prev - 1))}
-                        aria-label="Уменьшить горизонт недель"
-                      >
-                        <ChevronDown size={16} />
-                      </button>
+                {createScheduleKind === "recurring" ? (
+                  <label className="text-sm text-[#5f6368] dark:text-[#b0b6c0]">
+                    Горизонт (недель)
+                    <div className="mt-1 flex w-full items-stretch overflow-hidden rounded-lg border border-black/10 bg-[#f8f9fa] dark:border-white/10 dark:bg-[#23272d]">
+                      <input
+                        type="number"
+                        min={1}
+                        max={26}
+                        value={createWeeks}
+                        onChange={(e) => setCreateWeeks(Math.min(26, Math.max(1, Number(e.target.value) || 1)))}
+                        className="w-full bg-transparent px-3 py-2 text-[#202124] outline-none [appearance:textfield] dark:text-white [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      />
+                      <div className="flex flex-col border-l border-black/10 dark:border-white/10">
+                        <button
+                          type="button"
+                          className="flex h-5 w-10 items-center justify-center text-[#5f6368] hover:bg-black/5 dark:text-[#b0b6c0] dark:hover:bg-white/10"
+                          onClick={() => setCreateWeeks((prev) => Math.min(26, prev + 1))}
+                          aria-label="Увеличить горизонт недель"
+                        >
+                          <ChevronUp size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          className="flex h-5 w-10 items-center justify-center text-[#5f6368] hover:bg-black/5 dark:text-[#b0b6c0] dark:hover:bg-white/10"
+                          onClick={() => setCreateWeeks((prev) => Math.max(1, prev - 1))}
+                          aria-label="Уменьшить горизонт недель"
+                        >
+                          <ChevronDown size={16} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </label>
+                  </label>
+                ) : null}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <label className="col-span-2 text-sm text-[#5f6368]">
@@ -1290,8 +1633,8 @@ export default function TeacherSchedulePage() {
                     placeholder="Например: Занятие с Ириной"
                   />
                 </label>
-                <label className="text-sm text-[#5f6368]">
-                  Тип
+                <div className="text-sm text-[#5f6368]">
+                  <span className="block">Тип</span>
                   <div className="mt-1">
                     <CustomSelect
                       value={createMode}
@@ -1302,9 +1645,9 @@ export default function TeacherSchedulePage() {
                       onChange={(value) => setCreateMode(value as "busy" | "booked")}
                     />
                   </div>
-                </label>
-                <label className="text-sm text-[#5f6368]">
-                  Ученик
+                </div>
+                <div className="text-sm text-[#5f6368]">
+                  <span className="block">Ученик</span>
                   <div className="mt-1">
                     <CustomSelect
                       value={createStudentId}
@@ -1313,13 +1656,45 @@ export default function TeacherSchedulePage() {
                       disabled={createMode !== "booked"}
                     />
                   </div>
-                </label>
+                </div>
               </div>
             </div>
+            {createPastSlotHint.firstInPast ? (
+              <div className="rounded-xl border border-amber-200/90 bg-amber-50 px-4 py-3 text-left text-sm text-amber-950 dark:border-amber-500/35 dark:bg-amber-950/30 dark:text-amber-50">
+                <p className="font-medium">
+                  В часовом поясе календаря выбранное время на ближайшую дату из шаблона уже прошло — такое занятие создать нельзя.
+                </p>
+                {createPastSlotHint.suggestedStart ? (
+                  <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-amber-950/90 dark:text-amber-100/90">
+                      Следующее доступное занятие в этом же расписании:{" "}
+                      <span className="font-semibold">
+                        {formatDateKeyLongRuForHint(createPastSlotHint.suggestedStart)},{" "}
+                        {String(createHour).padStart(2, "0")}:00
+                      </span>
+                    </p>
+                    <button
+                      type="button"
+                      className="shrink-0 rounded-lg bg-amber-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-950 active:scale-[0.99] dark:bg-amber-300 dark:text-amber-950 dark:hover:bg-amber-200"
+                      onClick={() => setCreateStartDateKey(createPastSlotHint.suggestedStart!)}
+                    >
+                      {createScheduleKind === "single" ? "Установить эту дату" : "Начать с этой даты"}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs opacity-90">
+                    {createScheduleKind === "single"
+                      ? "Сдвиньте дату «Дата занятия» или выберите другое время."
+                      : "Сдвиньте дату «Начиная с даты», выберите другие дни недели или другое время."}
+                  </p>
+                )}
+              </div>
+            ) : null}
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
-                className="rounded-lg px-4 py-2 text-sm hover:bg-black/5"
+                disabled={createSaving}
+                className="rounded-lg px-4 py-2 text-sm text-[#202124] transition-colors hover:bg-black/5 active:bg-black/10 disabled:cursor-not-allowed disabled:opacity-50 dark:text-white dark:hover:bg-white/10 dark:active:bg-white/[0.14]"
                 onClick={() => {
                   setCreateOpen(false)
                   setCreateFeedback(null)
@@ -1329,11 +1704,24 @@ export default function TeacherSchedulePage() {
               </button>
               <button
                 type="button"
-                className="rounded-lg border border-black/10 bg-black px-5 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
-                disabled={createWeekdays.length === 0 || (createMode === "booked" && !createStudentId)}
+                className="inline-flex min-w-[116px] items-center justify-center gap-2 rounded-lg border border-black/10 bg-black px-5 py-2 text-sm font-medium text-white shadow-sm transition-[transform,box-shadow,background-color] duration-150 hover:bg-[#2d2d2d] hover:shadow-md active:scale-[0.98] active:bg-[#1a1a1a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/35 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-55 dark:border-white/15 dark:bg-white dark:text-black dark:hover:bg-[#f0f0f0] dark:hover:shadow-md dark:active:bg-[#e8e8e8] dark:focus-visible:ring-white/50"
+                disabled={
+                  createSaving ||
+                  createPastSlotHint.firstInPast ||
+                  (createScheduleKind === "recurring" && createWeekdays.length === 0) ||
+                  (createMode === "booked" && !createStudentId)
+                }
+                aria-busy={createSaving}
                 onClick={() => void createRecurringEvent()}
               >
-                Сохранить
+                {createSaving ? (
+                  <>
+                    <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden />
+                    Сохранение…
+                  </>
+                ) : (
+                  "Сохранить"
+                )}
               </button>
             </div>
             {createFeedback ? (
@@ -1352,13 +1740,11 @@ export default function TeacherSchedulePage() {
         >
           <div className="w-full max-w-lg rounded-[28px] bg-[var(--ds-sage)] px-6 py-10 text-center shadow-2xl">
             <p id="create-recurring-success-title" className="text-2xl font-bold leading-snug text-black">
-              Создано занятие «{createSuccessPayload.lessonTitle}» на регулярной основе
+              {createSuccessPayload.scheduleKind === "single"
+                ? `Создано разовое занятие «${createSuccessPayload.lessonTitle}»`
+                : `Создано занятие «${createSuccessPayload.lessonTitle}» на регулярной основе`}
             </p>
-            <p className="mt-4 text-lg font-semibold text-black">
-              {createSuccessPayload.mode === "booked"
-                ? `Слотов в календаре: ${createSuccessPayload.slotsCreated}. У ученика в расписании: ${createSuccessPayload.studentLessonsCreated}.`
-                : `Слотов в календаре: ${createSuccessPayload.slotsCreated}.`}
-            </p>
+            <CreateRecurringSuccessDetails payload={createSuccessPayload} />
             {createSuccessPayload.warning ? (
               <p className="mt-3 text-sm font-semibold text-black/80">{createSuccessPayload.warning}</p>
             ) : null}
@@ -1377,33 +1763,37 @@ export default function TeacherSchedulePage() {
       ) : null}
 
       {searchOpen ? (
-        <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/25 p-8">
-          <div className="w-full max-w-2xl rounded-3xl bg-white p-4 shadow-2xl">
+        <div className="fixed inset-0 z-[60] flex items-start justify-center bg-black/25 p-8 dark:bg-black/45">
+          <div className="w-full max-w-2xl rounded-3xl border border-black/10 bg-white p-4 shadow-2xl dark:border-white/10 dark:bg-[#1a1d21]">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-[#202124]">Поиск встреч и учеников</h3>
-              <TooltipIconButton tooltip="Закрыть" onClick={() => setSearchOpen(false)}><X size={18} /></TooltipIconButton>
+              <h3 className="text-xl font-semibold text-[#202124] dark:text-white">Поиск встреч и учеников</h3>
+              <TooltipIconButton tooltip="Закрыть" onClick={() => setSearchOpen(false)}>
+                <X size={18} />
+              </TooltipIconButton>
             </div>
             <input
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               placeholder="Введите имя ученика или название встречи"
-              className="w-full rounded-2xl border border-black/10 px-4 py-3 text-base"
+              className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-base text-[#202124] placeholder:text-[#9aa0a6] outline-none focus:border-[#1a73e8]/50 focus:ring-2 focus:ring-[#1a73e8]/20 dark:border-white/15 dark:bg-[#23272d] dark:text-white dark:placeholder:text-[#9aa0a6] dark:focus:border-[#8ab4f8]/50 dark:focus:ring-[#8ab4f8]/20"
             />
-            <div className="mt-3 max-h-72 overflow-auto rounded-2xl border border-black/10">
+            <div className="mt-3 max-h-72 overflow-auto rounded-2xl border border-black/10 bg-[#fafafa] dark:border-white/10 dark:bg-[#23272d]">
               {searchResults.length === 0 ? (
-                <div className="p-4 text-sm text-[#5f6368]">Ничего не найдено</div>
+                <div className="p-4 text-sm text-[#5f6368] dark:text-[#b0b6c0]">Ничего не найдено</div>
               ) : (
                 searchResults.map((r, idx) => (
                   <button
                     key={`${r.label}-${idx}`}
-                    className="flex w-full items-center justify-between border-b border-black/5 px-4 py-3 text-left hover:bg-[#f8f9fa]"
+                    type="button"
+                    className="flex w-full items-center justify-between border-b border-black/5 px-4 py-3 text-left transition-colors hover:bg-[#f8f9fa] last:border-b-0 dark:border-white/10 dark:hover:bg-[#2a2f36]"
                     onClick={() => {
                       setAnchorDate(new Date(r.day))
                       setSearchOpen(false)
+                      setScheduleSearchPulse(r.pulse)
                     }}
                   >
-                    <span className="text-sm font-medium text-[#202124]">{r.label}</span>
-                    <span className="text-xs text-[#5f6368]">{r.time}</span>
+                    <span className="text-sm font-medium text-[#202124] dark:text-[#e8eaed]">{r.label}</span>
+                    <span className="text-xs text-[#5f6368] dark:text-[#b0b6c0]">{r.time}</span>
                   </button>
                 ))
               )}
@@ -1413,13 +1803,15 @@ export default function TeacherSchedulePage() {
       ) : null}
 
       {settingsOpen ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/35 p-4">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/35 p-4 dark:bg-black/45">
+          <div className="w-full max-w-md rounded-3xl border border-black/10 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#1a1d21]">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-xl font-semibold text-[#202124]">Настройки календаря</h3>
-              <TooltipIconButton tooltip="Закрыть" onClick={() => setSettingsOpen(false)}><X size={18} /></TooltipIconButton>
+              <h3 className="text-xl font-semibold text-[#202124] dark:text-white">Настройки календаря</h3>
+              <TooltipIconButton tooltip="Закрыть" onClick={() => setSettingsOpen(false)}>
+                <X size={18} />
+              </TooltipIconButton>
             </div>
-            <label className="mb-3 block text-sm text-[#5f6368]">
+            <label className="mb-3 block text-sm text-[#5f6368] dark:text-[#b0b6c0]">
               Часовой пояс
               <div className="mt-1">
                 <CustomSelect
@@ -1429,9 +1821,14 @@ export default function TeacherSchedulePage() {
                 />
               </div>
             </label>
-            <label className="flex items-center justify-between rounded-2xl bg-[#f8f9fa] px-3 py-2 text-sm text-[#202124]">
+            <label className="flex cursor-pointer items-center justify-between rounded-2xl bg-[#f8f9fa] px-3 py-2 text-sm text-[#202124] dark:bg-[#23272d] dark:text-[#e8eaed]">
               Показывать выходные в виде недели
-              <input type="checkbox" checked={showWeekends} onChange={(e) => setShowWeekends(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={showWeekends}
+                onChange={(e) => setShowWeekends(e.target.checked)}
+                className="size-4 shrink-0 rounded border-black/20 text-[#1a73e8] accent-[#1a73e8] focus:ring-2 focus:ring-[#1a73e8]/30 dark:border-white/30 dark:accent-[#8ab4f8] dark:focus:ring-[#8ab4f8]/30"
+              />
             </label>
           </div>
         </div>
@@ -1535,7 +1932,7 @@ function TooltipIconButton({
         onFocus={() => !disabled && setOpen(true)}
         onBlur={() => setOpen(false)}
         aria-disabled={disabled}
-        className={`relative rounded-lg p-2.5 hover:bg-black/5 ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
+        className={`relative rounded-lg p-2.5 text-[#3c4043] hover:bg-black/5 dark:text-[#e8eaed] dark:hover:bg-white/10 ${disabled ? "cursor-not-allowed opacity-40" : ""}`}
       >
         {children}
       </button>
@@ -1573,8 +1970,8 @@ function TimeSelect({
       if (!el || el.contains(e.target as Node)) return
       setOpen(false)
     }
-    document.addEventListener("pointerdown", onDocPointerDown)
-    return () => document.removeEventListener("pointerdown", onDocPointerDown)
+    document.addEventListener("pointerdown", onDocPointerDown, true)
+    return () => document.removeEventListener("pointerdown", onDocPointerDown, true)
   }, [open])
 
   return (
@@ -1592,7 +1989,7 @@ function TimeSelect({
       {open ? (
         <div
           role="listbox"
-          className="absolute left-0 top-[calc(100%+4px)] z-[95] max-h-56 w-full overflow-auto rounded-lg border border-black/10 bg-white p-1 shadow-xl dark:border-white/10 dark:bg-[#23272d]"
+          className="absolute left-0 top-[calc(100%+4px)] z-[95] flex max-h-56 w-full flex-col gap-1 overflow-auto rounded-lg border border-black/10 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-[#23272d]"
           onPointerDown={(e) => e.stopPropagation()}
         >
           {options.map((opt) => (
@@ -1601,9 +1998,10 @@ function TimeSelect({
               type="button"
               role="option"
               aria-selected={opt === value}
-              className={`w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10 ${opt === value ? "bg-[#f1f3f4] dark:bg-[#2f3540]" : ""}`}
+              className={`w-full rounded-md px-2 py-2 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10 ${opt === value ? "bg-[#f1f3f4] dark:bg-[#2f3540]" : ""}`}
               onPointerDown={(e) => e.stopPropagation()}
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation()
                 onChange(opt)
                 setOpen(false)
               }}
@@ -1629,9 +2027,22 @@ function CustomSelect({
   disabled?: boolean
 }) {
   const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement | null>(null)
   const active = options.find((o) => o.value === value)?.label ?? options[0]?.label ?? ""
+
+  useEffect(() => {
+    if (!open || disabled) return
+    const onDocPointerDown = (e: PointerEvent) => {
+      const el = rootRef.current
+      if (!el || el.contains(e.target as Node)) return
+      setOpen(false)
+    }
+    document.addEventListener("pointerdown", onDocPointerDown, true)
+    return () => document.removeEventListener("pointerdown", onDocPointerDown, true)
+  }, [open, disabled])
+
   return (
-    <div className="relative w-full">
+    <div ref={rootRef} className="relative w-full">
       <button
         type="button"
         disabled={disabled}
@@ -1642,13 +2053,21 @@ function CustomSelect({
         <ChevronDown size={16} className="text-[#5f6368] dark:text-[#b0b6c0]" />
       </button>
       {open && !disabled ? (
-        <div className="absolute left-0 top-[calc(100%+4px)] z-[95] max-h-56 w-full overflow-auto rounded-lg border border-black/10 bg-white p-1 shadow-xl dark:border-white/10 dark:bg-[#23272d]">
+        <div
+          className="absolute left-0 top-[calc(100%+4px)] z-[95] flex max-h-56 w-full flex-col gap-1 overflow-auto rounded-lg border border-black/10 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-[#23272d]"
+          role="listbox"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           {options.map((opt) => (
             <button
               key={opt.value || opt.label}
               type="button"
-              className={`w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10 ${opt.value === value ? "bg-[#f1f3f4] dark:bg-[#2f3540]" : ""}`}
-              onClick={() => {
+              role="option"
+              aria-selected={opt.value === value}
+              className={`w-full rounded-md px-2 py-2 text-left text-sm text-[#202124] hover:bg-black/5 dark:text-[#e8eaed] dark:hover:bg-white/10 ${opt.value === value ? "bg-[#f1f3f4] dark:bg-[#2f3540]" : ""}`}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation()
                 onChange(opt.value)
                 setOpen(false)
               }}
@@ -1736,6 +2155,83 @@ function getUtcOffsetLabel(timeZone: string): string {
   }
 }
 
+type CreateRecurringSuccessPayload = {
+  lessonTitle: string
+  mode: "busy" | "booked"
+  warning: string | null
+  startDateKey: string
+  weekdays: number[]
+  hour: number
+  weeks: number
+  timeZoneId: string
+  scheduleKind: "recurring" | "single"
+}
+
+function formatDateKeyLongRuUtc(dateKey: string): string {
+  const [y, m, d] = dateKey.split("-").map((x) => parseInt(x, 10))
+  if (![y, m, d].every((n) => Number.isFinite(n))) return dateKey
+  const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0))
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC"
+  }).format(dt)
+}
+
+function weeksPhraseRu(n: number): string {
+  const k = Math.max(1, Math.floor(n))
+  const mod10 = k % 10
+  const mod100 = k % 100
+  let noun: string
+  if (mod100 >= 11 && mod100 <= 14) noun = "недель"
+  else if (mod10 === 1) noun = "неделя"
+  else if (mod10 >= 2 && mod10 <= 4) noun = "недели"
+  else noun = "недель"
+  return `${k} ${noun}`
+}
+
+function formatWeekdaysDativeListRu(weekdays: number[]): string {
+  const uniq = [...new Set(weekdays.filter((d) => d >= 0 && d <= 6))].sort((a, b) => a - b)
+  const parts = uniq.map((d) => WEEKDAY_RU_DATIVE_PLURAL[d])
+  if (parts.length === 0) return ""
+  const list = new Intl.ListFormat("ru", { style: "long", type: "conjunction" }).format(parts)
+  return `По ${list}`
+}
+
+function CreateRecurringSuccessDetails({ payload }: { payload: CreateRecurringSuccessPayload }) {
+  const firstKey =
+    firstRecurringSlotDateKey(payload.startDateKey, payload.weekdays, payload.weeks) ?? payload.startDateKey
+  const dateLong = formatDateKeyLongRuUtc(firstKey)
+  const timeStr = `${String(payload.hour).padStart(2, "0")}:00`
+  const tzLabel = formatTimeZoneOption(payload.timeZoneId)
+  const repeatLine = `${formatWeekdaysDativeListRu(payload.weekdays)}, ${weeksPhraseRu(payload.weeks)} подряд.`
+
+  return (
+    <div className="mt-4 space-y-3 text-center text-base font-semibold text-black">
+      <p>
+        <span className="block text-sm font-normal text-black/70">
+          {payload.scheduleKind === "single" ? "Дата занятия" : "Ближайшая дата занятия"}
+        </span>
+        {dateLong}
+      </p>
+      <p>
+        <span className="block text-sm font-normal text-black/70">Время</span>
+        {timeStr}
+      </p>
+      <p>
+        <span className="block text-sm font-normal text-black/70">Часовой пояс этого времени</span>
+        {tzLabel}
+      </p>
+      {payload.scheduleKind === "recurring" ? (
+        <p className="pt-1 text-sm font-normal text-black/85">{repeatLine}</p>
+      ) : (
+        <p className="pt-1 text-sm font-normal text-black/85">Одно занятие в календаре.</p>
+      )}
+    </div>
+  )
+}
+
 function fromMinutes(v: number): string {
   const mins = Math.max(0, Math.min(24 * 60, v))
   const h = Math.floor(mins / 60)
@@ -1751,6 +2247,7 @@ function DateMiniSelect({
   onChange: (value: string) => void
 }) {
   const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement | null>(null)
   const selected = parseYmd(value) ?? new Date()
   const [monthAnchor, setMonthAnchor] = useState(new Date(selected.getFullYear(), selected.getMonth(), 1))
 
@@ -1759,27 +2256,51 @@ function DateMiniSelect({
   const gridStart = addDays(monthStart, -offset)
   const gridDays = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i))
 
+  useEffect(() => {
+    if (!open) return
+    const onDocPointerDown = (e: PointerEvent) => {
+      const el = rootRef.current
+      if (!el || el.contains(e.target as Node)) return
+      setOpen(false)
+    }
+    document.addEventListener("pointerdown", onDocPointerDown, true)
+    return () => document.removeEventListener("pointerdown", onDocPointerDown, true)
+  }, [open])
+
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative">
       <button
         type="button"
         className="flex w-full items-center justify-between rounded-lg border border-black/10 bg-[#f8f9fa] px-3 py-2 text-left text-[#202124] dark:border-white/10 dark:bg-[#23272d] dark:text-white"
         onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="dialog"
       >
         <span>{formatYmdLabel(value)}</span>
         <CalendarDays size={16} />
       </button>
       {open ? (
-        <div className="absolute left-0 top-[calc(100%+6px)] z-[95] w-[320px] rounded-xl border border-black/10 bg-white p-3 shadow-xl dark:border-white/10 dark:bg-[#23272d]">
+        <div
+          className="absolute left-0 top-[calc(100%+6px)] z-[95] w-[320px] rounded-xl border border-black/10 bg-white p-3 shadow-xl dark:border-white/10 dark:bg-[#23272d]"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <div className="mb-2 flex items-center justify-between">
             <div className="text-sm font-semibold capitalize text-[#202124] dark:text-white">
               {monthAnchor.toLocaleDateString("ru-RU", { month: "long", year: "numeric" })}
             </div>
             <div className="flex items-center gap-1">
-              <button className="rounded-md p-1 hover:bg-black/5 dark:hover:bg-white/10" onClick={() => setMonthAnchor((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}>
+              <button
+                type="button"
+                className="rounded-md p-1 hover:bg-black/5 dark:hover:bg-white/10"
+                onClick={() => setMonthAnchor((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+              >
                 <ChevronLeft size={16} />
               </button>
-              <button className="rounded-md p-1 hover:bg-black/5 dark:hover:bg-white/10" onClick={() => setMonthAnchor((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}>
+              <button
+                type="button"
+                className="rounded-md p-1 hover:bg-black/5 dark:hover:bg-white/10"
+                onClick={() => setMonthAnchor((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+              >
                 <ChevronRight size={16} />
               </button>
             </div>
@@ -1797,10 +2318,16 @@ function DateMiniSelect({
                 <button
                   key={d.toISOString()}
                   type="button"
-                  className={`mx-auto flex h-9 w-9 items-center justify-center rounded-[var(--ds-radius-md)] text-sm ${
-                    active ? "bg-ds-sage text-ds-ink" : inMonth ? "text-ds-ink hover:bg-ds-surface-hover" : "text-[#9aa0a6]"
+                  className={`mx-auto flex h-9 w-9 items-center justify-center rounded-[var(--ds-radius-md)] text-sm transition-colors ${
+                    active
+                      ? "bg-ds-sage text-ds-ink dark:bg-[var(--ds-sage-strong)] dark:text-[#121212]"
+                      : inMonth
+                        ? "text-ds-ink hover:bg-ds-surface-hover dark:text-[#e8eaed] dark:hover:bg-white/10"
+                        : "text-[#9aa0a6] dark:text-[#6b7280]"
                   }`}
-                  onClick={() => {
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation()
                     onChange(toYmd(d))
                     setOpen(false)
                   }}

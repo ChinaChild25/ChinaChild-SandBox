@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 import { addDaysToDateKey, mondayDateKeyOfWeekContaining, utcTodayYmd } from "@/lib/schedule/calendar-ymd"
+import { nextEligibleStartDateKey } from "@/lib/schedule/recurring-slot-eligibility"
+import { SCHEDULE_WALL_CLOCK_TIMEZONE } from "@/lib/schedule-display-tz"
 import { reconcileStudentScheduleFireAndForget } from "@/lib/schedule/reconcile-student-schedule"
 import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
@@ -20,6 +22,8 @@ type CreateEventBody = {
   status?: "busy" | "booked"
   student_id?: string | null
   title?: string
+  /** IANA, как в настройках календаря преподавателя — для корректного timestamptz в БД */
+  timezone?: string
 }
 
 export async function POST(req: Request) {
@@ -54,6 +58,7 @@ export async function POST(req: Request) {
   const startYmd = /^\d{4}-\d{2}-\d{2}$/.test(startDateKeyRaw.trim()) ? startDateKeyRaw.trim() : utcTodayYmd()
   const weekMonday = mondayDateKeyOfWeekContaining(startYmd)
   const wallTime = normalizeScheduleSlotTime(`${String(hour).padStart(2, "0")}:00`)
+  const timeZone = body?.timezone?.trim() || SCHEDULE_WALL_CLOCK_TIMEZONE
 
   const payload: Array<{ teacher_id: string; slot_at: string; status: "busy" | "booked"; booked_student_id: string | null }> = []
   const studentSchedulePayload: Array<{ student_id: string; date_key: string; time: string; title: string; type: "lesson"; teacher_name: string | null }> = []
@@ -62,12 +67,19 @@ export async function POST(req: Request) {
     [me.first_name?.trim() ?? "", me.last_name?.trim() ?? ""].filter(Boolean).join(" ").trim() ||
     "Преподаватель"
 
+  const nowMs = Date.now()
+  let skippedPastCount = 0
+
   for (let week = 0; week < weeks; week++) {
     for (const dayOfWeek of weekdays) {
       const mondayBasedIndex = (dayOfWeek + 6) % 7
       const dateKey = addDaysToDateKey(weekMonday, week * 7 + mondayBasedIndex)
       if (dateKey < startYmd) continue
-      const slotAt = wallClockSlotAtIso(dateKey, wallTime)
+      const slotAt = wallClockSlotAtIso(dateKey, wallTime, timeZone)
+      if (new Date(slotAt).getTime() < nowMs) {
+        skippedPastCount++
+        continue
+      }
       payload.push({
         teacher_id: me.id,
         slot_at: slotAt,
@@ -87,7 +99,20 @@ export async function POST(req: Request) {
     }
   }
 
-  if (payload.length === 0) return NextResponse.json({ created: 0 })
+  if (payload.length === 0) {
+    if (skippedPastCount > 0) {
+      const suggested = nextEligibleStartDateKey(startYmd, weekdays, wallTime, timeZone, nowMs)
+      return NextResponse.json(
+        {
+          error:
+            "Это время на ближайшие выбранные даты уже прошло в часовом поясе календаря. Укажите дату начала позже или выберите другое время суток.",
+          suggested_start_date_key: suggested
+        },
+        { status: 400 }
+      )
+    }
+    return NextResponse.json({ created: 0 })
+  }
 
   const slotAts = payload.map((p) => p.slot_at)
   const { data: existing } = await supabase

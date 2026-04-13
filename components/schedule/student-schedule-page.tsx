@@ -4,6 +4,9 @@ import Link from "next/link"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { BookOpenCheck, CalendarCheck2, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Ellipsis, MessageSquare, Repeat, Star, UserRound, X } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { getAppNow, getAppTodayStart } from "@/lib/app-time"
+import { wallClockFromSlotAt } from "@/lib/schedule-display-tz"
+import { normalizeScheduleSlotTime } from "@/lib/schedule/slot-time"
 import {
   canRescheduleLesson,
   isValidRescheduleTargetSlot,
@@ -32,6 +35,8 @@ export function StudentSchedulePage() {
   const [cancelSuccessOpen, setCancelSuccessOpen] = useState(false)
   const cancelSuccessTimerRef = useRef<number | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [scheduleSlotsError, setScheduleSlotsError] = useState<string | null>(null)
+  const [slotsLoading, setSlotsLoading] = useState(false)
   const [planOpen, setPlanOpen] = useState(false)
   const [planType, setPlanType] = useState<FlowType>("single")
   const [planStep, setPlanStep] = useState<"type" | "date" | "time">("type")
@@ -191,46 +196,66 @@ export function StudentSchedulePage() {
     setFlowType("single")
     setSelectedDateKey("")
     setDateSlots({})
-    const now = new Date()
-    const to = new Date(now)
-    to.setDate(to.getDate() + 21)
-    const teacherParam = lesson.teacherId ? `&teacher_id=${encodeURIComponent(lesson.teacherId)}` : ""
-    const res = await fetch(
-      `/api/schedule?from=${encodeURIComponent(now.toISOString())}&to=${encodeURIComponent(to.toISOString())}${teacherParam}`
-    )
-    const payload = (await res.json()) as { slots?: Array<{ slot_at: string }> }
-    const byDate: DateSlots = {}
-    for (const s of payload.slots ?? []) {
-      const d = new Date(s.slot_at)
-      const dateKey = toDateKey(d)
-      const time = `${String(d.getHours()).padStart(2, "0")}:00`
-      if (!isValidRescheduleTargetSlot(dateKey, time)) continue
-      byDate[dateKey] = [...(byDate[dateKey] ?? []), time]
+    setScheduleSlotsError(null)
+    setSlotsLoading(true)
+    try {
+      const now = getAppNow()
+      const to = new Date(now)
+      to.setDate(to.getDate() + 21)
+      const teacherParam = lesson.teacherId ? `&teacher_id=${encodeURIComponent(lesson.teacherId)}` : ""
+      const res = await fetch(
+        `/api/schedule?from=${encodeURIComponent(now.toISOString())}&to=${encodeURIComponent(to.toISOString())}${teacherParam}`
+      )
+      const payload = (await res.json()) as { slots?: Array<{ slot_at: string }>; error?: string }
+      if (!res.ok) {
+        setScheduleSlotsError(payload.error ?? "Не удалось загрузить свободные слоты")
+        setDateSlots({})
+        return
+      }
+      const byDate: DateSlots = {}
+      for (const s of payload.slots ?? []) {
+        const { dateKey, time } = wallClockFromSlotAt(s.slot_at)
+        const timeNorm = normalizeScheduleSlotTime(time)
+        if (!isValidRescheduleTargetSlot(dateKey, timeNorm)) continue
+        const prev = byDate[dateKey] ?? []
+        if (!prev.includes(timeNorm)) byDate[dateKey] = [...prev, timeNorm]
+      }
+      setDateSlots(byDate)
+    } finally {
+      setSlotsLoading(false)
     }
-    setDateSlots(byDate)
   }
   const loadDateSlots = async () => {
     setPlanLoadingSlots(true)
-    const now = new Date()
-    const to = new Date(now)
-    to.setDate(to.getDate() + 21)
-    const teacherId = selectedLesson?.teacherId || upcoming[0]?.teacherId || lessons[0]?.teacherId
-    const teacherParam = teacherId ? `&teacher_id=${encodeURIComponent(teacherId)}` : ""
-    const res = await fetch(
-      `/api/schedule?from=${encodeURIComponent(now.toISOString())}&to=${encodeURIComponent(to.toISOString())}${teacherParam}`
-    )
-    const payload = (await res.json()) as { slots?: Array<{ slot_at: string }> }
-    const byDate: DateSlots = {}
-    for (const s of payload.slots ?? []) {
-      const d = new Date(s.slot_at)
-      const dateKey = toDateKey(d)
-      const time = `${String(d.getHours()).padStart(2, "0")}:00`
-      if (!isValidRescheduleTargetSlot(dateKey, time)) continue
-      byDate[dateKey] = [...(byDate[dateKey] ?? []), time]
+    setScheduleSlotsError(null)
+    try {
+      const now = getAppNow()
+      const to = new Date(now)
+      to.setDate(to.getDate() + 21)
+      const teacherId = selectedLesson?.teacherId || upcoming[0]?.teacherId || lessons[0]?.teacherId
+      const teacherParam = teacherId ? `&teacher_id=${encodeURIComponent(teacherId)}` : ""
+      const res = await fetch(
+        `/api/schedule?from=${encodeURIComponent(now.toISOString())}&to=${encodeURIComponent(to.toISOString())}${teacherParam}`
+      )
+      const payload = (await res.json()) as { slots?: Array<{ slot_at: string }>; error?: string }
+      if (!res.ok) {
+        setScheduleSlotsError(payload.error ?? "Не удалось загрузить свободные слоты")
+        setDateSlots({})
+        return {}
+      }
+      const byDate: DateSlots = {}
+      for (const s of payload.slots ?? []) {
+        const { dateKey, time } = wallClockFromSlotAt(s.slot_at)
+        const timeNorm = normalizeScheduleSlotTime(time)
+        if (!isValidRescheduleTargetSlot(dateKey, timeNorm)) continue
+        const prev = byDate[dateKey] ?? []
+        if (!prev.includes(timeNorm)) byDate[dateKey] = [...prev, timeNorm]
+      }
+      setDateSlots(byDate)
+      return byDate
+    } finally {
+      setPlanLoadingSlots(false)
     }
-    setDateSlots(byDate)
-    setPlanLoadingSlots(false)
-    return byDate
   }
   const openPlanLesson = async () => {
     setPlanOpen(true)
@@ -719,6 +744,8 @@ export function StudentSchedulePage() {
               <StepDate
                 lesson={selectedLesson}
                 dateSlots={dateSlots}
+                slotsLoading={slotsLoading}
+                slotsError={scheduleSlotsError}
                 onBack={() => setFlowStep("type")}
                 onPick={(dateKey) => {
                   setSelectedDateKey(dateKey)
@@ -810,7 +837,7 @@ export function StudentSchedulePage() {
             ) : (
             planType === "following" ? (
               <StepWeekday
-                lesson={{ id: "plan", dateKey: toDateKey(new Date()), time: "10:00", title: "Занятие", type: "lesson" }}
+                lesson={{ id: "plan", dateKey: toDateKey(getAppTodayStart()), time: "10:00", title: "Занятие", type: "lesson" }}
                 weeklySlotsByWeekday={weeklySlotsByWeekday}
                 onBack={() => setPlanStep("type")}
                 onPick={(weekday) => {
@@ -821,8 +848,10 @@ export function StudentSchedulePage() {
               />
             ) : (
               <StepDate
-                lesson={{ id: "plan", dateKey: toDateKey(new Date()), time: "10:00", title: "Занятие", type: "lesson" }}
+                lesson={{ id: "plan", dateKey: toDateKey(getAppTodayStart()), time: "10:00", title: "Занятие", type: "lesson" }}
                 dateSlots={dateSlots}
+                slotsLoading={false}
+                slotsError={scheduleSlotsError}
                 onBack={() => setPlanStep("type")}
                 onPick={(dateKey) => {
                   setPlanDateKey(dateKey)
@@ -841,7 +870,7 @@ export function StudentSchedulePage() {
               </div>
             ) : (
             <StepTime
-              lesson={{ id: "plan", dateKey: toDateKey(new Date()), time: "10:00", title: "Занятие", type: "lesson" }}
+              lesson={{ id: "plan", dateKey: toDateKey(getAppTodayStart()), time: "10:00", title: "Занятие", type: "lesson" }}
               flowType={planType}
               dateKey={planDateKey}
               slots={dateSlots[planDateKey] ?? []}
@@ -971,19 +1000,29 @@ function StepType({ onBack, onPick }: { onBack: () => void; onPick: (v: FlowType
 function StepDate({
   lesson,
   dateSlots,
+  slotsLoading,
+  slotsError,
   onBack,
   onPick
 }: {
   lesson: ScheduledLesson
   dateSlots: DateSlots
+  slotsLoading?: boolean
+  slotsError?: string | null
   onBack: () => void
   onPick: (dateKey: string) => void
 }) {
-  const days = nextDays(14)
+  const days = nextDaysFromAppNow(21)
   return (
     <div>
       <button className="mb-3 rounded-lg px-2 py-1 text-sm text-[#5f6368] hover:bg-[var(--ds-neutral-row-hover)] hover:text-[#202124]" onClick={onBack}>Назад</button>
       <h3 className="mb-3 text-3xl font-semibold text-[#202124]">Выберите день</h3>
+      {slotsError ? (
+        <div className="mb-3 rounded-lg bg-[#fce8e6] px-3 py-2 text-sm text-[#b3261e]">{slotsError}</div>
+      ) : null}
+      {slotsLoading ? (
+        <div className="mb-3 text-sm text-[#5f6368]">Загружаем доступные слоты…</div>
+      ) : null}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {days.map((dateKey) => {
           const available = (dateSlots[dateKey] ?? []).length > 0
@@ -1142,13 +1181,13 @@ function toDateKey(d: Date) {
   return `${y}-${m}-${day}`
 }
 
-function nextDays(count: number) {
+/** Дни для шага «Выберите день» — тот же календарь, что и getAppNow() / isValidRescheduleTargetSlot (сценарий апреля 2026). */
+function nextDaysFromAppNow(count: number) {
   const arr: string[] = []
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
+  const base = getAppTodayStart()
   for (let i = 0; i < count; i++) {
-    const x = new Date(d)
-    x.setDate(d.getDate() + i)
+    const x = new Date(base)
+    x.setDate(base.getDate() + i)
     arr.push(toDateKey(x))
   }
   return arr
@@ -1186,7 +1225,7 @@ function formatWeekRange(start: Date, end: Date) {
 
 function getLessonDayLabel(dateKey: string, time: string): string {
   const start = parseLessonStart(dateKey, time)
-  const now = new Date()
+  const now = getAppNow()
   const startDay = new Date(start)
   startDay.setHours(0, 0, 0, 0)
   const nowDay = new Date(now)

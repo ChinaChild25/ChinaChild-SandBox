@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { SCHEDULE_WALL_CLOCK_TIMEZONE } from "@/lib/schedule-display-tz"
 import { reconcileStudentScheduleFireAndForget } from "@/lib/schedule/reconcile-student-schedule"
 import { findBookedTeacherSlotAt } from "@/lib/schedule/teacher-booked-slot"
 import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
@@ -183,7 +184,7 @@ async function clearSlot(
 
   const slotAt =
     (await findBookedTeacherSlotAt(supabase, teacherId, studentId, dateKey, timeNorm)) ??
-    wallClockSlotAtIso(dateKey, timeNorm)
+    wallClockSlotAtIso(dateKey, timeNorm, SCHEDULE_WALL_CLOCK_TIMEZONE)
 
   await supabase
     .from("teacher_schedule_slots")
@@ -205,13 +206,14 @@ async function bookSlot(
   dateKey: string,
   time: string
 ) {
+  const timeNorm = normalizeScheduleSlotTime(time)
   await supabase
     .from("student_schedule_slots")
     .upsert(
       {
         student_id: studentId,
         date_key: dateKey,
-        time,
+        time: timeNorm,
         title: "Занятие",
         type: "lesson",
         teacher_name: null
@@ -223,7 +225,7 @@ async function bookSlot(
     .upsert(
       {
         teacher_id: teacherId,
-        slot_at: new Date(`${dateKey}T${time}:00`).toISOString(),
+        slot_at: wallClockSlotAtIso(dateKey, timeNorm, SCHEDULE_WALL_CLOCK_TIMEZONE),
         status: "booked",
         booked_student_id: studentId
       },
@@ -238,7 +240,8 @@ async function tryBookSlot(
   dateKey: string,
   time: string
 ): Promise<boolean> {
-  const slotAt = new Date(`${dateKey}T${time}:00`).toISOString()
+  const timeNorm = normalizeScheduleSlotTime(time)
+  const slotAt = wallClockSlotAtIso(dateKey, timeNorm, SCHEDULE_WALL_CLOCK_TIMEZONE)
   const { data } = await supabase
     .from("teacher_schedule_slots")
     .update({
@@ -257,7 +260,7 @@ async function tryBookSlot(
       {
         student_id: studentId,
         date_key: dateKey,
-        time,
+        time: timeNorm,
         title: "Занятие",
         type: "lesson",
         teacher_name: null
