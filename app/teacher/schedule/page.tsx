@@ -115,6 +115,14 @@ export default function TeacherSchedulePage() {
   const [createStudentId, setCreateStudentId] = useState<string>("")
   const [createTitle, setCreateTitle] = useState("Занятие")
   const [createFeedback, setCreateFeedback] = useState<string | null>(null)
+  const [createSuccessOpen, setCreateSuccessOpen] = useState(false)
+  const [createSuccessPayload, setCreateSuccessPayload] = useState<{
+    lessonTitle: string
+    slotsCreated: number
+    studentLessonsCreated: number
+    mode: "busy" | "booked"
+    warning: string | null
+  } | null>(null)
   const [copiedIntervals, setCopiedIntervals] = useState<AvailabilityInterval[] | null>(null)
   const [availabilityNotice, setAvailabilityNotice] = useState<string | null>(null)
   const [lessonActions, setLessonActions] = useState<{ x: number; y: number; lesson: ExternalLesson } | null>(null)
@@ -420,12 +428,27 @@ export default function TeacherSchedulePage() {
     }
     const created = payload.created ?? 0
     const studentCreated = payload.studentLessonsCreated ?? 0
+    await refreshCalendarData()
+
+    if (created > 0) {
+      setCreateOpen(false)
+      setCreateFeedback(null)
+      setCreateSuccessPayload({
+        lessonTitle: createTitle.trim() || "Занятие",
+        slotsCreated: created,
+        studentLessonsCreated: studentCreated,
+        mode: createMode,
+        warning: payload.warning ?? null
+      })
+      setCreateSuccessOpen(true)
+      return
+    }
+
     const baseMessage =
       createMode === "booked"
-        ? `Создано слотов преподавателя: ${created}. Добавлено уроков ученику: ${studentCreated}.`
-        : `Создано слотов преподавателя: ${created}.`
+        ? `Новых слотов не добавлено (возможно, выбранные слоты уже заняты). Создано: ${created}, у ученика: ${studentCreated}.`
+        : `Новых слотов не добавлено. Создано: ${created}.`
     setCreateFeedback(payload.warning ? `${baseMessage} Предупреждение: ${payload.warning}` : baseMessage)
-    await refreshCalendarData()
   }
 
   const cancelExternalLesson = async (lesson: ExternalLesson) => {
@@ -794,7 +817,7 @@ export default function TeacherSchedulePage() {
                             setLessonDecision({
                               action: "reschedule",
                               lesson: draggedLesson,
-                              toDateKey: localDateKey(targetDay),
+                              toDateKey: getDateKeyInTimeZone(targetDay, timezone),
                               toHour: hour
                             })
                             setDraggedLesson(null)
@@ -894,8 +917,12 @@ export default function TeacherSchedulePage() {
           <button
             className="mb-1 w-full rounded-md px-3 py-2 text-left text-sm hover:bg-black/5"
             onClick={() => {
-              setCreateWeekdays([visibleDays[popover.dayIdx].getDay()])
-              setCreateStartDateKey(localDateKey(visibleDays[popover.dayIdx]))
+              {
+                const colDateKey = getDateKeyInTimeZone(visibleDays[popover.dayIdx], timezone)
+                const [y, mo, d] = colDateKey.split("-").map(Number)
+                setCreateWeekdays([new Date(y, mo - 1, d).getDay()])
+                setCreateStartDateKey(colDateKey)
+              }
               setCreateHour(popover.fromHour)
               setCreateWeeks(1)
               setCreateOpen(true)
@@ -1173,7 +1200,15 @@ export default function TeacherSchedulePage() {
           <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-2xl font-semibold text-[#202124]">Создать регулярное занятие</h2>
-              <TooltipIconButton tooltip="Закрыть" onClick={() => setCreateOpen(false)}><X size={18} /></TooltipIconButton>
+              <TooltipIconButton
+                tooltip="Закрыть"
+                onClick={() => {
+                  setCreateOpen(false)
+                  setCreateFeedback(null)
+                }}
+              >
+                <X size={18} />
+              </TooltipIconButton>
             </div>
             <div className="space-y-4">
               <div>
@@ -1202,8 +1237,8 @@ export default function TeacherSchedulePage() {
                     />
                   </div>
                 </label>
-                <label className="text-sm text-[#5f6368]">
-                  Время
+                <div className="text-sm text-[#5f6368]">
+                  <span className="block">Время</span>
                   <div className="mt-1">
                     <TimeSelect
                       value={`${String(createHour).padStart(2, "0")}:00`}
@@ -1212,7 +1247,7 @@ export default function TeacherSchedulePage() {
                       fullWidth
                     />
                   </div>
-                </label>
+                </div>
                 <label className="text-sm text-[#5f6368]">
                   Горизонт (недель)
                   <div className="mt-1 flex w-full items-stretch overflow-hidden rounded-lg border border-black/10 bg-[#f8f9fa] dark:border-white/10 dark:bg-[#23272d]">
@@ -1282,8 +1317,18 @@ export default function TeacherSchedulePage() {
               </div>
             </div>
             <div className="mt-5 flex justify-end gap-2">
-              <button className="rounded-lg px-4 py-2 text-sm hover:bg-black/5" onClick={() => setCreateOpen(false)}>Отмена</button>
               <button
+                type="button"
+                className="rounded-lg px-4 py-2 text-sm hover:bg-black/5"
+                onClick={() => {
+                  setCreateOpen(false)
+                  setCreateFeedback(null)
+                }}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
                 className="rounded-lg border border-black/10 bg-black px-5 py-2 text-sm text-white disabled:opacity-50 dark:bg-white dark:text-black"
                 disabled={createWeekdays.length === 0 || (createMode === "booked" && !createStudentId)}
                 onClick={() => void createRecurringEvent()}
@@ -1291,7 +1336,42 @@ export default function TeacherSchedulePage() {
                 Сохранить
               </button>
             </div>
-            {createFeedback ? <div className="mt-3 text-sm text-[#5f6368]">{createFeedback}</div> : null}
+            {createFeedback ? (
+              <div className="mt-3 rounded-lg border border-[#b3261e]/25 bg-[#fce8e6] px-3 py-2 text-sm text-[#7f1d1d]">{createFeedback}</div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {createSuccessOpen && createSuccessPayload ? (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-6"
+          role="alertdialog"
+          aria-labelledby="create-recurring-success-title"
+          aria-live="polite"
+        >
+          <div className="w-full max-w-lg rounded-[28px] bg-[var(--ds-sage)] px-6 py-10 text-center shadow-2xl">
+            <p id="create-recurring-success-title" className="text-2xl font-bold leading-snug text-black">
+              Создано занятие «{createSuccessPayload.lessonTitle}» на регулярной основе
+            </p>
+            <p className="mt-4 text-lg font-semibold text-black">
+              {createSuccessPayload.mode === "booked"
+                ? `Слотов в календаре: ${createSuccessPayload.slotsCreated}. У ученика в расписании: ${createSuccessPayload.studentLessonsCreated}.`
+                : `Слотов в календаре: ${createSuccessPayload.slotsCreated}.`}
+            </p>
+            {createSuccessPayload.warning ? (
+              <p className="mt-3 text-sm font-semibold text-black/80">{createSuccessPayload.warning}</p>
+            ) : null}
+            <button
+              type="button"
+              className="mt-8 rounded-xl bg-black px-8 py-3 text-base font-semibold text-white hover:bg-black/85"
+              onClick={() => {
+                setCreateSuccessOpen(false)
+                setCreateSuccessPayload(null)
+              }}
+            >
+              Закрыть
+            </button>
           </div>
         </div>
       ) : null}
@@ -1484,23 +1564,45 @@ function TimeSelect({
   fullWidth?: boolean
 }) {
   const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDocPointerDown = (e: PointerEvent) => {
+      const el = rootRef.current
+      if (!el || el.contains(e.target as Node)) return
+      setOpen(false)
+    }
+    document.addEventListener("pointerdown", onDocPointerDown)
+    return () => document.removeEventListener("pointerdown", onDocPointerDown)
+  }, [open])
+
   return (
-    <div className={`relative ${fullWidth ? "w-full" : "w-36"}`}>
+    <div ref={rootRef} className={`relative ${fullWidth ? "w-full" : "w-36"}`}>
       <button
         type="button"
         className="flex w-full items-center justify-between rounded-lg border border-black/10 bg-white px-3 py-2 text-base text-[#202124] dark:border-white/10 dark:bg-[#1a1d21] dark:text-white"
         onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-haspopup="listbox"
       >
         <span>{value}</span>
         <ChevronDown size={16} className="text-[#5f6368] dark:text-[#b0b6c0]" />
       </button>
       {open ? (
-        <div className="absolute left-0 top-[calc(100%+4px)] z-[95] max-h-56 w-full overflow-auto rounded-lg border border-black/10 bg-white p-1 shadow-xl dark:border-white/10 dark:bg-[#23272d]">
+        <div
+          role="listbox"
+          className="absolute left-0 top-[calc(100%+4px)] z-[95] max-h-56 w-full overflow-auto rounded-lg border border-black/10 bg-white p-1 shadow-xl dark:border-white/10 dark:bg-[#23272d]"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           {options.map((opt) => (
             <button
               key={opt}
               type="button"
+              role="option"
+              aria-selected={opt === value}
               className={`w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10 ${opt === value ? "bg-[#f1f3f4] dark:bg-[#2f3540]" : ""}`}
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={() => {
                 onChange(opt)
                 setOpen(false)

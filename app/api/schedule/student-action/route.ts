@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
-import { wallClockFromSlotAt } from "@/lib/schedule-display-tz"
 import { reconcileStudentScheduleFireAndForget } from "@/lib/schedule/reconcile-student-schedule"
-import { normalizeScheduleSlotTime } from "@/lib/schedule/slot-time"
+import { findBookedTeacherSlotAt } from "@/lib/schedule/teacher-booked-slot"
+import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 type Body = {
@@ -166,30 +166,6 @@ export async function POST(req: Request) {
   }
 }
 
-/** Совпадение по настенным date_key/time — в БД `slot_at` может отличаться от `new Date(\`Y-M-DTHH:mm\`).toISOString()` на сервере. */
-async function findBookedTeacherSlotAt(
-  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-  teacherId: string,
-  studentId: string,
-  dateKey: string,
-  wallTime: string
-): Promise<string | null> {
-  const wantTime = normalizeScheduleSlotTime(wallTime)
-  const { data: rows, error } = await supabase
-    .from("teacher_schedule_slots")
-    .select("slot_at")
-    .eq("teacher_id", teacherId)
-    .eq("booked_student_id", studentId)
-    .eq("status", "booked")
-
-  if (error || !rows?.length) return null
-  for (const r of rows as { slot_at: string }[]) {
-    const { dateKey: dk, time: tt } = wallClockFromSlotAt(r.slot_at)
-    if (dk === dateKey && normalizeScheduleSlotTime(tt) === wantTime) return r.slot_at
-  }
-  return null
-}
-
 async function clearSlot(
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
   teacherId: string,
@@ -207,7 +183,7 @@ async function clearSlot(
 
   const slotAt =
     (await findBookedTeacherSlotAt(supabase, teacherId, studentId, dateKey, timeNorm)) ??
-    new Date(`${dateKey}T${timeNorm}:00`).toISOString()
+    wallClockSlotAtIso(dateKey, timeNorm)
 
   await supabase
     .from("teacher_schedule_slots")

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
+import { addDaysToDateKey, mondayDateKeyOfWeekContaining, utcTodayYmd } from "@/lib/schedule/calendar-ymd"
 import { reconcileStudentScheduleFireAndForget } from "@/lib/schedule/reconcile-student-schedule"
+import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 type ProfileLite = {
@@ -49,9 +51,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Teacher access required" }, { status: 403 })
   }
 
-  const startDate = parseDateKey(startDateKeyRaw) ?? new Date()
-  startDate.setHours(0, 0, 0, 0)
-  const weekStart = startOfWeekMonday(startDate)
+  const startYmd = /^\d{4}-\d{2}-\d{2}$/.test(startDateKeyRaw.trim()) ? startDateKeyRaw.trim() : utcTodayYmd()
+  const weekMonday = mondayDateKeyOfWeekContaining(startYmd)
+  const wallTime = normalizeScheduleSlotTime(`${String(hour).padStart(2, "0")}:00`)
+
   const payload: Array<{ teacher_id: string; slot_at: string; status: "busy" | "booked"; booked_student_id: string | null }> = []
   const studentSchedulePayload: Array<{ student_id: string; date_key: string; time: string; title: string; type: "lesson"; teacher_name: string | null }> = []
   const teacherName =
@@ -61,22 +64,21 @@ export async function POST(req: Request) {
 
   for (let week = 0; week < weeks; week++) {
     for (const dayOfWeek of weekdays) {
-      const base = new Date(weekStart)
       const mondayBasedIndex = (dayOfWeek + 6) % 7
-      base.setDate(base.getDate() + week * 7 + mondayBasedIndex)
-      base.setHours(hour, 0, 0, 0)
-      if (base < startDate) continue
+      const dateKey = addDaysToDateKey(weekMonday, week * 7 + mondayBasedIndex)
+      if (dateKey < startYmd) continue
+      const slotAt = wallClockSlotAtIso(dateKey, wallTime)
       payload.push({
         teacher_id: me.id,
-        slot_at: base.toISOString(),
+        slot_at: slotAt,
         status,
         booked_student_id: status === "booked" ? studentId : null
       })
       if (status === "booked" && studentId) {
         studentSchedulePayload.push({
           student_id: studentId,
-          date_key: base.toISOString().slice(0, 10),
-          time: `${String(base.getHours()).padStart(2, "0")}:00`,
+          date_key: dateKey,
+          time: wallTime,
           title,
           type: "lesson",
           teacher_name: teacherName
@@ -127,17 +129,3 @@ export async function POST(req: Request) {
   })
 }
 
-function parseDateKey(value: string): Date | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null
-  const d = new Date(`${value}T00:00:00`)
-  return Number.isNaN(d.getTime()) ? null : d
-}
-
-function startOfWeekMonday(ref: Date): Date {
-  const d = new Date(ref)
-  const day = d.getDay()
-  const diff = day === 0 ? -6 : 1 - day
-  d.setDate(d.getDate() + diff)
-  d.setHours(0, 0, 0, 0)
-  return d
-}
