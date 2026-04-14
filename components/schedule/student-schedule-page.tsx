@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth-context"
 import { getAppNow, getAppTodayStart } from "@/lib/app-time"
 import { SCHEDULE_WALL_CLOCK_TIMEZONE } from "@/lib/schedule-display-tz"
 import { wallClockFromSlotAt } from "@/lib/schedule-display-tz"
+import { calendarWeekdayFromDateKey } from "@/lib/schedule/calendar-ymd"
 import { addOneDayYmd } from "@/lib/schedule/date-ymd"
 import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
 import {
@@ -479,7 +480,12 @@ export function StudentSchedulePage() {
         setActionError(payload.error ?? "Не удалось перенести урок")
         return
       }
-      setSuccessText(`${selectedDateKey} · ${toTime}`)
+      if (flowType === "following") {
+        const wd = calendarWeekdayFromDateKey(selectedDateKey)
+        setSuccessText(`По ${formatRecurringWeekdayLabel(wd)} в ${toTime}`)
+      } else {
+        setSuccessText(`${selectedDateKey} · ${toTime}`)
+      }
       setFlowStep("success")
       await refreshLessons()
     } finally {
@@ -915,7 +921,12 @@ export function StudentSchedulePage() {
                 onBack={() => setFlowStep(isRecurringLesson(selectedLesson) ? "type" : "menu")}
                 onPick={(targetWeekday) => {
                   const candidate = Object.keys(dateSlots)
-                    .filter((k) => parseLessonStart(k, "00:00").getDay() === targetWeekday && (dateSlots[k] ?? []).length > 0)
+                    .filter(
+                      (k) =>
+                        k >= selectedLesson.dateKey &&
+                        calendarWeekdayFromDateKey(k) === targetWeekday &&
+                        (dateSlots[k] ?? []).length > 0
+                    )
                     .sort()[0]
                   if (candidate) {
                     setSelectedDateKey(candidate)
@@ -957,6 +968,7 @@ export function StudentSchedulePage() {
           ) : null}
           {flowStep === "success" ? (
             <StepSuccess
+              mode={flowType === "following" ? "following" : "single"}
               value={successText}
               onClose={closeFlow}
               teacherName={teacherVisual.name}
@@ -1395,6 +1407,19 @@ function StepDate({
   onPick: (dateKey: string) => void
 }) {
   const days = nextDaysFromAppNow(STUDENT_RESCHEDULE_DAYS_AHEAD)
+  const blockedBy24h = Boolean(showRescheduleHint && !canRescheduleLesson(lesson.dateKey, lesson.time))
+  if (blockedBy24h) {
+    return (
+      <div>
+        <button className="mb-3 rounded-lg px-2 py-1 text-sm text-ds-text-muted hover:bg-[var(--ds-neutral-row-hover)] hover:text-ds-text-primary" onClick={onBack}>
+          Назад
+        </button>
+        <div className="rounded-xl bg-red-500/10 px-4 py-4 text-sm text-red-800 dark:bg-red-950/45 dark:text-red-200">
+          Перенос недоступен: до начала урока осталось менее 24 часов.
+        </div>
+      </div>
+    )
+  }
   return (
     <div>
       <button className="mb-3 rounded-lg px-2 py-1 text-sm text-ds-text-muted hover:bg-[var(--ds-neutral-row-hover)] hover:text-ds-text-primary" onClick={onBack}>Назад</button>
@@ -1421,9 +1446,6 @@ function StepDate({
           )
         })}
       </div>
-      {showRescheduleHint && !canRescheduleLesson(lesson.dateKey, lesson.time) ? (
-        <p className="mt-3 text-sm text-red-700 dark:text-red-300">Перенос недоступен: до начала урока осталось менее 24 часов.</p>
-      ) : null}
     </div>
   )
 }
@@ -1569,20 +1591,27 @@ function SlotsGrid({ slots, onPick, disabled = false }: { slots: string[]; onPic
 }
 
 function StepSuccess({
+  mode,
   value,
   onClose,
   teacherName,
   teacherAvatarUrl
 }: {
+  mode: "single" | "following"
   value: string
   onClose: () => void
   teacherName: string
   teacherAvatarUrl: string
 }) {
+  const title = mode === "following" ? "Регулярные занятия перенесены" : "Мы перенесли ваш урок"
+  const subtitle =
+    mode === "following"
+      ? "Вся серия уроков переведена на новый день недели и время; ближайшие даты уже отражены в вашем расписании."
+      : "Новое время уже обновлено в вашем расписании."
   return (
     <div className="text-ds-text-primary">
-      <h3 className="text-3xl font-semibold leading-tight">Мы перенесли ваш урок</h3>
-      <p className="mt-2 text-sm opacity-85">Новое время уже обновлено в вашем расписании.</p>
+      <h3 className="text-3xl font-semibold leading-tight">{title}</h3>
+      <p className="mt-2 text-sm opacity-85">{subtitle}</p>
       <div className="mt-4 rounded-xl bg-black/5 px-4 py-3 text-left text-sm dark:bg-white/10">
         <div className="flex items-center gap-2">
           <span className="h-9 w-9 overflow-hidden rounded-full bg-black/10">

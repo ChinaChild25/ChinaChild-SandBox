@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { getAppNow } from "@/lib/app-time"
-import { SCHEDULE_WALL_CLOCK_TIMEZONE } from "@/lib/schedule-display-tz"
+import { SCHEDULE_WALL_CLOCK_TIMEZONE, wallClockFromDateInTimeZone } from "@/lib/schedule-display-tz"
 import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
 import {
   emptyWeeklyTemplate,
@@ -33,13 +33,6 @@ function weeklyTemplateHasAnyFreeHour(weekly: WeeklyTemplate): boolean {
     if (intervalsToHourlyStatuses(weekly[k] ?? []).some((s) => s === "free")) return true
   }
   return false
-}
-
-function weekdayKeyFromDateKey(dateKey: string): WeekdayKey {
-  const [y, m, d] = dateKey.split("-").map((x) => parseInt(x, 10))
-  const dow = new Date(Date.UTC(y, m - 1, d, 12, 0, 0)).getUTCDay()
-  const map: WeekdayKey[] = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
-  return map[dow]
 }
 
 function addDaysToDateKey(dateKey: string, deltaDays: number): string {
@@ -84,6 +77,7 @@ export async function collectWeeklyBookingOccurrences(
 
   const weeklyFromDb = (tmpl?.weekly_template as WeeklyTemplate | null) ?? emptyWeeklyTemplate()
   const weeklyForSynth = weeklyTemplateHasAnyFreeHour(weeklyFromDb) ? weeklyFromDb : DEFAULT_STUDENT_WEEKLY_IF_NO_TEMPLATE
+  const teacherTz = (tmpl?.timezone ?? "").trim() || SCHEDULE_WALL_CLOCK_TIMEZONE
 
   const nowMs = getAppNow().getTime()
   const out: WeeklyBookingOccurrence[] = []
@@ -97,9 +91,23 @@ export async function collectWeeklyBookingOccurrences(
     if (slotMs <= nowMs) continue
     if (slotMs > nowMs + MS_10Y) break
 
-    const wk = weekdayKeyFromDateKey(dateKey)
+    const { time: wallInTeacherTz } = wallClockFromDateInTimeZone(new Date(slotMs), teacherTz)
+    const wallHour = Number.parseInt(wallInTeacherTz.slice(0, 2), 10)
+    if (!Number.isFinite(wallHour) || wallHour < 0 || wallHour > 23) continue
+    const dow = new Date(slotMs).toLocaleDateString("en-US", { weekday: "short", timeZone: teacherTz })
+    const dowMap: Record<string, WeekdayKey> = {
+      Sun: "sunday",
+      Mon: "monday",
+      Tue: "tuesday",
+      Wed: "wednesday",
+      Thu: "thursday",
+      Fri: "friday",
+      Sat: "saturday"
+    }
+    const wk = dowMap[dow]
+    if (!wk) continue
     const hourly = intervalsToHourlyStatuses(weeklyForSynth[wk] ?? [])
-    if (hourly[hour] !== "free") continue
+    if (hourly[wallHour] !== "free") continue
 
     slotAtList.push(slotAt)
     out.push({ dateKey, time: timeNorm })

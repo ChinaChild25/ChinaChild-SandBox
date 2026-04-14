@@ -36,11 +36,16 @@ export function wallClockFromNaiveSlotString(iso: string): { dateKey: string; ti
 }
 
 export function wallClockFromDateInSchoolTz(instant: Date): { dateKey: string; time: string } {
+  return wallClockFromDateInTimeZone(instant, SCHEDULE_WALL_CLOCK_TIMEZONE)
+}
+
+export function wallClockFromDateInTimeZone(instant: Date, timeZone: string): { dateKey: string; time: string } {
   if (Number.isNaN(instant.getTime())) {
     return { dateKey: "1970-01-01", time: "00:00" }
   }
+  const tz = timeZone?.trim() || SCHEDULE_WALL_CLOCK_TIMEZONE
   const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: SCHEDULE_WALL_CLOCK_TIMEZONE,
+    timeZone: tz,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -70,6 +75,10 @@ export function wallClockSlotIsStrictlyAfterNow(dateKey: string, time: string): 
 }
 
 export function wallClockFromSlotAt(iso: string): { dateKey: string; time: string } {
+  return wallClockFromSlotAtInTimeZone(iso, SCHEDULE_WALL_CLOCK_TIMEZONE)
+}
+
+export function wallClockFromSlotAtInTimeZone(iso: string, timeZone: string): { dateKey: string; time: string } {
   const trimmed = iso.trim()
   if (!trimmed) return { dateKey: "1970-01-01", time: "00:00" }
 
@@ -82,5 +91,5 @@ export function wallClockFromSlotAt(iso: string): { dateKey: string; time: strin
   if (Number.isNaN(instant.getTime())) {
     return { dateKey: "1970-01-01", time: "00:00" }
   }
-  return wallClockFromDateInSchoolTz(instant)
+  return wallClockFromDateInTimeZone(instant, timeZone)
 }

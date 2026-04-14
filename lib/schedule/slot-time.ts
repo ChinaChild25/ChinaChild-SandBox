@@ -60,3 +60,18 @@ export function wallClockWallTimeToDbIso(dateKey: string, timeHHMM: string, time
 export function wallClockSlotAtIso(dateKey: string, timeHHMM: string, timeZone = SCHEDULE_WALL_CLOCK_TIMEZONE): string {
   return wallClockWallTimeToDbIso(dateKey, timeHHMM, timeZone)
 }
+
+/**
+ * Два значения `timestamptz` из БД и из клиента могут отличаться строкой (`Z` vs `+00:00`, мс),
+ * но обозначать один момент — из‑за этого ломались проверки «уже на месте» и дедуп после серийного переноса.
+ */
+export function timestamptzInstantEqual(a: string, b: string): boolean {
+  const ta = new Date(a.trim()).getTime()
+  const tb = new Date(b.trim()).getTime()
+  return Number.isFinite(ta) && Number.isFinite(tb) && ta === tb
+}
+
+export function timestamptzInstantKey(iso: string): string {
+  const t = new Date(iso.trim()).getTime()
+  return Number.isFinite(t) ? String(t) : iso.trim()
+}

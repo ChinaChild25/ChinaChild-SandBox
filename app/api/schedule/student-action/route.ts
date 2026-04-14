@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server"
 import { getAppNow } from "@/lib/app-time"
+import { addDaysToDateKey } from "@/lib/schedule/calendar-ymd"
+import {
+  matchesFollowingSeriesSlot,
+  minimalWeekdayShiftDays,
+  minDateKeyForFollowingRescheduleCluster,
+  minDateKeyForFollowingSeries,
+  calendarWeekdayFromDateKey
+} from "@/lib/schedule/following-series"
 import { wallClockFromDateInSchoolTz, wallClockFromSlotAt } from "@/lib/schedule-display-tz"
 import { SCHEDULE_WALL_CLOCK_TIMEZONE } from "@/lib/schedule-display-tz"
 import { reconcileStudentScheduleFireAndForget } from "@/lib/schedule/reconcile-student-schedule"
 import { collectWeeklyBookingOccurrences, STUDENT_WEEKLY_BOOKING_MAX_WEEKS } from "@/lib/schedule/weekly-student-booking"
-import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
+import { normalizeScheduleSlotTime, timestamptzInstantEqual, timestamptzInstantKey, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 type Body = {
@@ -131,7 +139,7 @@ export async function POST(req: Request) {
   }
 
   const scope = body.scope === "following" ? "following" : "single"
-  const timeZone = body.timezone?.trim() || SCHEDULE_WALL_CLOCK_TIMEZONE
+  const timeZone = SCHEDULE_WALL_CLOCK_TIMEZONE
   let mutated = false
   try {
     if (body.action === "book") {
@@ -238,11 +246,16 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true })
       }
 
+      const seriesWeekday = calendarWeekdayFromDateKey(oldDateKey)
+      const seriesAnchorDateKey =
+        (await minDateKeyForFollowingSeries(supabase, teacherId, me.id, seriesWeekday, oldTime)) ?? oldDateKey
+      const anchorSlotAt = wallClockSlotAtIso(seriesAnchorDateKey, oldTime, timeZone)
+
       const { data: cancelledCount, error } = await supabase.rpc("cancel_following_slots_atomic", {
         p_teacher_id: teacherId,
         p_student_id: me.id,
-        p_anchor_slot_at: oldSlotAt,
-        p_anchor_weekday: new Date(`${oldDateKey}T00:00:00`).getDay(),
+        p_anchor_slot_at: anchorSlotAt,
+        p_anchor_weekday: seriesWeekday,
         p_anchor_time: oldTime,
         p_timezone: timeZone
       })
@@ -251,7 +264,6 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: mapped.error }, { status: mapped.status })
       }
       if (error && isMissingRpcFunction(error.message || "")) {
-        const oldWeekday = new Date(`${oldDateKey}T00:00:00`).getDay()
         const { data: bookedRows } = await supabase
           .from("teacher_schedule_slots")
           .select("slot_at")
@@ -261,10 +273,8 @@ export async function POST(req: Request) {
         let fallbackCancelled = 0
         for (const row of bookedRows ?? []) {
           const wall = wallClockFromSlotAt((row as { slot_at: string }).slot_at)
-          const weekday = new Date(`${wall.dateKey}T00:00:00`).getDay()
-          if (wall.dateKey < oldDateKey) continue
-          if (weekday !== oldWeekday) continue
-          if (normalizeScheduleSlotTime(wall.time) !== oldTime) continue
+          if (wall.dateKey < seriesAnchorDateKey) continue
+          if (!matchesFollowingSeriesSlot(wall, seriesWeekday, oldTime)) continue
           const { error: fallbackErr } = await supabase.rpc("cancel_slot_atomic", {
             p_slot_at: (row as { slot_at: string }).slot_at,
             p_teacher_id: teacherId,
@@ -313,7 +323,7 @@ export async function POST(req: Request) {
     }
 
     if (scope === "single") {
-      const newSlotAt = wallClockSlotAtIso(toDateKeyValue, toTime, SCHEDULE_WALL_CLOCK_TIMEZONE)
+      const newSlotAt = wallClockSlotAtIso(toDateKeyValue, toTime, timeZone)
       try {
         await ensureStudentTargetSlotExists(supabase, teacherId, newSlotAt, timeZone)
       } catch (e) {
@@ -321,7 +331,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: mapped.error }, { status: mapped.status })
       }
       const { error } = await supabase.rpc("reschedule_slot_atomic", {
-        p_old_slot_at: wallClockSlotAtIso(oldDateKey, oldTime, SCHEDULE_WALL_CLOCK_TIMEZONE),
+        p_old_slot_at: wallClockSlotAtIso(oldDateKey, oldTime, timeZone),
         p_new_slot_at: newSlotAt,
         p_teacher_id: teacherId,
         p_student_id: me.id,
@@ -335,9 +345,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true })
     }
 
-    const oldStart = new Date(`${oldDateKey}T00:00:00`)
-    const newStart = new Date(`${toDateKeyValue}T00:00:00`)
-    const deltaDays = Math.round((newStart.getTime() - oldStart.getTime()) / (24 * 60 * 60 * 1000))
+    const clusterSourceWeekday = calendarWeekdayFromDateKey(oldDateKey)
+    const clusterTargetWeekday = calendarWeekdayFromDateKey(toDateKeyValue)
+    const seriesAnchorDateKey =
+      (await minDateKeyForFollowingRescheduleCluster(
+        supabase,
+        teacherId,
+        me.id,
+        clusterSourceWeekday,
+        clusterTargetWeekday,
+        oldTime
+      )) ?? oldDateKey
     const followingCandidates: Array<{ sourceSlotAt: string; targetSlotAt: string }> = []
     {
       const { data: bookedRows, error: bookedErr } = await supabase
@@ -347,22 +365,42 @@ export async function POST(req: Request) {
         .eq("booked_student_id", me.id)
         .eq("status", "booked")
       if (bookedErr) return NextResponse.json({ error: bookedErr.message }, { status: 400 })
+
+      const inCluster = (wd: number) => wd === clusterSourceWeekday || wd === clusterTargetWeekday
+
+      let seriesFromAnchor = 0
+      let mismatchesFromAnchor = 0
       for (const row of bookedRows ?? []) {
         const slotAt = (row as { slot_at: string }).slot_at
         const wall = wallClockFromSlotAt(slotAt)
-        const weekday = new Date(`${wall.dateKey}T00:00:00`).getDay()
-        if (wall.dateKey < oldDateKey) continue
-        if (weekday !== oldStart.getDay()) continue
+        if (wall.dateKey < seriesAnchorDateKey) continue
+        const rowWd = calendarWeekdayFromDateKey(wall.dateKey)
+        if (!inCluster(rowWd)) continue
         if (normalizeScheduleSlotTime(wall.time) !== oldTime) continue
-        const targetDate = new Date(`${wall.dateKey}T00:00:00`)
-        targetDate.setDate(targetDate.getDate() + deltaDays)
-        const targetDateKey = [
-          String(targetDate.getFullYear()),
-          String(targetDate.getMonth() + 1).padStart(2, "0"),
-          String(targetDate.getDate()).padStart(2, "0")
-        ].join("-")
+        seriesFromAnchor += 1
+        const rowDelta = minimalWeekdayShiftDays(rowWd, clusterTargetWeekday)
+        const targetDateKey = addDaysToDateKey(wall.dateKey, rowDelta)
         const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, timeZone)
-        if (slotAt !== targetSlotAt) {
+        if (!timestamptzInstantEqual(slotAt, targetSlotAt)) mismatchesFromAnchor += 1
+      }
+      if (seriesFromAnchor > 0 && mismatchesFromAnchor === 0) {
+        return NextResponse.json(
+          { error: "Занятия этой серии уже стоят на выбранный день недели и время." },
+          { status: 409 }
+        )
+      }
+
+      for (const row of bookedRows ?? []) {
+        const slotAt = (row as { slot_at: string }).slot_at
+        const wall = wallClockFromSlotAt(slotAt)
+        if (wall.dateKey < seriesAnchorDateKey) continue
+        const rowWd = calendarWeekdayFromDateKey(wall.dateKey)
+        if (!inCluster(rowWd)) continue
+        if (normalizeScheduleSlotTime(wall.time) !== oldTime) continue
+        const rowDelta = minimalWeekdayShiftDays(rowWd, clusterTargetWeekday)
+        const targetDateKey = addDaysToDateKey(wall.dateKey, rowDelta)
+        const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, timeZone)
+        if (!timestamptzInstantEqual(slotAt, targetSlotAt)) {
           followingCandidates.push({ sourceSlotAt: slotAt, targetSlotAt })
         }
         try {
@@ -376,10 +414,9 @@ export async function POST(req: Request) {
     const { data: movedCount, error } = await supabase.rpc("reschedule_following_slots_atomic", {
       p_teacher_id: teacherId,
       p_student_id: me.id,
-      p_anchor_slot_at: wallClockSlotAtIso(oldDateKey, oldTime, timeZone),
-      p_anchor_weekday: oldStart.getDay(),
-      p_anchor_time: oldTime,
-      p_delta_days: deltaDays,
+      p_anchor_slot_at: wallClockSlotAtIso(seriesAnchorDateKey, oldTime, timeZone),
+      p_cluster_weekday_a: clusterSourceWeekday,
+      p_cluster_weekday_b: clusterTargetWeekday,
       p_target_time: toTime,
       p_timezone: timeZone
     })
@@ -402,15 +439,14 @@ export async function POST(req: Request) {
       if (rowsErr) {
         return NextResponse.json({ error: rowsErr.message }, { status: 400 })
       }
-      const bySlotAt = new Map(
-        (rows ?? []).map((r) => [
-          (r as { slot_at: string }).slot_at,
-          r as { slot_at: string; status: "free" | "busy" | "booked"; booked_student_id: string | null }
-        ])
-      )
+      const bySlotAt = new Map<string, { slot_at: string; status: "free" | "busy" | "booked"; booked_student_id: string | null }>()
+      for (const r of rows ?? []) {
+        const row = r as { slot_at: string; status: "free" | "busy" | "booked"; booked_student_id: string | null }
+        bySlotAt.set(timestamptzInstantKey(row.slot_at), row)
+      }
       for (const pair of followingCandidates) {
-        const src = bySlotAt.get(pair.sourceSlotAt)
-        const tgt = bySlotAt.get(pair.targetSlotAt)
+        const src = bySlotAt.get(timestamptzInstantKey(pair.sourceSlotAt))
+        const tgt = bySlotAt.get(timestamptzInstantKey(pair.targetSlotAt))
         const sourceBookedByMe = src?.status === "booked" && src.booked_student_id === me.id
         const targetBookedByMe = tgt?.status === "booked" && tgt.booked_student_id === me.id
         if (!sourceBookedByMe || !targetBookedByMe) continue
@@ -429,7 +465,11 @@ export async function POST(req: Request) {
     }
     const totalMoved = Number(movedCount ?? 0) + cleanedDuplicates
     if (totalMoved <= 0) {
-      return NextResponse.json({ error: "Не найдено занятий для переноса" }, { status: 409 })
+      const hint =
+        followingCandidates.length > 0
+          ? "Часть слотов в серии занята или недоступна у преподавателя. Выберите другое время или обратитесь в поддержку."
+          : "Подходящих занятий для переноса не найдено."
+      return NextResponse.json({ error: `Не удалось перенести серию: ${hint}` }, { status: 409 })
     }
 
     mutated = true

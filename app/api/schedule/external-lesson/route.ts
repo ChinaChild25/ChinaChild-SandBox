@@ -1,8 +1,21 @@
 import { NextResponse } from "next/server"
+import { addDaysToDateKey } from "@/lib/schedule/calendar-ymd"
+import {
+  calendarWeekdayFromDateKey,
+  matchesFollowingSeriesSlot,
+  minimalWeekdayShiftDays,
+  minDateKeyForFollowingRescheduleCluster,
+  minDateKeyForFollowingSeries
+} from "@/lib/schedule/following-series"
 import { SCHEDULE_WALL_CLOCK_TIMEZONE, wallClockFromSlotAt } from "@/lib/schedule-display-tz"
 import { isValidTeacherRescheduleTargetSlot } from "@/lib/schedule-lessons"
 import { reconcileStudentScheduleFireAndForget } from "@/lib/schedule/reconcile-student-schedule"
-import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
+import {
+  normalizeScheduleSlotTime,
+  timestamptzInstantEqual,
+  timestamptzInstantKey,
+  wallClockSlotAtIso
+} from "@/lib/schedule/slot-time"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 type Body = {
@@ -27,11 +40,6 @@ function lessonWallKeys(lesson: NonNullable<Body["lesson"]>): { dateKey: string;
   const tt = lesson.time?.trim()
   if (dk && tt) return { dateKey: dk, time: normalizeScheduleSlotTime(tt) }
   return { dateKey: "1970-01-01", time: "00:00" }
-}
-
-function weekdayFromDateKey(dateKey: string): number {
-  const [y, m, d] = dateKey.split("-").map((x) => parseInt(x, 10))
-  return new Date(y, m - 1, d).getDay()
 }
 
 function mapRpcError(message: string): { status: number; error: string } {
@@ -62,8 +70,8 @@ async function dedupeFollowingTeacherMoves(
 ): Promise<{ cleaned: number; error: string | null }> {
   const uniq = new Map<string, { sourceSlotAt: string; targetSlotAt: string }>()
   for (const p of pairs) {
-    if (p.sourceSlotAt === p.targetSlotAt) continue
-    uniq.set(`${p.sourceSlotAt}=>${p.targetSlotAt}`, p)
+    if (timestamptzInstantEqual(p.sourceSlotAt, p.targetSlotAt)) continue
+    uniq.set(`${timestamptzInstantKey(p.sourceSlotAt)}=>${timestamptzInstantKey(p.targetSlotAt)}`, p)
   }
   const list = Array.from(uniq.values())
   if (list.length === 0) return { cleaned: 0, error: null }
@@ -76,17 +84,16 @@ async function dedupeFollowingTeacherMoves(
     .in("slot_at", allSlotAts)
   if (rowsErr) return { cleaned: 0, error: rowsErr.message }
 
-  const bySlotAt = new Map(
-    (rows ?? []).map((r) => [
-      (r as { slot_at: string }).slot_at,
-      r as { slot_at: string; status: "free" | "busy" | "booked"; booked_student_id: string | null }
-    ])
-  )
+  const bySlotAt = new Map<string, { slot_at: string; status: "free" | "busy" | "booked"; booked_student_id: string | null }>()
+  for (const r of rows ?? []) {
+    const row = r as { slot_at: string; status: "free" | "busy" | "booked"; booked_student_id: string | null }
+    bySlotAt.set(timestamptzInstantKey(row.slot_at), row)
+  }
 
   let cleaned = 0
   for (const pair of list) {
-    const src = bySlotAt.get(pair.sourceSlotAt)
-    const tgt = bySlotAt.get(pair.targetSlotAt)
+    const src = bySlotAt.get(timestamptzInstantKey(pair.sourceSlotAt))
+    const tgt = bySlotAt.get(timestamptzInstantKey(pair.targetSlotAt))
     const sourceBooked = src?.status === "booked" && src.booked_student_id === studentId
     const targetBooked = tgt?.status === "booked" && tgt.booked_student_id === studentId
     if (!sourceBooked || !targetBooked) continue
@@ -160,7 +167,7 @@ export async function POST(req: Request) {
   const scheduleTimeZone = SCHEDULE_WALL_CLOCK_TIMEZONE
 
   const { dateKey: oldDateKey, time: oldTime } = lessonWallKeys(lesson)
-  const oldWeekday = weekdayFromDateKey(oldDateKey)
+  const seriesWeekday = calendarWeekdayFromDateKey(oldDateKey)
   const studentId = lesson.student_id
   let mutated = false
 
@@ -181,11 +188,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true })
     }
     if (action === "cancel" && scope === "following") {
+      const seriesAnchorDateKey =
+        (await minDateKeyForFollowingSeries(supabase, me.id, lesson.student_id, seriesWeekday, oldTime)) ?? oldDateKey
+      const anchorSlotAt = wallClockSlotAtIso(seriesAnchorDateKey, oldTime, scheduleTimeZone)
       const { data: cancelledCount, error } = await supabase.rpc("cancel_following_slots_atomic", {
         p_teacher_id: me.id,
         p_student_id: lesson.student_id,
-        p_anchor_slot_at: oldSlotAt,
-        p_anchor_weekday: oldWeekday,
+        p_anchor_slot_at: anchorSlotAt,
+        p_anchor_weekday: seriesWeekday,
         p_anchor_time: oldTime,
         p_timezone: scheduleTimeZone
       })
@@ -204,9 +214,8 @@ export async function POST(req: Request) {
         let fallbackCancelled = 0
         for (const row of bookedRows ?? []) {
           const wall = wallClockFromSlotAt((row as { slot_at: string }).slot_at)
-          if (wall.dateKey < oldDateKey) continue
-          if (weekdayFromDateKey(wall.dateKey) !== oldWeekday) continue
-          if (normalizeScheduleSlotTime(wall.time) !== oldTime) continue
+          if (wall.dateKey < seriesAnchorDateKey) continue
+          if (!matchesFollowingSeriesSlot(wall, seriesWeekday, oldTime)) continue
           const { error: fallbackErr } = await supabase.rpc("cancel_slot_atomic", {
             p_slot_at: (row as { slot_at: string }).slot_at,
             p_teacher_id: me.id,
@@ -268,30 +277,40 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true })
     }
 
+    const clusterSourceWeekday = calendarWeekdayFromDateKey(oldDateKey)
+    const clusterTargetWeekday = calendarWeekdayFromDateKey(toDateKey)
+    const seriesAnchorDateKey =
+      (await minDateKeyForFollowingRescheduleCluster(
+        supabase,
+        me.id,
+        lesson.student_id,
+        clusterSourceWeekday,
+        clusterTargetWeekday,
+        oldTime
+      )) ?? oldDateKey
+    const anchorFollowingSlotAt = wallClockSlotAtIso(seriesAnchorDateKey, oldTime, scheduleTimeZone)
+
     const tryRescheduleFollowing = () =>
       supabase.rpc("reschedule_following_slots_atomic", {
         p_teacher_id: me.id,
         p_student_id: lesson.student_id,
-        p_anchor_slot_at: oldSlotAt,
-        p_anchor_weekday: oldWeekday,
-        p_anchor_time: oldTime,
-        p_delta_days: deltaDays,
+        p_anchor_slot_at: anchorFollowingSlotAt,
+        p_cluster_weekday_a: clusterSourceWeekday,
+        p_cluster_weekday_b: clusterTargetWeekday,
         p_target_time: toTime,
         p_timezone: scheduleTimeZone
       })
 
-    const oldStart = new Date(`${oldDateKey}T00:00:00`)
-    const newStart = new Date(`${toDateKey}T00:00:00`)
-    const deltaDays = Math.round((newStart.getTime() - oldStart.getTime()) / (24 * 60 * 60 * 1000))
     const followingPairKeys = new Set<string>()
     const followingCandidates: Array<{ sourceSlotAt: string; targetSlotAt: string }> = []
     const pushFollowingPair = (sourceSlotAt: string, targetSlotAt: string) => {
-      if (sourceSlotAt === targetSlotAt) return
-      const key = `${sourceSlotAt}=>${targetSlotAt}`
+      if (timestamptzInstantEqual(sourceSlotAt, targetSlotAt)) return
+      const key = `${timestamptzInstantKey(sourceSlotAt)}=>${timestamptzInstantKey(targetSlotAt)}`
       if (followingPairKeys.has(key)) return
       followingPairKeys.add(key)
       followingCandidates.push({ sourceSlotAt, targetSlotAt })
     }
+    const inCluster = (wd: number) => wd === clusterSourceWeekday || wd === clusterTargetWeekday
     // Pre-unlock target slots for teacher recurring move (busy -> free), so batch RPC
     // does not silently skip otherwise valid targets outside availability template.
     {
@@ -304,19 +323,36 @@ export async function POST(req: Request) {
       if (bookedErr) {
         return NextResponse.json({ error: bookedErr.message }, { status: 400 })
       }
+      let seriesFromAnchor = 0
+      let mismatchesFromAnchor = 0
       for (const row of bookedRows ?? []) {
         const slotAt = (row as { slot_at: string }).slot_at
         const wall = wallClockFromSlotAt(slotAt)
-        if (wall.dateKey < oldDateKey) continue
-        if (weekdayFromDateKey(wall.dateKey) !== oldWeekday) continue
+        if (wall.dateKey < seriesAnchorDateKey) continue
+        const rowWd = calendarWeekdayFromDateKey(wall.dateKey)
+        if (!inCluster(rowWd)) continue
         if (normalizeScheduleSlotTime(wall.time) !== oldTime) continue
-        const targetDate = new Date(`${wall.dateKey}T00:00:00`)
-        targetDate.setDate(targetDate.getDate() + deltaDays)
-        const targetDateKey = [
-          String(targetDate.getFullYear()),
-          String(targetDate.getMonth() + 1).padStart(2, "0"),
-          String(targetDate.getDate()).padStart(2, "0")
-        ].join("-")
+        seriesFromAnchor += 1
+        const rowDelta = minimalWeekdayShiftDays(rowWd, clusterTargetWeekday)
+        const targetDateKey = addDaysToDateKey(wall.dateKey, rowDelta)
+        const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
+        if (!timestamptzInstantEqual(slotAt, targetSlotAt)) mismatchesFromAnchor += 1
+      }
+      if (seriesFromAnchor > 0 && mismatchesFromAnchor === 0) {
+        return NextResponse.json(
+          { error: "Занятия этой серии уже стоят на выбранный день недели и время." },
+          { status: 409 }
+        )
+      }
+      for (const row of bookedRows ?? []) {
+        const slotAt = (row as { slot_at: string }).slot_at
+        const wall = wallClockFromSlotAt(slotAt)
+        if (wall.dateKey < seriesAnchorDateKey) continue
+        const rowWd = calendarWeekdayFromDateKey(wall.dateKey)
+        if (!inCluster(rowWd)) continue
+        if (normalizeScheduleSlotTime(wall.time) !== oldTime) continue
+        const rowDelta = minimalWeekdayShiftDays(rowWd, clusterTargetWeekday)
+        const targetDateKey = addDaysToDateKey(wall.dateKey, rowDelta)
         const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
         pushFollowingPair(slotAt, targetSlotAt)
         await ensureTeacherSlotReservable(supabase, me.id, targetSlotAt)
@@ -337,16 +373,12 @@ export async function POST(req: Request) {
       for (const row of bookedRows ?? []) {
         const slotAt = (row as { slot_at: string }).slot_at
         const wall = wallClockFromSlotAt(slotAt)
-        if (wall.dateKey < oldDateKey) continue
-        if (weekdayFromDateKey(wall.dateKey) !== oldWeekday) continue
+        if (wall.dateKey < seriesAnchorDateKey) continue
+        const rowWd = calendarWeekdayFromDateKey(wall.dateKey)
+        if (!inCluster(rowWd)) continue
         if (normalizeScheduleSlotTime(wall.time) !== oldTime) continue
-        const targetDate = new Date(`${wall.dateKey}T00:00:00`)
-        targetDate.setDate(targetDate.getDate() + deltaDays)
-        const targetDateKey = [
-          String(targetDate.getFullYear()),
-          String(targetDate.getMonth() + 1).padStart(2, "0"),
-          String(targetDate.getDate()).padStart(2, "0")
-        ].join("-")
+        const rowDelta = minimalWeekdayShiftDays(rowWd, clusterTargetWeekday)
+        const targetDateKey = addDaysToDateKey(wall.dateKey, rowDelta)
         const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
         pushFollowingPair(slotAt, targetSlotAt)
         await ensureTeacherSlotReservable(supabase, me.id, targetSlotAt)
@@ -392,16 +424,12 @@ export async function POST(req: Request) {
       for (const row of bookedRows ?? []) {
         const slotAt = (row as { slot_at: string }).slot_at
         const wall = wallClockFromSlotAt(slotAt)
-        if (wall.dateKey < oldDateKey) continue
-        if (weekdayFromDateKey(wall.dateKey) !== oldWeekday) continue
+        if (wall.dateKey < seriesAnchorDateKey) continue
+        const rowWd = calendarWeekdayFromDateKey(wall.dateKey)
+        if (!inCluster(rowWd)) continue
         if (normalizeScheduleSlotTime(wall.time) !== oldTime) continue
-        const targetDate = new Date(`${wall.dateKey}T00:00:00`)
-        targetDate.setDate(targetDate.getDate() + deltaDays)
-        const targetDateKey = [
-          String(targetDate.getFullYear()),
-          String(targetDate.getMonth() + 1).padStart(2, "0"),
-          String(targetDate.getDate()).padStart(2, "0")
-        ].join("-")
+        const rowDelta = minimalWeekdayShiftDays(rowWd, clusterTargetWeekday)
+        const targetDateKey = addDaysToDateKey(wall.dateKey, rowDelta)
         const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
         pushFollowingPair(slotAt, targetSlotAt)
         await ensureTeacherSlotReservable(supabase, me.id, targetSlotAt)
@@ -420,7 +448,11 @@ export async function POST(req: Request) {
     }
     const totalMoved = Number(movedCount ?? 0) + deduped.cleaned
     if (totalMoved <= 0) {
-      return NextResponse.json({ error: "Не найдено занятий для переноса" }, { status: 409 })
+      const hint =
+        followingCandidates.length > 0
+          ? "Часть слотов в серии занята или недоступна. Выберите другое время."
+          : "Подходящих занятий для переноса не найдено."
+      return NextResponse.json({ error: `Не удалось перенести серию: ${hint}` }, { status: 409 })
     }
 
     mutated = true

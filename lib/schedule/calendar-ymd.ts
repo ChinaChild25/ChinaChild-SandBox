@@ -17,6 +17,13 @@ export function addDaysToDateKey(dateKey: string, delta: number): string {
   return ymdFromUtc(ref)
 }
 
+/** День недели по календарной дате YYYY-MM-DD (0=вс … 6=сб), только UTC-арифметика даты. */
+export function calendarWeekdayFromDateKey(dateKey: string): number {
+  const [y, m, d] = dateKey.split("-").map((x) => parseInt(x, 10))
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return 0
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay()
+}
+
 function ymdFromUtc(ref: Date): string {
   return `${ref.getUTCFullYear()}-${String(ref.getUTCMonth() + 1).padStart(2, "0")}-${String(ref.getUTCDate()).padStart(2, "0")}`
 }
