@@ -174,6 +174,18 @@ export function StudentSchedulePage() {
     }
     return new Set(Array.from(counts.entries()).filter(([, count]) => count > 1).map(([key]) => key))
   }, [sortedLessons])
+  const teacherVisual = useMemo(() => {
+    const source =
+      selectedLesson ??
+      cancelSuccessInfo?.lesson ??
+      sortedLessons.find((l) => Boolean(l.teacher || l.teacherAvatarUrl)) ??
+      sortedLessons[0] ??
+      null
+    return {
+      name: source?.teacher ?? "Преподаватель",
+      avatar: source?.teacherAvatarUrl || "/staff/zhao-li.png"
+    }
+  }, [cancelSuccessInfo?.lesson, selectedLesson, sortedLessons])
   const isRecurringLesson = useCallback(
     (lesson: ScheduledLesson) => {
       const targetWeekday = parseLessonStart(lesson.dateKey, lesson.time).getDay()
@@ -943,7 +955,14 @@ export function StudentSchedulePage() {
               onPick={(time) => void doReschedule(time)}
             />
           ) : null}
-          {flowStep === "success" ? <StepSuccess value={successText} onClose={closeFlow} /> : null}
+          {flowStep === "success" ? (
+            <StepSuccess
+              value={successText}
+              onClose={closeFlow}
+              teacherName={teacherVisual.name}
+              teacherAvatarUrl={teacherVisual.avatar}
+            />
+          ) : null}
         </LessonModal>
       ) : null}
 
@@ -1018,7 +1037,16 @@ export function StudentSchedulePage() {
             {cancelSuccessInfo ? (
               <div className="mt-4 rounded-xl bg-black/5 px-4 py-3 text-left text-sm dark:bg-white/10">
                 <p className="font-medium">{formatLessonHeader(cancelSuccessInfo.lesson)}</p>
-                <p className="mt-1 text-xs opacity-80">{cancelSuccessInfo.lesson.teacher ?? "Преподаватель"}</p>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="h-8 w-8 overflow-hidden rounded-full bg-black/10">
+                    <img
+                      src={cancelSuccessInfo.lesson.teacherAvatarUrl || teacherVisual.avatar}
+                      alt={cancelSuccessInfo.lesson.teacher ?? teacherVisual.name}
+                      className="h-full w-full object-cover"
+                    />
+                  </span>
+                  <p className="text-xs opacity-90">Преподаватель: {cancelSuccessInfo.lesson.teacher ?? teacherVisual.name}</p>
+                </div>
                 <p className="mt-1 text-xs opacity-80">
                   {cancelSuccessInfo.scope === "single" ? "Отменили только это занятие" : "Отменили все последующие занятия в цепочке"}
                 </p>
@@ -1045,6 +1073,12 @@ export function StudentSchedulePage() {
           <div className="w-full max-w-md rounded-2xl bg-[var(--ds-sage)] px-7 py-7 text-black shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <p className="text-2xl font-semibold">{studentScheduleNotice.title}</p>
             <p className="mt-2 text-sm opacity-85">{studentScheduleNotice.message}</p>
+            <div className="mt-3 flex items-center gap-2 rounded-xl bg-white/45 px-4 py-2 text-left text-sm">
+              <span className="h-8 w-8 overflow-hidden rounded-full bg-black/10">
+                <img src={teacherVisual.avatar} alt={teacherVisual.name} className="h-full w-full object-cover" />
+              </span>
+              <span className="font-medium">Преподаватель: {teacherVisual.name}</span>
+            </div>
             {studentScheduleNotice.fromLabel || studentScheduleNotice.toLabel ? (
               <div className="mt-3 rounded-xl bg-white/45 px-4 py-3 text-left text-sm">
                 {studentScheduleNotice.fromLabel ? <p><span className="font-semibold">Было:</span> {studentScheduleNotice.fromLabel}</p> : null}
@@ -1177,6 +1211,12 @@ export function StudentSchedulePage() {
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-2xl font-semibold">Урок запланирован</p>
+            <div className="mt-3 flex items-center gap-2 rounded-xl bg-white/45 px-4 py-2 text-left text-sm">
+              <span className="h-8 w-8 overflow-hidden rounded-full bg-black/10">
+                <img src={teacherVisual.avatar} alt={teacherVisual.name} className="h-full w-full object-cover" />
+              </span>
+              <span className="font-medium">Преподаватель: {teacherVisual.name}</span>
+            </div>
             <p className="mt-2 text-sm opacity-90">{planSuccessText}</p>
             <div className="mt-5 flex justify-end">
               <button
@@ -1522,10 +1562,26 @@ function SlotsGrid({ slots, onPick, disabled = false }: { slots: string[]; onPic
   )
 }
 
-function StepSuccess({ value, onClose }: { value: string; onClose: () => void }) {
+function StepSuccess({
+  value,
+  onClose,
+  teacherName,
+  teacherAvatarUrl
+}: {
+  value: string
+  onClose: () => void
+  teacherName: string
+  teacherAvatarUrl: string
+}) {
   return (
     <div className="min-h-[56vh] text-ds-text-primary">
       <h3 className="mt-20 text-6xl font-semibold leading-tight">Мы перенесли ваш урок.</h3>
+      <div className="mt-4 flex items-center gap-3 rounded-xl bg-[var(--ds-neutral-row)] px-4 py-3 text-left">
+        <span className="h-10 w-10 overflow-hidden rounded-full bg-black/10">
+          <img src={teacherAvatarUrl} alt={teacherName} className="h-full w-full object-cover" />
+        </span>
+        <span className="text-base font-medium">Преподаватель: {teacherName}</span>
+      </div>
       <p className="mt-5 text-2xl">Новое время: {value}</p>
       <button
         type="button"

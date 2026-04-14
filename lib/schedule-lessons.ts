@@ -114,14 +114,15 @@ export function canTeacherRescheduleLesson(dateKey: string, timeStr: string): bo
 }
 
 /**
- * Новый слот для переноса преподавателем: строго в будущем, не позже чем через 7 суток от «сейчас».
+ * Новый слот для переноса преподавателем: строго в будущем.
+ * Верхнего ограничения по горизонту нет.
  */
 export function isValidTeacherRescheduleTargetSlot(dateKey: string, timeStr: string): boolean {
-  const start = parseLessonStart(dateKey, timeStr).getTime()
-  const now = getAppNow().getTime()
-  if (start <= now) return false
-  if (start > now + MS_7D) return false
-  return true
+  const t = normalizeScheduleSlotTime(timeStr)
+  const slotMs = new Date(wallClockSlotAtIso(dateKey, t, SCHEDULE_WALL_CLOCK_TIMEZONE)).getTime()
+  const nowMs = scheduleNowUtcMs()
+  if (Number.isNaN(slotMs) || Number.isNaN(nowMs)) return false
+  return slotMs > nowMs
 }
 
 /** Пн и пт в 19:00 — стартовое расписание (апрель 2026) */

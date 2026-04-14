@@ -25,6 +25,7 @@ import { useAuth } from "@/lib/auth-context"
 import { getAppNow } from "@/lib/app-time"
 import { firstRecurringSlotDateKey } from "@/lib/schedule/calendar-ymd"
 import { isFirstScheduledSlotInPast, nextEligibleStartDateKey } from "@/lib/schedule/recurring-slot-eligibility"
+import { isValidTeacherRescheduleTargetSlot } from "@/lib/schedule-lessons"
 import { addDays, buildHourlyIsoSlots, startOfWeekMonday } from "@/lib/teacher-schedule"
 import {
   type AvailabilityInterval,
@@ -416,6 +417,35 @@ export default function TeacherSchedulePage() {
     return intervalsToHourlyStatuses(template[weekday])[hour]
   }
 
+  const rescheduleDisabledTimes = useMemo(() => {
+    if (!rescheduleSlot.date) return new Set<string>()
+    const selectedDateKey = rescheduleSlot.date
+    const blocked = new Set<string>()
+    for (const opt of HOUR_OPTIONS) {
+      const hour = Number.parseInt(opt.slice(0, 2), 10)
+      const slot = slotMapByTimezone[`${selectedDateKey}-${String(hour).padStart(2, "0")}`]
+      if (slot?.status === "booked") blocked.add(opt)
+    }
+    const now = new Date(nowTs)
+    const todayKey = localDateKey(now)
+    if (selectedDateKey === todayKey) {
+      const currentHour = now.getHours()
+      for (const opt of HOUR_OPTIONS) {
+        if (Number.parseInt(opt.slice(0, 2), 10) <= currentHour) blocked.add(opt)
+      }
+    }
+    return blocked
+  }, [nowTs, rescheduleSlot.date, slotMapByTimezone])
+
+  useEffect(() => {
+    if (!rescheduleOpen) return
+    const selected = `${String(Number(rescheduleSlot.hour)).padStart(2, "0")}:00`
+    if (!rescheduleDisabledTimes.has(selected)) return
+    const firstAllowed = HOUR_OPTIONS.find((opt) => !rescheduleDisabledTimes.has(opt))
+    if (!firstAllowed) return
+    setRescheduleSlot((prev) => ({ ...prev, hour: String(Number(firstAllowed.slice(0, 2))) }))
+  }, [rescheduleDisabledTimes, rescheduleOpen, rescheduleSlot.hour])
+
   const applySelection = (mode: "free" | "busy") => {
     if (!popover) return
     const day = visibleDays[popover.dayIdx]
@@ -731,6 +761,12 @@ export default function TeacherSchedulePage() {
         ? { lesson: lessonDecision.lesson, toDateKey: lessonDecision.toDateKey, toHour: lessonDecision.toHour }
         : null
     if (!source) return
+    const toTime = `${String(source.toHour).padStart(2, "0")}:00`
+    if (!isValidTeacherRescheduleTargetSlot(source.toDateKey, toTime)) {
+      setActionToast("Преподаватель может переносить только в будущий свободный слот")
+      window.setTimeout(() => setActionToast(null), 3500)
+      return
+    }
     setActionSubmitting(true)
     try {
       await postJson("/api/schedule/external-lesson", {
@@ -1448,6 +1484,7 @@ export default function TeacherSchedulePage() {
                 <DateMiniSelect
                   value={rescheduleSlot.date}
                   onChange={(next) => setRescheduleSlot((prev) => ({ ...prev, date: next }))}
+                  minDateKey={localDateKey(getAppNow())}
                 />
               </div>
             </div>
@@ -1457,6 +1494,7 @@ export default function TeacherSchedulePage() {
                 <TimeSelect
                   value={`${String(Number(rescheduleSlot.hour)).padStart(2, "0")}:00`}
                   options={HOUR_OPTIONS}
+                  disabledOptions={rescheduleDisabledTimes}
                   onChange={(value) => setRescheduleSlot((prev) => ({ ...prev, hour: String(Number(value.slice(0, 2))) }))}
                   fullWidth
                 />
@@ -2026,7 +2064,7 @@ export default function TeacherSchedulePage() {
                     className="h-full w-full object-cover"
                   />
                 </span>
-                <span className="text-sm font-medium opacity-90">{actionResultPopup.studentName}</span>
+                <span className="text-sm font-medium opacity-90">Ученик: {actionResultPopup.studentName}</span>
               </div>
             ) : null}
             <p className="mt-2 text-sm opacity-80">{actionResultPopup.message}</p>
@@ -2156,12 +2194,14 @@ function TimeSelect({
   value,
   options,
   onChange,
-  fullWidth
+  fullWidth,
+  disabledOptions
 }: {
   value: string
   options: string[]
   onChange: (value: string) => void
   fullWidth?: boolean
+  disabledOptions?: Set<string>
 }) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
@@ -2201,10 +2241,16 @@ function TimeSelect({
               type="button"
               role="option"
               aria-selected={opt === value}
-              className={`w-full rounded-md px-2 py-2 text-left text-sm hover:bg-black/5 dark:hover:bg-white/10 ${opt === value ? "bg-[#f1f3f4] dark:bg-[#2f3540]" : ""}`}
+              disabled={Boolean(disabledOptions?.has(opt))}
+              className={`w-full rounded-md px-2 py-2 text-left text-sm ${
+                disabledOptions?.has(opt)
+                  ? "cursor-not-allowed text-[#a0a6ad] dark:text-[#6b7280]"
+                  : "hover:bg-black/5 dark:hover:bg-white/10"
+              } ${opt === value ? "bg-[#f1f3f4] dark:bg-[#2f3540]" : ""}`}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation()
+                if (disabledOptions?.has(opt)) return
                 onChange(opt)
                 setOpen(false)
               }}
@@ -2444,10 +2490,12 @@ function fromMinutes(v: number): string {
 
 function DateMiniSelect({
   value,
-  onChange
+  onChange,
+  minDateKey
 }: {
   value: string
   onChange: (value: string) => void
+  minDateKey?: string
 }) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
@@ -2517,6 +2565,8 @@ function DateMiniSelect({
             {gridDays.map((d) => {
               const inMonth = d.getMonth() === monthAnchor.getMonth()
               const active = d.toDateString() === selected.toDateString()
+              const ymd = toYmd(d)
+              const disabled = Boolean(minDateKey && ymd < minDateKey)
               return (
                 <button
                   key={d.toISOString()}
@@ -2524,14 +2574,18 @@ function DateMiniSelect({
                   className={`mx-auto flex h-9 w-9 items-center justify-center rounded-[var(--ds-radius-md)] text-sm transition-colors ${
                     active
                       ? "bg-ds-sage text-ds-ink dark:bg-[var(--ds-sage-strong)] dark:text-[#121212]"
+                      : disabled
+                        ? "cursor-not-allowed text-[#c2c7cc] dark:text-[#59606a]"
                       : inMonth
                         ? "text-ds-ink hover:bg-ds-surface-hover dark:text-[#e8eaed] dark:hover:bg-white/10"
                         : "text-[#9aa0a6] dark:text-[#6b7280]"
                   }`}
+                  disabled={disabled}
                   onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.stopPropagation()
-                    onChange(toYmd(d))
+                    if (disabled) return
+                    onChange(ymd)
                     setOpen(false)
                   }}
                 >
@@ -2553,7 +2607,10 @@ function parseYmd(value: string): Date | null {
 }
 
 function toYmd(date: Date): string {
-  return date.toISOString().slice(0, 10)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, "0")
+  const d = String(date.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
 }
 
 function formatYmdLabel(value: string): string {

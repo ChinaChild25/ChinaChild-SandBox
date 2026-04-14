@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { SCHEDULE_WALL_CLOCK_TIMEZONE, wallClockFromSlotAt } from "@/lib/schedule-display-tz"
+import { isValidTeacherRescheduleTargetSlot } from "@/lib/schedule-lessons"
 import { reconcileStudentScheduleFireAndForget } from "@/lib/schedule/reconcile-student-schedule"
 import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
@@ -64,6 +65,24 @@ async function ensureTeacherSlotExists(
   // Ignore unique conflicts, fail fast on anything else.
   if (error.code === "23505") return
   throw new Error(error.message || "Не удалось подготовить слот для переноса")
+}
+
+async function ensureTeacherSlotReservable(
+  supabase: ReturnType<typeof createServerSupabaseClient> extends Promise<infer T> ? T : never,
+  teacherId: string,
+  slotAt: string
+) {
+  await ensureTeacherSlotExists(supabase, teacherId, slotAt)
+  // Teacher can move lessons into slots outside availability template.
+  // Keep hard protection against booked slots; only unlock busy -> free.
+  const { error } = await supabase
+    .from("teacher_schedule_slots")
+    .update({ status: "free" })
+    .eq("teacher_id", teacherId)
+    .eq("slot_at", slotAt)
+    .eq("status", "busy")
+    .is("booked_student_id", null)
+  if (error) throw new Error(error.message || "Не удалось подготовить целевой слот для переноса")
 }
 
 export async function POST(req: Request) {
@@ -165,6 +184,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid reschedule target" }, { status: 400 })
     }
     const toTime = `${String(toHour).padStart(2, "0")}:00`
+    if (!isValidTeacherRescheduleTargetSlot(toDateKey, toTime)) {
+      return NextResponse.json(
+        { error: "Преподаватель может переносить только в будущий свободный слот" },
+        { status: 400 }
+      )
+    }
     const newSlotAt = wallClockSlotAtIso(toDateKey, toTime, scheduleTimeZone)
 
     if (scope === "single") {
@@ -176,9 +201,10 @@ export async function POST(req: Request) {
           p_student_id: lesson.student_id,
           p_timezone: scheduleTimeZone
         })
+      await ensureTeacherSlotReservable(supabase, me.id, newSlotAt)
       let { error } = await tryRescheduleSingle()
       if (error && isSlotNotFoundError(error.message || "")) {
-        await ensureTeacherSlotExists(supabase, me.id, newSlotAt)
+        await ensureTeacherSlotReservable(supabase, me.id, newSlotAt)
         const retry = await tryRescheduleSingle()
         error = retry.error
       }
@@ -231,7 +257,7 @@ export async function POST(req: Request) {
           String(targetDate.getDate()).padStart(2, "0")
         ].join("-")
         const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
-        await ensureTeacherSlotExists(supabase, me.id, targetSlotAt)
+        await ensureTeacherSlotReservable(supabase, me.id, targetSlotAt)
         const { error: fallbackErr } = await supabase.rpc("reschedule_slot_atomic", {
           p_old_slot_at: slotAt,
           p_new_slot_at: targetSlotAt,
@@ -275,7 +301,7 @@ export async function POST(req: Request) {
           String(targetDate.getDate()).padStart(2, "0")
         ].join("-")
         const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
-        await ensureTeacherSlotExists(supabase, me.id, targetSlotAt)
+        await ensureTeacherSlotReservable(supabase, me.id, targetSlotAt)
       }
       const retry = await tryRescheduleFollowing()
       movedCount = retry.data
