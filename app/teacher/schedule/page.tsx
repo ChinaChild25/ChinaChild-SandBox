@@ -613,6 +613,17 @@ export default function TeacherSchedulePage() {
     [createScheduleKind, createStartDateKey, createWeekdays]
   )
   const createEffectiveWeeks = createScheduleKind === "single" ? 1 : createWeeks
+  const createNowParts = useMemo(() => getDateTimePartsInTimeZone(new Date(nowTs), timezone), [nowTs, timezone])
+  const createDisabledTimes = useMemo(() => {
+    if (createStartDateKey !== createNowParts.dateKey) return new Set<string>()
+    const nowHour = Number.parseInt(createNowParts.hour, 10)
+    if (Number.isNaN(nowHour)) return new Set<string>()
+    const disabled = new Set<string>()
+    for (let h = 0; h <= nowHour; h++) {
+      disabled.add(`${String(h).padStart(2, "0")}:00`)
+    }
+    return disabled
+  }, [createNowParts.dateKey, createNowParts.hour, createStartDateKey])
 
   const createPastSlotHint = useMemo(() => {
     if (createEffectiveWeekdays.length === 0) {
@@ -639,6 +650,14 @@ export default function TeacherSchedulePage() {
     timezone,
     nowTs
   ])
+
+  useEffect(() => {
+    const current = `${String(createHour).padStart(2, "0")}:00`
+    if (!createDisabledTimes.has(current)) return
+    const next = HOUR_OPTIONS.find((opt) => !createDisabledTimes.has(opt))
+    if (!next) return
+    setCreateHour(Number.parseInt(next.slice(0, 2), 10))
+  }, [createDisabledTimes, createHour])
 
   const createRecurringEvent = async () => {
     setCreateFeedback(null)
@@ -1792,6 +1811,7 @@ export default function TeacherSchedulePage() {
                     <DateMiniSelect
                       value={createStartDateKey}
                       onChange={setCreateStartDateKey}
+                      minDateKey={createNowParts.dateKey}
                     />
                   </div>
                 </div>
@@ -1801,6 +1821,7 @@ export default function TeacherSchedulePage() {
                     <TimeSelect
                       value={`${String(createHour).padStart(2, "0")}:00`}
                       options={HOUR_OPTIONS}
+                      disabledOptions={createDisabledTimes}
                       onChange={(value) => setCreateHour(Number(value.slice(0, 2)))}
                       fullWidth
                     />

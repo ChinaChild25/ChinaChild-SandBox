@@ -76,7 +76,7 @@ export async function POST(req: Request) {
       const dateKey = addDaysToDateKey(weekMonday, week * 7 + mondayBasedIndex)
       if (dateKey < startYmd) continue
       const slotAt = wallClockSlotAtIso(dateKey, wallTime, timeZone)
-      if (new Date(slotAt).getTime() < nowMs) {
+      if (new Date(slotAt).getTime() <= nowMs) {
         skippedPastCount++
         continue
       }
