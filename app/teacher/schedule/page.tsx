@@ -207,6 +207,7 @@ export default function TeacherSchedulePage() {
   } | null>(null)
   const [rescheduleOpen, setRescheduleOpen] = useState(false)
   const [rescheduleSlot, setRescheduleSlot] = useState({ date: "", hour: "10" })
+  const [rescheduleContext, setRescheduleContext] = useState<{ lesson: ExternalLesson; scope: "single" | "following" } | null>(null)
   const [actionToast, setActionToast] = useState<string | null>(null)
   const [actionSubmitting, setActionSubmitting] = useState(false)
   const [actionResultPopup, setActionResultPopup] = useState<{
@@ -685,37 +686,81 @@ export default function TeacherSchedulePage() {
     return body
   }, [])
 
-  const rescheduleExternalLesson = async (scope: "single" | "following") => {
-    if (!lessonDecision || lessonDecision.action !== "reschedule" || !lessonDecision.toDateKey || lessonDecision.toHour === undefined) return
+  const isRecurringLesson = useCallback(
+    (lesson: ExternalLesson) => {
+      const src = lesson.date_key && lesson.time
+        ? { dateKey: lesson.date_key, hour: lesson.time.slice(0, 2) }
+        : getDateTimePartsInTimeZone(new Date(lesson.slot_at), timezone)
+      const srcWeekday = weekdayFromDateKey(src.dateKey)
+      const srcTime = `${String(Number.parseInt(src.hour, 10)).padStart(2, "0")}:00`
+      const srcDate = new Date(`${src.dateKey}T00:00:00`)
+      return externalLessons.some((candidate) => {
+        if (candidate === lesson) return false
+        if ((candidate.student_id ?? "") !== (lesson.student_id ?? "")) return false
+        const c = candidate.date_key && candidate.time
+          ? { dateKey: candidate.date_key, hour: candidate.time.slice(0, 2) }
+          : getDateTimePartsInTimeZone(new Date(candidate.slot_at), timezone)
+        const cWeekday = weekdayFromDateKey(c.dateKey)
+        const cTime = `${String(Number.parseInt(c.hour, 10)).padStart(2, "0")}:00`
+        if (cWeekday !== srcWeekday || cTime !== srcTime) return false
+        const cDate = new Date(`${c.dateKey}T00:00:00`)
+        return cDate.getTime() > srcDate.getTime()
+      })
+    },
+    [externalLessons, timezone]
+  )
+
+  const openRescheduleModal = useCallback((lesson: ExternalLesson, scope: "single" | "following") => {
+    const d = new Date(lesson.slot_at)
+    const date = lesson.date_key ?? localDateKey(d)
+    const hour = lesson.time ? Number(lesson.time.slice(0, 2)) : d.getHours()
+    setRescheduleSlot({ date, hour: String(hour) })
+    setRescheduleContext({ lesson, scope })
+    setRescheduleOpen(true)
+    setLessonActions(null)
+    setLessonDecision(null)
+  }, [])
+
+  const rescheduleExternalLesson = async (
+    scope: "single" | "following",
+    params?: { lesson: ExternalLesson; toDateKey: string; toHour: number }
+  ) => {
+    const source = params
+      ? { lesson: params.lesson, toDateKey: params.toDateKey, toHour: params.toHour }
+      : lessonDecision && lessonDecision.action === "reschedule" && lessonDecision.toDateKey && lessonDecision.toHour !== undefined
+        ? { lesson: lessonDecision.lesson, toDateKey: lessonDecision.toDateKey, toHour: lessonDecision.toHour }
+        : null
+    if (!source) return
     setActionSubmitting(true)
     try {
       await postJson("/api/schedule/external-lesson", {
         action: "reschedule",
-        lesson: lessonDecision.lesson,
-        to_date_key: lessonDecision.toDateKey,
-        to_hour: lessonDecision.toHour,
+        lesson: source.lesson,
+        to_date_key: source.toDateKey,
+        to_hour: source.toHour,
         scope,
         timezone
       })
       setRescheduleOpen(false)
+      setRescheduleContext(null)
       setLessonDecision(null)
-      const fromDate = new Date(lessonDecision.lesson.slot_at)
+      const fromDate = new Date(source.lesson.slot_at)
       const fromLabel = `${localDateKey(fromDate)} ${String(fromDate.getHours()).padStart(2, "0")}:00`
-      const toLabel = `${lessonDecision.toDateKey} ${String(lessonDecision.toHour).padStart(2, "0")}:00`
-      const studentName = lessonDecision.lesson.student_name?.trim() || "Ученик"
-      const studentAvatarUrl = lessonDecision.lesson.student_avatar_url || "/students/yana.png"
+      const toLabel = `${source.toDateKey} ${String(source.toHour).padStart(2, "0")}:00`
+      const studentName = source.lesson.student_name?.trim() || "Ученик"
+      const studentAvatarUrl = source.lesson.student_avatar_url || "/students/yana.png"
       const sourceWeekday = fromDate.getDay()
-      const targetWeekday = new Date(`${lessonDecision.toDateKey}T00:00:00`).getDay()
+      const targetWeekday = new Date(`${source.toDateKey}T00:00:00`).getDay()
       const fromRecurring = `по ${WEEKDAY_RU_DATIVE_PLURAL[sourceWeekday] ?? "выбранным дням"} в ${String(fromDate.getHours()).padStart(2, "0")}:00`
-      const toRecurring = `по ${WEEKDAY_RU_DATIVE_PLURAL[targetWeekday] ?? "выбранным дням"} в ${String(lessonDecision.toHour).padStart(2, "0")}:00`
+      const toRecurring = `по ${WEEKDAY_RU_DATIVE_PLURAL[targetWeekday] ?? "выбранным дням"} в ${String(source.toHour).padStart(2, "0")}:00`
       pushScheduleNotification({
         audience: "student",
-        audienceId: lessonDecision.lesson.student_id,
+        audienceId: source.lesson.student_id,
         title: "Преподаватель перенёс занятие",
         message: scope === "following" ? "Изменены все последующие занятия." : "Изменено время ближайшего занятия.",
         fromLabel,
         toLabel,
-        targetDateKey: lessonDecision.toDateKey
+        targetDateKey: source.toDateKey
       })
       setActionToast(scope === "following" ? "Перенесены все последующие занятия" : "Занятие перенесено")
       window.setTimeout(() => setActionToast(null), 2500)
@@ -1299,11 +1344,12 @@ export default function TeacherSchedulePage() {
           <button
             className="mb-1 w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-black/5"
             onClick={() => {
-              const d = new Date(lessonActions.lesson.slot_at)
-              const date = lessonActions.lesson.date_key ?? localDateKey(d)
-              const hour = lessonActions.lesson.time ? Number(lessonActions.lesson.time.slice(0, 2)) : d.getHours()
-              setRescheduleSlot({ date, hour: String(hour) })
-              setRescheduleOpen(true)
+              if (isRecurringLesson(lessonActions.lesson)) {
+                setLessonDecision({ action: "reschedule", lesson: lessonActions.lesson })
+                setLessonActions(null)
+                return
+              }
+              openRescheduleModal(lessonActions.lesson, "single")
             }}
           >
             Перенести
@@ -1358,7 +1404,13 @@ export default function TeacherSchedulePage() {
                 type="button"
                 className="rounded-lg border border-black/10 px-3 py-2 text-sm text-[#202124] transition-colors hover:bg-black/[0.06] dark:border-white/15 dark:text-[#e8eaed] dark:hover:bg-white/[0.1] dark:active:bg-white/[0.14]"
                 disabled={actionSubmitting}
-                onClick={() => (lessonDecision.action === "cancel" ? void confirmCancelExternalLesson("single") : void rescheduleExternalLesson("single"))}
+                onClick={() =>
+                  lessonDecision.action === "cancel"
+                    ? void confirmCancelExternalLesson("single")
+                    : lessonDecision.toDateKey
+                      ? void rescheduleExternalLesson("single")
+                      : openRescheduleModal(lessonDecision.lesson, "single")
+                }
               >
                 {actionSubmitting ? <Loader2 className="mx-auto size-4 animate-spin" aria-hidden /> : "Только это"}
               </button>
@@ -1366,7 +1418,13 @@ export default function TeacherSchedulePage() {
                 type="button"
                 className="rounded-lg border border-black/10 bg-black px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-black/85 active:bg-black/90 dark:border-[#b8d97a]/40 dark:bg-[var(--ds-sage-strong)] dark:text-[#121212] dark:hover:bg-[var(--ds-sage-hover)] dark:active:opacity-95"
                 disabled={actionSubmitting}
-                onClick={() => (lessonDecision.action === "cancel" ? void confirmCancelExternalLesson("following") : void rescheduleExternalLesson("following"))}
+                onClick={() =>
+                  lessonDecision.action === "cancel"
+                    ? void confirmCancelExternalLesson("following")
+                    : lessonDecision.toDateKey
+                      ? void rescheduleExternalLesson("following")
+                      : openRescheduleModal(lessonDecision.lesson, "following")
+                }
               >
                 {actionSubmitting ? <Loader2 className="mx-auto size-4 animate-spin" aria-hidden /> : "Все последующие"}
               </button>
@@ -1415,7 +1473,16 @@ export default function TeacherSchedulePage() {
               <button
                 className="rounded-lg border border-black/10 bg-black px-5 py-2 text-sm text-white hover:bg-black/85 dark:border-[#b8d97a]/40 dark:bg-[var(--ds-sage-strong)] dark:text-[#121212] dark:hover:bg-[var(--ds-sage-hover)]"
                 disabled={actionSubmitting}
-                onClick={() => void rescheduleExternalLesson("single")}
+                onClick={() => {
+                  if (!rescheduleContext) return
+                  const toHour = Number.parseInt(rescheduleSlot.hour, 10)
+                  if (!rescheduleSlot.date || Number.isNaN(toHour)) return
+                  void rescheduleExternalLesson(rescheduleContext.scope, {
+                    lesson: rescheduleContext.lesson,
+                    toDateKey: rescheduleSlot.date,
+                    toHour
+                  })
+                }}
               >
                 {actionSubmitting ? <Loader2 className="mx-auto size-4 animate-spin" aria-hidden /> : "Сохранить"}
               </button>
