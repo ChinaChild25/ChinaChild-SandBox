@@ -71,6 +71,7 @@ type ScheduleSearchPulse =
 type StudentOption = {
   id: string
   name: string
+  avatarUrl?: string
 }
 
 type DragState = {
@@ -178,6 +179,8 @@ export default function TeacherSchedulePage() {
   const [createWeeks, setCreateWeeks] = useState(12)
   const [createMode, setCreateMode] = useState<"busy" | "booked">("booked")
   const [createStudentId, setCreateStudentId] = useState<string>("")
+  const [createStudentName, setCreateStudentName] = useState<string>("")
+  const [createStudentAvatarUrl, setCreateStudentAvatarUrl] = useState<string>("")
   const [createTitle, setCreateTitle] = useState("Занятие")
   const [createFeedback, setCreateFeedback] = useState<string | null>(null)
   const [createSaving, setCreateSaving] = useState(false)
@@ -192,6 +195,8 @@ export default function TeacherSchedulePage() {
     weeks: number
     timeZoneId: string
     scheduleKind: "recurring" | "single"
+    studentName?: string
+    studentAvatarUrl?: string
   } | null>(null)
   const [copiedIntervals, setCopiedIntervals] = useState<AvailabilityInterval[] | null>(null)
   const [availabilityNotice, setAvailabilityNotice] = useState<string | null>(null)
@@ -674,6 +679,7 @@ export default function TeacherSchedulePage() {
       await refreshCalendarData()
 
       if (created > 0) {
+        const selectedStudent = students.find((s) => s.id === createStudentId)
         setCreateOpen(false)
         setCreateFeedback(null)
         setCreateSuccessPayload({
@@ -685,7 +691,10 @@ export default function TeacherSchedulePage() {
           hour: createHour,
           weeks: createEffectiveWeeks,
           timeZoneId: timezone,
-          scheduleKind: createScheduleKind
+          scheduleKind: createScheduleKind,
+          studentName: createMode === "booked" ? selectedStudent?.name || createStudentName || "Ученик" : undefined,
+          studentAvatarUrl:
+            createMode === "booked" ? selectedStudent?.avatarUrl || createStudentAvatarUrl || "/students/yana.png" : undefined
         })
         setCreateSuccessOpen(true)
         return
@@ -827,12 +836,15 @@ export default function TeacherSchedulePage() {
         scope,
         timezone
       })
+      const cancelWall = lessonWallParts(lessonDecision.lesson)
+      const cancelWeekday = new Date(`${cancelWall.dateKey}T00:00:00`).getDay()
+      const cancelRecurringLine = `по ${WEEKDAY_RU_DATIVE_PLURAL[cancelWeekday] ?? "выбранным дням"} в ${cancelWall.time}`
       pushScheduleNotification({
         audience: "student",
         audienceId: lessonDecision.lesson.student_id,
         title: "Преподаватель отменил занятие",
         message: scope === "following" ? "Отменены все последующие занятия." : "Отменено одно занятие.",
-        fromLabel: formatLessonWallLabel(lessonDecision.lesson)
+        fromLabel: scope === "following" ? cancelRecurringLine : formatLessonWallLabel(lessonDecision.lesson)
       })
       setLessonDecision(null)
       setActionToast(scope === "following" ? "Отменены все последующие занятия" : "Занятие отменено")
@@ -840,7 +852,7 @@ export default function TeacherSchedulePage() {
       setActionResultPopup({
         tone: "cancel",
         title: scope === "following" ? "Отменили все последующие" : "Занятие отменено",
-        message: formatLessonWallLabel(lessonDecision.lesson),
+        message: scope === "following" ? `Отменили занятия ${cancelRecurringLine}` : formatLessonWallLabel(lessonDecision.lesson),
         studentName: lessonDecision.lesson.student_name?.trim() || "Ученик",
         studentAvatarUrl: lessonDecision.lesson.student_avatar_url || "/students/yana.png"
       })
@@ -1847,7 +1859,15 @@ export default function TeacherSchedulePage() {
                         { value: "booked", label: "Занято учеником" },
                         { value: "busy", label: "Просто занято" }
                       ]}
-                      onChange={(value) => setCreateMode(value as "busy" | "booked")}
+                      onChange={(value) => {
+                        const next = value as "busy" | "booked"
+                        setCreateMode(next)
+                        if (next !== "booked") {
+                          setCreateStudentId("")
+                          setCreateStudentName("")
+                          setCreateStudentAvatarUrl("")
+                        }
+                      }}
                     />
                   </div>
                 </div>
@@ -1857,7 +1877,12 @@ export default function TeacherSchedulePage() {
                     <CustomSelect
                       value={createStudentId}
                       options={[{ value: "", label: "Выбрать ученика" }, ...students.map((s) => ({ value: s.id, label: s.name }))]}
-                      onChange={setCreateStudentId}
+                      onChange={(value) => {
+                        setCreateStudentId(value)
+                        const selected = students.find((s) => s.id === value)
+                        setCreateStudentName(selected?.name ?? "")
+                        setCreateStudentAvatarUrl(selected?.avatarUrl ?? "")
+                      }}
                       disabled={createMode !== "booked"}
                     />
                   </div>
@@ -2415,6 +2440,8 @@ type CreateRecurringSuccessPayload = {
   weeks: number
   timeZoneId: string
   scheduleKind: "recurring" | "single"
+  studentName?: string
+  studentAvatarUrl?: string
 }
 
 function formatDateKeyLongRuUtc(dateKey: string): string {
@@ -2455,7 +2482,8 @@ function CreateRecurringSuccessDetails({ payload }: { payload: CreateRecurringSu
   const dateLong = formatDateKeyLongRuUtc(firstKey)
   const timeStr = `${String(payload.hour).padStart(2, "0")}:00`
   const tzLabel = formatTimeZoneOption(payload.timeZoneId)
-  const repeatLine = `${formatWeekdaysDativeListRu(payload.weekdays)}, ${weeksPhraseRu(payload.weeks)} подряд.`
+  const repeatLine = `${weeksPhraseRu(payload.weeks)} подряд.`
+  const recurringTimeLine = `${formatWeekdaysDativeListRu(payload.weekdays).replace(/^По /, "по ")} в ${timeStr}.`
 
   return (
     <div className="mt-4 space-y-3 text-center text-base font-semibold text-black">
@@ -2465,18 +2493,34 @@ function CreateRecurringSuccessDetails({ payload }: { payload: CreateRecurringSu
         </span>
         {dateLong}
       </p>
-      <p>
-        <span className="block text-sm font-normal text-black/70">Время</span>
-        {timeStr}
-      </p>
+      {payload.mode === "booked" ? (
+        <div className="mx-auto flex w-fit items-center gap-2 rounded-xl bg-white/45 px-3 py-2 text-sm">
+          <span className="h-8 w-8 overflow-hidden rounded-full bg-black/10">
+            <img
+              src={payload.studentAvatarUrl || "/students/yana.png"}
+              alt={payload.studentName || "Ученик"}
+              className="h-full w-full object-cover"
+            />
+          </span>
+          <span>{payload.studentName || "Ученик"}</span>
+        </div>
+      ) : (
+        <p>
+          <span className="block text-sm font-normal text-black/70">Время</span>
+          {timeStr}
+        </p>
+      )}
       <p>
         <span className="block text-sm font-normal text-black/70">Часовой пояс этого времени</span>
         {tzLabel}
       </p>
       {payload.scheduleKind === "recurring" ? (
-        <p className="pt-1 text-sm font-normal text-black/85">{repeatLine}</p>
+        <div className="pt-1 text-sm font-normal text-black/85">
+          <p>{recurringTimeLine}</p>
+          <p className="mt-1">{repeatLine}</p>
+        </div>
       ) : (
-        <p className="pt-1 text-sm font-normal text-black/85">Одно занятие в календаре.</p>
+        <p className="pt-1 text-sm font-normal text-black/85">В {timeStr}. Одно занятие в календаре.</p>
       )}
     </div>
   )

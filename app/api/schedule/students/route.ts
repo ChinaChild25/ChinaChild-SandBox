@@ -20,7 +20,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, first_name, last_name, full_name")
+    .select("id, first_name, last_name, full_name, avatar_url")
     .eq("role", "student")
     .eq("assigned_teacher_id", me.id)
     .order("first_name", { ascending: true })
@@ -28,12 +28,18 @@ export async function GET() {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
   const students = (data ?? []).map((row) => {
-    const r = row as { id: string; first_name: string | null; last_name: string | null; full_name: string | null }
+    const r = row as {
+      id: string
+      first_name: string | null
+      last_name: string | null
+      full_name: string | null
+      avatar_url: string | null
+    }
     const name =
       r.full_name?.trim() ||
       [r.first_name?.trim() ?? "", r.last_name?.trim() ?? ""].filter(Boolean).join(" ").trim() ||
       "Ученик"
-    return { id: r.id, name }
+    return { id: r.id, name, avatarUrl: r.avatar_url?.trim() || undefined }
   })
   return NextResponse.json({ students })
 }
