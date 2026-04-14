@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { getAppNow } from "@/lib/app-time"
+import { wallClockFromSlotAt } from "@/lib/schedule-display-tz"
 import { firstRecurringSlotDateKey } from "@/lib/schedule/calendar-ymd"
 import { isFirstScheduledSlotInPast, nextEligibleStartDateKey } from "@/lib/schedule/recurring-slot-eligibility"
 import { isValidTeacherRescheduleTargetSlot } from "@/lib/schedule-lessons"
@@ -780,14 +781,14 @@ export default function TeacherSchedulePage() {
       setRescheduleOpen(false)
       setRescheduleContext(null)
       setLessonDecision(null)
-      const fromDate = new Date(source.lesson.slot_at)
-      const fromLabel = `${localDateKey(fromDate)} ${String(fromDate.getHours()).padStart(2, "0")}:00`
+      const fromWall = lessonWallParts(source.lesson)
+      const fromLabel = `${fromWall.dateKey} ${fromWall.time}`
       const toLabel = `${source.toDateKey} ${String(source.toHour).padStart(2, "0")}:00`
       const studentName = source.lesson.student_name?.trim() || "Ученик"
       const studentAvatarUrl = source.lesson.student_avatar_url || "/students/yana.png"
-      const sourceWeekday = fromDate.getDay()
+      const sourceWeekday = new Date(`${fromWall.dateKey}T00:00:00`).getDay()
       const targetWeekday = new Date(`${source.toDateKey}T00:00:00`).getDay()
-      const fromRecurring = `по ${WEEKDAY_RU_DATIVE_PLURAL[sourceWeekday] ?? "выбранным дням"} в ${String(fromDate.getHours()).padStart(2, "0")}:00`
+      const fromRecurring = `по ${WEEKDAY_RU_DATIVE_PLURAL[sourceWeekday] ?? "выбранным дням"} в ${fromWall.time}`
       const toRecurring = `по ${WEEKDAY_RU_DATIVE_PLURAL[targetWeekday] ?? "выбранным дням"} в ${String(source.toHour).padStart(2, "0")}:00`
       pushScheduleNotification({
         audience: "student",
@@ -831,7 +832,7 @@ export default function TeacherSchedulePage() {
         audienceId: lessonDecision.lesson.student_id,
         title: "Преподаватель отменил занятие",
         message: scope === "following" ? "Отменены все последующие занятия." : "Отменено одно занятие.",
-        fromLabel: `${localDateKey(new Date(lessonDecision.lesson.slot_at))} ${String(new Date(lessonDecision.lesson.slot_at).getHours()).padStart(2, "0")}:00`
+        fromLabel: formatLessonWallLabel(lessonDecision.lesson)
       })
       setLessonDecision(null)
       setActionToast(scope === "following" ? "Отменены все последующие занятия" : "Занятие отменено")
@@ -839,7 +840,7 @@ export default function TeacherSchedulePage() {
       setActionResultPopup({
         tone: "cancel",
         title: scope === "following" ? "Отменили все последующие" : "Занятие отменено",
-        message: `${localDateKey(new Date(lessonDecision.lesson.slot_at))} ${String(new Date(lessonDecision.lesson.slot_at).getHours()).padStart(2, "0")}:00`,
+        message: formatLessonWallLabel(lessonDecision.lesson),
         studentName: lessonDecision.lesson.student_name?.trim() || "Ученик",
         studentAvatarUrl: lessonDecision.lesson.student_avatar_url || "/students/yana.png"
       })
@@ -2617,6 +2618,24 @@ function formatYmdLabel(value: string): string {
   const d = parseYmd(value)
   if (!d) return value
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`
+}
+
+function lessonWallParts(lesson: ExternalLesson): { dateKey: string; time: string } {
+  const dateKey = lesson.date_key?.trim()
+  const time = lesson.time?.trim()
+  if (dateKey && time) {
+    return { dateKey, time: `${String(Number.parseInt(time.slice(0, 2), 10)).padStart(2, "0")}:00` }
+  }
+  const wall = wallClockFromSlotAt(lesson.slot_at)
+  return {
+    dateKey: wall.dateKey,
+    time: `${String(Number.parseInt(wall.time.slice(0, 2), 10)).padStart(2, "0")}:00`
+  }
+}
+
+function formatLessonWallLabel(lesson: ExternalLesson): string {
+  const wall = lessonWallParts(lesson)
+  return `${wall.dateKey} ${wall.time}`
 }
 
 function localDateKey(date: Date): string {
