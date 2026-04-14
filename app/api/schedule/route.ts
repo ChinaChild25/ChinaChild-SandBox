@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { SCHEDULE_WALL_CLOCK_TIMEZONE, wallClockFromSlotAt } from "@/lib/schedule-display-tz"
+import { addOneDayYmd } from "@/lib/schedule/date-ymd"
 import { resolveTeacherIdFromStudentSlots } from "@/lib/schedule/resolve-teacher-from-student-slots"
-import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
+import { wallClockSlotAtIso } from "@/lib/schedule/slot-time"
+import { intervalsToHourlyStatuses, type WeeklyTemplate } from "@/lib/teacher-availability-template"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
-import { startOfLocalDay } from "@/lib/teacher-schedule"
 
 type ProfileLite = {
   id: string
@@ -99,8 +100,48 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ slots: rows })
   }
 
-  // Для ученика отдаём только реально существующие materialized free-слоты.
-  // Иначе UI показывает «виртуальные» часы из шаблона, которые нельзя атомарно забронировать.
-  const freeRows = rows.filter((row) => row.status === "free")
-  return NextResponse.json({ slots: freeRows })
+  // Для ученика: источник доступности — weekly template (зелёная зона) + реальные блокировки из teacher_schedule_slots.
+  // Если слот в шаблоне свободен и в таблице нет busy/booked, он должен показываться даже без materialized free-строки.
+  const { data: templateRow } = await supabase
+    .from("teacher_schedule_templates")
+    .select("weekly_template")
+    .eq("teacher_id", teacherId)
+    .maybeSingle<{ weekly_template: WeeklyTemplate | null }>()
+  const weeklyTemplate = (templateRow?.weekly_template ?? {}) as WeeklyTemplate
+  const weekdayOrder = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const
+  const hourlyByWeekday = new Map<string, ReturnType<typeof intervalsToHourlyStatuses>>()
+  for (const weekdayKey of weekdayOrder) {
+    hourlyByWeekday.set(weekdayKey, intervalsToHourlyStatuses(weeklyTemplate?.[weekdayKey] ?? []))
+  }
+  const rowBySlotAt = new Map(rows.map((row) => [row.slot_at, row] as const))
+  const fromMs = from.getTime()
+  const toMs = to.getTime()
+  const startDateKey = wallClockFromSlotAt(from.toISOString()).dateKey
+  const endDateKey = wallClockFromSlotAt(new Date(Math.max(fromMs, toMs - 1)).toISOString()).dateKey
+  const result: typeof rows = []
+  let dateKey = startDateKey
+  while (dateKey <= endDateKey) {
+    const weekday = weekdayOrder[new Date(`${dateKey}T12:00:00Z`).getUTCDay()]
+    const hourly = hourlyByWeekday.get(weekday) ?? []
+    for (let hour = 0; hour < 24; hour++) {
+      if (hourly[hour] !== "free") continue
+      const time = `${String(hour).padStart(2, "0")}:00`
+      const slotAt = wallClockSlotAtIso(dateKey, time, SCHEDULE_WALL_CLOCK_TIMEZONE)
+      const slotMs = new Date(slotAt).getTime()
+      if (Number.isNaN(slotMs) || slotMs < fromMs || slotMs >= toMs) continue
+      const existing = rowBySlotAt.get(slotAt)
+      if (existing?.status === "booked" || existing?.status === "busy") continue
+      result.push(
+        existing ?? {
+          teacher_id: teacherId,
+          slot_at: slotAt,
+          status: "free",
+          booked_student_id: null
+        }
+      )
+    }
+    dateKey = addOneDayYmd(dateKey)
+  }
+  result.sort((a, b) => a.slot_at.localeCompare(b.slot_at))
+  return NextResponse.json({ slots: result })
 }

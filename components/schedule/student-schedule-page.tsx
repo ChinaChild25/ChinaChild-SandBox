@@ -1036,7 +1036,11 @@ export function StudentSchedulePage() {
             <p className="mt-2 text-sm opacity-80">Слот освобожден в вашем расписании и у преподавателя.</p>
             {cancelSuccessInfo ? (
               <div className="mt-4 rounded-xl bg-black/5 px-4 py-3 text-left text-sm dark:bg-white/10">
-                <p className="font-medium">{formatLessonHeader(cancelSuccessInfo.lesson)}</p>
+                <p className="font-medium">
+                  {cancelSuccessInfo.scope === "following"
+                    ? formatRecurringCancellationLabel(cancelSuccessInfo.lesson)
+                    : formatLessonHeader(cancelSuccessInfo.lesson)}
+                </p>
                 <div className="mt-2 flex items-center gap-2">
                   <span className="h-8 w-8 overflow-hidden rounded-full bg-black/10">
                     <img
@@ -1048,7 +1052,9 @@ export function StudentSchedulePage() {
                   <p className="text-xs opacity-90">Преподаватель: {cancelSuccessInfo.lesson.teacher ?? teacherVisual.name}</p>
                 </div>
                 <p className="mt-1 text-xs opacity-80">
-                  {cancelSuccessInfo.scope === "single" ? "Отменили только это занятие" : "Отменили все последующие занятия в цепочке"}
+                  {cancelSuccessInfo.scope === "single"
+                    ? "Отменили только это занятие"
+                    : "Отменили регулярные занятия по этому расписанию"}
                 </p>
               </div>
             ) : null}
@@ -1640,6 +1646,11 @@ function formatRecurringWeekdayLabel(weekday: number): string {
     6: "субботам"
   }
   return map[weekday] ?? "выбранным дням"
+}
+
+function formatRecurringCancellationLabel(lesson: ScheduledLesson): string {
+  const weekday = parseLessonStart(lesson.dateKey, lesson.time).getDay()
+  return `По ${formatRecurringWeekdayLabel(weekday)} в ${normalizeScheduleSlotTime(lesson.time)}`
 }
 
 function capitalize(s: string) {
