@@ -23,6 +23,9 @@ function mapRpcError(message: string): { status: number; error: string } {
   if (/statement timeout|canceling statement due to statement timeout/i.test(message)) {
     return { status: 408, error: "Сервер не успел обработать длинную операцию. Попробуйте еще раз." }
   }
+  if (/violates row-level security policy/i.test(message)) {
+    return { status: 403, error: "Недостаточно прав для изменения этого слота" }
+  }
   if (/forbidden|not authenticated/i.test(message)) return { status: 403, error: message }
   if (/slot is not available|new slot is not available|same slot/i.test(message)) {
     return { status: 409, error: message }
@@ -41,6 +44,20 @@ function chunkArray<T>(items: T[], size: number): T[][] {
   const out: T[][] = []
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
   return out
+}
+
+async function ensureStudentTargetSlotExists(
+  supabase: ReturnType<typeof createServerSupabaseClient> extends Promise<infer T> ? T : never,
+  teacherId: string,
+  slotAt: string,
+  timeZone: string
+) {
+  const { error } = await supabase.rpc("ensure_slot_for_student_reschedule", {
+    p_teacher_id: teacherId,
+    p_slot_at: slotAt,
+    p_timezone: timeZone
+  })
+  if (error) throw new Error(error.message || "Не удалось подготовить целевой слот")
 }
 
 export async function POST(req: Request) {
@@ -296,9 +313,16 @@ export async function POST(req: Request) {
     }
 
     if (scope === "single") {
+      const newSlotAt = wallClockSlotAtIso(toDateKeyValue, toTime, SCHEDULE_WALL_CLOCK_TIMEZONE)
+      try {
+        await ensureStudentTargetSlotExists(supabase, teacherId, newSlotAt, timeZone)
+      } catch (e) {
+        const mapped = mapRpcError(e instanceof Error ? e.message : "RPC failed")
+        return NextResponse.json({ error: mapped.error }, { status: mapped.status })
+      }
       const { error } = await supabase.rpc("reschedule_slot_atomic", {
         p_old_slot_at: wallClockSlotAtIso(oldDateKey, oldTime, SCHEDULE_WALL_CLOCK_TIMEZONE),
-        p_new_slot_at: wallClockSlotAtIso(toDateKeyValue, toTime, SCHEDULE_WALL_CLOCK_TIMEZONE),
+        p_new_slot_at: newSlotAt,
         p_teacher_id: teacherId,
         p_student_id: me.id,
         p_timezone: timeZone
@@ -314,6 +338,41 @@ export async function POST(req: Request) {
     const oldStart = new Date(`${oldDateKey}T00:00:00`)
     const newStart = new Date(`${toDateKeyValue}T00:00:00`)
     const deltaDays = Math.round((newStart.getTime() - oldStart.getTime()) / (24 * 60 * 60 * 1000))
+    const followingCandidates: Array<{ sourceSlotAt: string; targetSlotAt: string }> = []
+    {
+      const { data: bookedRows, error: bookedErr } = await supabase
+        .from("teacher_schedule_slots")
+        .select("slot_at")
+        .eq("teacher_id", teacherId)
+        .eq("booked_student_id", me.id)
+        .eq("status", "booked")
+      if (bookedErr) return NextResponse.json({ error: bookedErr.message }, { status: 400 })
+      for (const row of bookedRows ?? []) {
+        const slotAt = (row as { slot_at: string }).slot_at
+        const wall = wallClockFromSlotAt(slotAt)
+        const weekday = new Date(`${wall.dateKey}T00:00:00`).getDay()
+        if (wall.dateKey < oldDateKey) continue
+        if (weekday !== oldStart.getDay()) continue
+        if (normalizeScheduleSlotTime(wall.time) !== oldTime) continue
+        const targetDate = new Date(`${wall.dateKey}T00:00:00`)
+        targetDate.setDate(targetDate.getDate() + deltaDays)
+        const targetDateKey = [
+          String(targetDate.getFullYear()),
+          String(targetDate.getMonth() + 1).padStart(2, "0"),
+          String(targetDate.getDate()).padStart(2, "0")
+        ].join("-")
+        const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, timeZone)
+        if (slotAt !== targetSlotAt) {
+          followingCandidates.push({ sourceSlotAt: slotAt, targetSlotAt })
+        }
+        try {
+          await ensureStudentTargetSlotExists(supabase, teacherId, targetSlotAt, timeZone)
+        } catch (e) {
+          const mapped = mapRpcError(e instanceof Error ? e.message : "RPC failed")
+          return NextResponse.json({ error: mapped.error }, { status: mapped.status })
+        }
+      }
+    }
     const { data: movedCount, error } = await supabase.rpc("reschedule_following_slots_atomic", {
       p_teacher_id: teacherId,
       p_student_id: me.id,
@@ -328,12 +387,53 @@ export async function POST(req: Request) {
       const mapped = mapRpcError(error.message || "RPC failed")
       return NextResponse.json({ error: mapped.error }, { status: mapped.status })
     }
-    if (Number(movedCount ?? 0) <= 0) {
+    // Self-heal legacy duplicates: if target is already booked by the same student,
+    // old slot from this exact "following" move should be released.
+    let cleanedDuplicates = 0
+    if (followingCandidates.length > 0) {
+      const allSlotAts = [
+        ...new Set(followingCandidates.flatMap((x) => [x.sourceSlotAt, x.targetSlotAt]))
+      ]
+      const { data: rows, error: rowsErr } = await supabase
+        .from("teacher_schedule_slots")
+        .select("slot_at, status, booked_student_id")
+        .eq("teacher_id", teacherId)
+        .in("slot_at", allSlotAts)
+      if (rowsErr) {
+        return NextResponse.json({ error: rowsErr.message }, { status: 400 })
+      }
+      const bySlotAt = new Map(
+        (rows ?? []).map((r) => [
+          (r as { slot_at: string }).slot_at,
+          r as { slot_at: string; status: "free" | "busy" | "booked"; booked_student_id: string | null }
+        ])
+      )
+      for (const pair of followingCandidates) {
+        const src = bySlotAt.get(pair.sourceSlotAt)
+        const tgt = bySlotAt.get(pair.targetSlotAt)
+        const sourceBookedByMe = src?.status === "booked" && src.booked_student_id === me.id
+        const targetBookedByMe = tgt?.status === "booked" && tgt.booked_student_id === me.id
+        if (!sourceBookedByMe || !targetBookedByMe) continue
+        const { error: cancelErr } = await supabase.rpc("cancel_slot_atomic", {
+          p_slot_at: pair.sourceSlotAt,
+          p_teacher_id: teacherId,
+          p_student_id: me.id,
+          p_timezone: timeZone
+        })
+        if (cancelErr && !/slot ownership mismatch|slot not found/i.test(cancelErr.message || "")) {
+          const mapped = mapRpcError(cancelErr.message || "RPC failed")
+          return NextResponse.json({ error: mapped.error }, { status: mapped.status })
+        }
+        if (!cancelErr) cleanedDuplicates += 1
+      }
+    }
+    const totalMoved = Number(movedCount ?? 0) + cleanedDuplicates
+    if (totalMoved <= 0) {
       return NextResponse.json({ error: "Не найдено занятий для переноса" }, { status: 409 })
     }
 
     mutated = true
-    return NextResponse.json({ ok: true, moved: Number(movedCount ?? 0) })
+    return NextResponse.json({ ok: true, moved: totalMoved })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Не удалось выполнить операцию с расписанием"
     return NextResponse.json({ error: message }, { status: 400 })

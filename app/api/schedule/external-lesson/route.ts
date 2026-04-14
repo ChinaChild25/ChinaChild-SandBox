@@ -53,6 +53,58 @@ function isSlotNotFoundError(message: string): boolean {
   return /slot not found|old slot not found|new slot not found/i.test(message)
 }
 
+async function dedupeFollowingTeacherMoves(
+  supabase: ReturnType<typeof createServerSupabaseClient> extends Promise<infer T> ? T : never,
+  teacherId: string,
+  studentId: string,
+  pairs: Array<{ sourceSlotAt: string; targetSlotAt: string }>,
+  timeZone: string
+): Promise<{ cleaned: number; error: string | null }> {
+  const uniq = new Map<string, { sourceSlotAt: string; targetSlotAt: string }>()
+  for (const p of pairs) {
+    if (p.sourceSlotAt === p.targetSlotAt) continue
+    uniq.set(`${p.sourceSlotAt}=>${p.targetSlotAt}`, p)
+  }
+  const list = Array.from(uniq.values())
+  if (list.length === 0) return { cleaned: 0, error: null }
+
+  const allSlotAts = [...new Set(list.flatMap((x) => [x.sourceSlotAt, x.targetSlotAt]))]
+  const { data: rows, error: rowsErr } = await supabase
+    .from("teacher_schedule_slots")
+    .select("slot_at, status, booked_student_id")
+    .eq("teacher_id", teacherId)
+    .in("slot_at", allSlotAts)
+  if (rowsErr) return { cleaned: 0, error: rowsErr.message }
+
+  const bySlotAt = new Map(
+    (rows ?? []).map((r) => [
+      (r as { slot_at: string }).slot_at,
+      r as { slot_at: string; status: "free" | "busy" | "booked"; booked_student_id: string | null }
+    ])
+  )
+
+  let cleaned = 0
+  for (const pair of list) {
+    const src = bySlotAt.get(pair.sourceSlotAt)
+    const tgt = bySlotAt.get(pair.targetSlotAt)
+    const sourceBooked = src?.status === "booked" && src.booked_student_id === studentId
+    const targetBooked = tgt?.status === "booked" && tgt.booked_student_id === studentId
+    if (!sourceBooked || !targetBooked) continue
+
+    const { error: cancelErr } = await supabase.rpc("cancel_slot_atomic", {
+      p_slot_at: pair.sourceSlotAt,
+      p_teacher_id: teacherId,
+      p_student_id: studentId,
+      p_timezone: timeZone
+    })
+    if (cancelErr && !/slot ownership mismatch|slot not found/i.test(cancelErr.message || "")) {
+      return { cleaned, error: cancelErr.message || "cancel failed" }
+    }
+    if (!cancelErr) cleaned += 1
+  }
+  return { cleaned, error: null }
+}
+
 async function ensureTeacherSlotExists(
   supabase: ReturnType<typeof createServerSupabaseClient> extends Promise<infer T> ? T : never,
   teacherId: string,
@@ -231,6 +283,15 @@ export async function POST(req: Request) {
     const oldStart = new Date(`${oldDateKey}T00:00:00`)
     const newStart = new Date(`${toDateKey}T00:00:00`)
     const deltaDays = Math.round((newStart.getTime() - oldStart.getTime()) / (24 * 60 * 60 * 1000))
+    const followingPairKeys = new Set<string>()
+    const followingCandidates: Array<{ sourceSlotAt: string; targetSlotAt: string }> = []
+    const pushFollowingPair = (sourceSlotAt: string, targetSlotAt: string) => {
+      if (sourceSlotAt === targetSlotAt) return
+      const key = `${sourceSlotAt}=>${targetSlotAt}`
+      if (followingPairKeys.has(key)) return
+      followingPairKeys.add(key)
+      followingCandidates.push({ sourceSlotAt, targetSlotAt })
+    }
     // Pre-unlock target slots for teacher recurring move (busy -> free), so batch RPC
     // does not silently skip otherwise valid targets outside availability template.
     {
@@ -257,6 +318,7 @@ export async function POST(req: Request) {
           String(targetDate.getDate()).padStart(2, "0")
         ].join("-")
         const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
+        pushFollowingPair(slotAt, targetSlotAt)
         await ensureTeacherSlotReservable(supabase, me.id, targetSlotAt)
       }
     }
@@ -286,6 +348,7 @@ export async function POST(req: Request) {
           String(targetDate.getDate()).padStart(2, "0")
         ].join("-")
         const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
+        pushFollowingPair(slotAt, targetSlotAt)
         await ensureTeacherSlotReservable(supabase, me.id, targetSlotAt)
         const { error: fallbackErr } = await supabase.rpc("reschedule_slot_atomic", {
           p_old_slot_at: slotAt,
@@ -303,8 +366,18 @@ export async function POST(req: Request) {
       if (fallbackMoved <= 0) {
         return NextResponse.json({ error: "Не найдено занятий для переноса" }, { status: 409 })
       }
+      const dedupedFallback = await dedupeFollowingTeacherMoves(
+        supabase,
+        me.id,
+        studentId,
+        followingCandidates,
+        scheduleTimeZone
+      )
+      if (dedupedFallback.error) {
+        return NextResponse.json({ error: dedupedFallback.error }, { status: 400 })
+      }
       mutated = true
-      return NextResponse.json({ ok: true, moved: fallbackMoved })
+      return NextResponse.json({ ok: true, moved: fallbackMoved + dedupedFallback.cleaned })
     }
     if (error && isSlotNotFoundError(error.message || "")) {
       const { data: bookedRows, error: bookedErr } = await supabase
@@ -330,6 +403,7 @@ export async function POST(req: Request) {
           String(targetDate.getDate()).padStart(2, "0")
         ].join("-")
         const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
+        pushFollowingPair(slotAt, targetSlotAt)
         await ensureTeacherSlotReservable(supabase, me.id, targetSlotAt)
       }
       const retry = await tryRescheduleFollowing()
@@ -340,12 +414,17 @@ export async function POST(req: Request) {
       const mapped = mapRpcError(error.message || "RPC failed")
       return NextResponse.json({ error: mapped.error }, { status: mapped.status })
     }
-    if (Number(movedCount ?? 0) <= 0) {
+    const deduped = await dedupeFollowingTeacherMoves(supabase, me.id, studentId, followingCandidates, scheduleTimeZone)
+    if (deduped.error) {
+      return NextResponse.json({ error: deduped.error }, { status: 400 })
+    }
+    const totalMoved = Number(movedCount ?? 0) + deduped.cleaned
+    if (totalMoved <= 0) {
       return NextResponse.json({ error: "Не найдено занятий для переноса" }, { status: 409 })
     }
 
     mutated = true
-    return NextResponse.json({ ok: true, moved: Number(movedCount ?? 0) })
+    return NextResponse.json({ ok: true, moved: totalMoved })
   } finally {
     if (mutated) void reconcileStudentScheduleFireAndForget(supabase, studentId)
   }

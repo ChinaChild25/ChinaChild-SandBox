@@ -1580,22 +1580,27 @@ function StepSuccess({
   teacherAvatarUrl: string
 }) {
   return (
-    <div className="min-h-[56vh] text-ds-text-primary">
-      <h3 className="mt-20 text-6xl font-semibold leading-tight">Мы перенесли ваш урок.</h3>
-      <div className="mt-4 flex items-center gap-3 rounded-xl bg-[var(--ds-neutral-row)] px-4 py-3 text-left">
-        <span className="h-10 w-10 overflow-hidden rounded-full bg-black/10">
-          <img src={teacherAvatarUrl} alt={teacherName} className="h-full w-full object-cover" />
-        </span>
-        <span className="text-base font-medium">Преподаватель: {teacherName}</span>
+    <div className="text-ds-text-primary">
+      <h3 className="text-3xl font-semibold leading-tight">Мы перенесли ваш урок</h3>
+      <p className="mt-2 text-sm opacity-85">Новое время уже обновлено в вашем расписании.</p>
+      <div className="mt-4 rounded-xl bg-black/5 px-4 py-3 text-left text-sm dark:bg-white/10">
+        <div className="flex items-center gap-2">
+          <span className="h-9 w-9 overflow-hidden rounded-full bg-black/10">
+            <img src={teacherAvatarUrl} alt={teacherName} className="h-full w-full object-cover" />
+          </span>
+          <p className="text-xs opacity-90">Преподаватель: {teacherName}</p>
+        </div>
+        <p className="mt-2 font-medium">{value}</p>
       </div>
-      <p className="mt-5 text-2xl">Новое время: {value}</p>
-      <button
-        type="button"
-        className="mt-20 w-full rounded-xl bg-[#0a0a0a] px-4 py-3 text-lg font-medium text-white hover:bg-black/85 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-        onClick={onClose}
-      >
-        Продолжить
-      </button>
+      <div className="mt-5 flex justify-end">
+        <button
+          type="button"
+          className="rounded-md bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-black/85"
+          onClick={onClose}
+        >
+          Понятно
+        </button>
+      </div>
     </div>
   )
 }
