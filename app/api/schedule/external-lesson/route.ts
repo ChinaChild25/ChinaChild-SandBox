@@ -231,6 +231,35 @@ export async function POST(req: Request) {
     const oldStart = new Date(`${oldDateKey}T00:00:00`)
     const newStart = new Date(`${toDateKey}T00:00:00`)
     const deltaDays = Math.round((newStart.getTime() - oldStart.getTime()) / (24 * 60 * 60 * 1000))
+    // Pre-unlock target slots for teacher recurring move (busy -> free), so batch RPC
+    // does not silently skip otherwise valid targets outside availability template.
+    {
+      const { data: bookedRows, error: bookedErr } = await supabase
+        .from("teacher_schedule_slots")
+        .select("slot_at")
+        .eq("teacher_id", me.id)
+        .eq("booked_student_id", lesson.student_id)
+        .eq("status", "booked")
+      if (bookedErr) {
+        return NextResponse.json({ error: bookedErr.message }, { status: 400 })
+      }
+      for (const row of bookedRows ?? []) {
+        const slotAt = (row as { slot_at: string }).slot_at
+        const wall = wallClockFromSlotAt(slotAt)
+        if (wall.dateKey < oldDateKey) continue
+        if (weekdayFromDateKey(wall.dateKey) !== oldWeekday) continue
+        if (normalizeScheduleSlotTime(wall.time) !== oldTime) continue
+        const targetDate = new Date(`${wall.dateKey}T00:00:00`)
+        targetDate.setDate(targetDate.getDate() + deltaDays)
+        const targetDateKey = [
+          String(targetDate.getFullYear()),
+          String(targetDate.getMonth() + 1).padStart(2, "0"),
+          String(targetDate.getDate()).padStart(2, "0")
+        ].join("-")
+        const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
+        await ensureTeacherSlotReservable(supabase, me.id, targetSlotAt)
+      }
+    }
     let { data: movedCount, error } = await tryRescheduleFollowing()
     if (error && isMissingRpcFunction(error.message || "")) {
       const { data: bookedRows, error: bookedErr } = await supabase
