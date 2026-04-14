@@ -131,6 +131,21 @@ export async function GET(req: NextRequest) {
     studentLessons = (lessons ?? []) as Array<{ student_id: string; date_key: string; time: string; title: string; type: string | null }>
   }
 
+  const studentLessonByKey = new Map<
+    string,
+    { title: string; type: string; slot_at: string; date_key: string; time: string }
+  >()
+  for (const lesson of studentLessons) {
+    const key = `${lesson.student_id}|${lesson.date_key}|${lesson.time}`
+    studentLessonByKey.set(key, {
+      title: lesson.title,
+      type: lesson.type ?? "lesson",
+      slot_at: `${lesson.date_key}T${lesson.time}:00`,
+      date_key: lesson.date_key,
+      time: lesson.time
+    })
+  }
+
   const externalByKey = new Map<string, {
     student_id: string
     student_name: string
@@ -142,33 +157,20 @@ export async function GET(req: NextRequest) {
     time: string
   }>()
 
-  for (const lesson of studentLessons) {
-    const key = `${lesson.student_id}|${lesson.date_key}|${lesson.time}`
-    externalByKey.set(key, {
-      student_id: lesson.student_id,
-      student_name: studentNameById.get(lesson.student_id) ?? "Ученик",
-      student_avatar_url: studentAvatarById.get(lesson.student_id) || undefined,
-      title: lesson.title,
-      type: lesson.type ?? "lesson",
-      slot_at: `${lesson.date_key}T${lesson.time}:00`,
-      date_key: lesson.date_key,
-      time: lesson.time
-    })
-  }
-
-  // Fallback: ensure each booked teacher slot is reflected in external lessons.
+  // Canonical teacher calendar lessons: only booked teacher slots.
+  // student_schedule_slots can contain stale rows and must not create ghost lessons on teacher side.
   for (const s of slots) {
     if (s.status !== "booked" || !s.booked_student_id) continue
     const { dateKey, time } = wallClockFromSlotAt(s.slot_at)
     const key = `${s.booked_student_id}|${dateKey}|${time}`
-    if (externalByKey.has(key)) continue
+    const meta = studentLessonByKey.get(key)
     externalByKey.set(key, {
       student_id: s.booked_student_id,
       student_name: bookedNameById.get(s.booked_student_id) ?? "Ученик",
       student_avatar_url: bookedAvatarById.get(s.booked_student_id) || undefined,
-      title: "Занятие",
-      type: "lesson",
-      slot_at: `${dateKey}T${time}:00`,
+      title: meta?.title ?? "Занятие",
+      type: meta?.type ?? "lesson",
+      slot_at: s.slot_at,
       date_key: dateKey,
       time
     })
