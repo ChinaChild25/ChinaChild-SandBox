@@ -16,13 +16,16 @@ type Body = {
 type ProfileLite = { id: string; role: "teacher" | "curator" | "student" }
 
 function lessonWallKeys(lesson: NonNullable<Body["lesson"]>): { dateKey: string; time: string } {
+  // Canonical source of truth for schedule mutations is slot_at.
+  // Client date_key/time can drift in viewer timezone and break old/new slot matching.
+  if (lesson.slot_at?.trim()) {
+    const w = wallClockFromSlotAt(lesson.slot_at)
+    return { dateKey: w.dateKey, time: normalizeScheduleSlotTime(w.time) }
+  }
   const dk = lesson.date_key?.trim()
   const tt = lesson.time?.trim()
-  if (dk && tt) {
-    return { dateKey: dk, time: normalizeScheduleSlotTime(tt) }
-  }
-  const w = wallClockFromSlotAt(lesson.slot_at)
-  return { dateKey: w.dateKey, time: normalizeScheduleSlotTime(w.time) }
+  if (dk && tt) return { dateKey: dk, time: normalizeScheduleSlotTime(tt) }
+  return { dateKey: "1970-01-01", time: "00:00" }
 }
 
 function weekdayFromDateKey(dateKey: string): number {
@@ -43,6 +46,24 @@ function mapRpcError(message: string): { status: number; error: string } {
 
 function isMissingRpcFunction(message: string): boolean {
   return /could not find the function|schema cache/i.test(message)
+}
+
+function isSlotNotFoundError(message: string): boolean {
+  return /slot not found|old slot not found|new slot not found/i.test(message)
+}
+
+async function ensureTeacherSlotExists(
+  supabase: ReturnType<typeof createServerSupabaseClient> extends Promise<infer T> ? T : never,
+  teacherId: string,
+  slotAt: string
+) {
+  const { error } = await supabase
+    .from("teacher_schedule_slots")
+    .insert({ teacher_id: teacherId, slot_at: slotAt, status: "free", booked_student_id: null })
+  if (!error) return
+  // Ignore unique conflicts, fail fast on anything else.
+  if (error.code === "23505") return
+  throw new Error(error.message || "Не удалось подготовить слот для переноса")
 }
 
 export async function POST(req: Request) {
@@ -147,13 +168,20 @@ export async function POST(req: Request) {
     const newSlotAt = wallClockSlotAtIso(toDateKey, toTime, scheduleTimeZone)
 
     if (scope === "single") {
-      const { error } = await supabase.rpc("reschedule_slot_atomic", {
-        p_old_slot_at: oldSlotAt,
-        p_new_slot_at: newSlotAt,
-        p_teacher_id: me.id,
-        p_student_id: lesson.student_id,
-        p_timezone: scheduleTimeZone
-      })
+      const tryRescheduleSingle = () =>
+        supabase.rpc("reschedule_slot_atomic", {
+          p_old_slot_at: oldSlotAt,
+          p_new_slot_at: newSlotAt,
+          p_teacher_id: me.id,
+          p_student_id: lesson.student_id,
+          p_timezone: scheduleTimeZone
+        })
+      let { error } = await tryRescheduleSingle()
+      if (error && isSlotNotFoundError(error.message || "")) {
+        await ensureTeacherSlotExists(supabase, me.id, newSlotAt)
+        const retry = await tryRescheduleSingle()
+        error = retry.error
+      }
       if (error) {
         const mapped = mapRpcError(error.message || "RPC failed")
         return NextResponse.json({ error: mapped.error }, { status: mapped.status })
@@ -162,19 +190,52 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true })
     }
 
+    const tryRescheduleFollowing = () =>
+      supabase.rpc("reschedule_following_slots_atomic", {
+        p_teacher_id: me.id,
+        p_student_id: lesson.student_id,
+        p_anchor_slot_at: oldSlotAt,
+        p_anchor_weekday: oldWeekday,
+        p_anchor_time: oldTime,
+        p_delta_days: deltaDays,
+        p_target_time: toTime,
+        p_timezone: scheduleTimeZone
+      })
+
     const oldStart = new Date(`${oldDateKey}T00:00:00`)
     const newStart = new Date(`${toDateKey}T00:00:00`)
     const deltaDays = Math.round((newStart.getTime() - oldStart.getTime()) / (24 * 60 * 60 * 1000))
-    const { data: movedCount, error } = await supabase.rpc("reschedule_following_slots_atomic", {
-      p_teacher_id: me.id,
-      p_student_id: lesson.student_id,
-      p_anchor_slot_at: oldSlotAt,
-      p_anchor_weekday: oldWeekday,
-      p_anchor_time: oldTime,
-      p_delta_days: deltaDays,
-      p_target_time: toTime,
-      p_timezone: scheduleTimeZone
-    })
+    let { data: movedCount, error } = await tryRescheduleFollowing()
+    if (error && isSlotNotFoundError(error.message || "")) {
+      const { data: bookedRows, error: bookedErr } = await supabase
+        .from("teacher_schedule_slots")
+        .select("slot_at")
+        .eq("teacher_id", me.id)
+        .eq("booked_student_id", lesson.student_id)
+        .eq("status", "booked")
+      if (bookedErr) {
+        return NextResponse.json({ error: bookedErr.message }, { status: 400 })
+      }
+      for (const row of bookedRows ?? []) {
+        const slotAt = (row as { slot_at: string }).slot_at
+        const wall = wallClockFromSlotAt(slotAt)
+        if (wall.dateKey < oldDateKey) continue
+        if (weekdayFromDateKey(wall.dateKey) !== oldWeekday) continue
+        if (normalizeScheduleSlotTime(wall.time) !== oldTime) continue
+        const targetDate = new Date(`${wall.dateKey}T00:00:00`)
+        targetDate.setDate(targetDate.getDate() + deltaDays)
+        const targetDateKey = [
+          String(targetDate.getFullYear()),
+          String(targetDate.getMonth() + 1).padStart(2, "0"),
+          String(targetDate.getDate()).padStart(2, "0")
+        ].join("-")
+        const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
+        await ensureTeacherSlotExists(supabase, me.id, targetSlotAt)
+      }
+      const retry = await tryRescheduleFollowing()
+      movedCount = retry.data
+      error = retry.error
+    }
     if (error) {
       const mapped = mapRpcError(error.message || "RPC failed")
       return NextResponse.json({ error: mapped.error }, { status: mapped.status })
