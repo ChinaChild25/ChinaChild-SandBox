@@ -206,6 +206,51 @@ export async function POST(req: Request) {
     const newStart = new Date(`${toDateKey}T00:00:00`)
     const deltaDays = Math.round((newStart.getTime() - oldStart.getTime()) / (24 * 60 * 60 * 1000))
     let { data: movedCount, error } = await tryRescheduleFollowing()
+    if (error && isMissingRpcFunction(error.message || "")) {
+      const { data: bookedRows, error: bookedErr } = await supabase
+        .from("teacher_schedule_slots")
+        .select("slot_at")
+        .eq("teacher_id", me.id)
+        .eq("booked_student_id", lesson.student_id)
+        .eq("status", "booked")
+      if (bookedErr) {
+        return NextResponse.json({ error: bookedErr.message }, { status: 400 })
+      }
+      let fallbackMoved = 0
+      for (const row of bookedRows ?? []) {
+        const slotAt = (row as { slot_at: string }).slot_at
+        const wall = wallClockFromSlotAt(slotAt)
+        if (wall.dateKey < oldDateKey) continue
+        if (weekdayFromDateKey(wall.dateKey) !== oldWeekday) continue
+        if (normalizeScheduleSlotTime(wall.time) !== oldTime) continue
+        const targetDate = new Date(`${wall.dateKey}T00:00:00`)
+        targetDate.setDate(targetDate.getDate() + deltaDays)
+        const targetDateKey = [
+          String(targetDate.getFullYear()),
+          String(targetDate.getMonth() + 1).padStart(2, "0"),
+          String(targetDate.getDate()).padStart(2, "0")
+        ].join("-")
+        const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
+        await ensureTeacherSlotExists(supabase, me.id, targetSlotAt)
+        const { error: fallbackErr } = await supabase.rpc("reschedule_slot_atomic", {
+          p_old_slot_at: slotAt,
+          p_new_slot_at: targetSlotAt,
+          p_teacher_id: me.id,
+          p_student_id: lesson.student_id,
+          p_timezone: scheduleTimeZone
+        })
+        if (fallbackErr) {
+          const mapped = mapRpcError(fallbackErr.message || "RPC failed")
+          return NextResponse.json({ error: mapped.error }, { status: mapped.status })
+        }
+        fallbackMoved += 1
+      }
+      if (fallbackMoved <= 0) {
+        return NextResponse.json({ error: "Не найдено занятий для переноса" }, { status: 409 })
+      }
+      mutated = true
+      return NextResponse.json({ ok: true, moved: fallbackMoved })
+    }
     if (error && isSlotNotFoundError(error.message || "")) {
       const { data: bookedRows, error: bookedErr } = await supabase
         .from("teacher_schedule_slots")
