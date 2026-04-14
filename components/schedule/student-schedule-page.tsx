@@ -5,20 +5,45 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { BookOpenCheck, CalendarCheck2, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Ellipsis, MessageSquare, Repeat, Star, UserRound, X } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { getAppNow, getAppTodayStart } from "@/lib/app-time"
-import { wallClockFromDateInSchoolTz, wallClockFromSlotAt } from "@/lib/schedule-display-tz"
+import { SCHEDULE_WALL_CLOCK_TIMEZONE } from "@/lib/schedule-display-tz"
+import { wallClockFromSlotAt } from "@/lib/schedule-display-tz"
 import { addOneDayYmd } from "@/lib/schedule/date-ymd"
-import { normalizeScheduleSlotTime } from "@/lib/schedule/slot-time"
+import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
 import {
   canRescheduleLesson,
+  dateKeyFromDate,
   isValidRescheduleTargetSlot,
+  isValidStudentBookingTargetSlot,
   parseLessonStart,
   type ScheduledLesson
 } from "@/lib/schedule-lessons"
+import {
+  markScheduleNotificationsRead,
+  readScheduleNotifications,
+  subscribeScheduleNotifications,
+  type ScheduleNotificationItem
+} from "@/lib/schedule-notifications"
 
 type FlowStep = "menu" | "type" | "date" | "time" | "success"
 type FlowType = "single" | "following"
 
 type DateSlots = Record<string, string[]>
+const STUDENT_RESCHEDULE_DAYS_AHEAD = 7
+/** Сколько ближайших занятий показывать в списках «Предстоящие» (не календарная сетка). */
+const SCHEDULE_UPCOMING_LIST_MAX = 2
+type CancelSuccessInfo = { lesson: ScheduledLesson; scope: "single" | "following" }
+
+function lessonStartMs(dateKey: string, time: string): number {
+  const slotAt = wallClockSlotAtIso(dateKey, normalizeScheduleSlotTime(time), SCHEDULE_WALL_CLOCK_TIMEZONE)
+  return new Date(slotAt).getTime()
+}
+
+function dayDiffByDateKey(aDateKey: string, bDateKey: string): number {
+  const a = new Date(`${aDateKey}T12:00:00Z`).getTime()
+  const b = new Date(`${bDateKey}T12:00:00Z`).getTime()
+  if (Number.isNaN(a) || Number.isNaN(b)) return 0
+  return Math.round((a - b) / (24 * 60 * 60 * 1000))
+}
 
 export function StudentSchedulePage() {
   const { user } = useAuth()
@@ -34,8 +59,12 @@ export function StudentSchedulePage() {
   const [desktopTab, setDesktopTab] = useState<"lessons" | "calendar" | "teachers">("lessons")
   const [cancelConfirmLesson, setCancelConfirmLesson] = useState<ScheduledLesson | null>(null)
   const [cancelSuccessOpen, setCancelSuccessOpen] = useState(false)
-  const cancelSuccessTimerRef = useRef<number | null>(null)
+  const [cancelSuccessInfo, setCancelSuccessInfo] = useState<CancelSuccessInfo | null>(null)
+  const [studentScheduleNotice, setStudentScheduleNotice] = useState<ScheduleNotificationItem | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [rescheduleSubmitting, setRescheduleSubmitting] = useState(false)
+  const [planSubmitting, setPlanSubmitting] = useState(false)
+  const [cancelSubmittingScope, setCancelSubmittingScope] = useState<"single" | "following" | null>(null)
   const [scheduleSlotsError, setScheduleSlotsError] = useState<string | null>(null)
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [planOpen, setPlanOpen] = useState(false)
@@ -43,6 +72,7 @@ export function StudentSchedulePage() {
   const [planStep, setPlanStep] = useState<"type" | "date" | "time">("type")
   const [planDateKey, setPlanDateKey] = useState("")
   const [planLoadingSlots, setPlanLoadingSlots] = useState(false)
+  const [planSuccessText, setPlanSuccessText] = useState<string | null>(null)
   const desktopCalendarScrollRef = useRef<HTMLDivElement | null>(null)
 
   const refreshLessons = useCallback(async () => {
@@ -68,24 +98,46 @@ export function StudentSchedulePage() {
   }, [user, refreshLessons])
 
   useEffect(() => {
-    return () => {
-      if (cancelSuccessTimerRef.current !== null) window.clearTimeout(cancelSuccessTimerRef.current)
-    }
+    return () => undefined
   }, [])
+
+  useEffect(() => {
+    if (user?.role !== "student") return
+    const sync = () => {
+      const notices = readScheduleNotifications("student", user.id)
+      const firstUnread = notices.find((n) => !n.read) ?? null
+      setStudentScheduleNotice(firstUnread)
+      // Teacher-side changes should appear immediately in student's lesson lists.
+      if (firstUnread) void refreshLessons()
+    }
+    sync()
+    return subscribeScheduleNotifications(sync)
+  }, [user, refreshLessons])
+
+  const closeStudentNotice = useCallback(() => {
+    if (user?.role === "student") {
+      markScheduleNotificationsRead("student", user.id)
+    }
+    setStudentScheduleNotice(null)
+  }, [user])
 
   const sortedLessons = useMemo(
     () =>
       [...lessons].sort((a, b) => {
-        const ta = parseLessonStart(a.dateKey, a.time).getTime()
-        const tb = parseLessonStart(b.dateKey, b.time).getTime()
+        const ta = lessonStartMs(a.dateKey, a.time)
+        const tb = lessonStartMs(b.dateKey, b.time)
         return ta - tb
       }),
     [lessons]
   )
 
   const nowTs = Date.now()
-  const upcoming = sortedLessons.filter((l) => parseLessonStart(l.dateKey, l.time).getTime() > nowTs)
-  const past = [...sortedLessons.filter((l) => parseLessonStart(l.dateKey, l.time).getTime() <= nowTs)].reverse()
+  const upcoming = sortedLessons.filter((l) => lessonStartMs(l.dateKey, l.time) > nowTs)
+  const upcomingListPreview = useMemo(
+    () => upcoming.slice(0, SCHEDULE_UPCOMING_LIST_MAX),
+    [upcoming]
+  )
+  const past = [...sortedLessons.filter((l) => lessonStartMs(l.dateKey, l.time) <= nowTs)].reverse()
 
   const weeklyGroups = useMemo(() => {
     const map = new Map<string, { weekday: string; time: string; teacher: string; count: number }>()
@@ -122,6 +174,26 @@ export function StudentSchedulePage() {
     }
     return new Set(Array.from(counts.entries()).filter(([, count]) => count > 1).map(([key]) => key))
   }, [sortedLessons])
+  const isRecurringLesson = useCallback(
+    (lesson: ScheduledLesson) => {
+      const targetWeekday = parseLessonStart(lesson.dateKey, lesson.time).getDay()
+      const targetTime = normalizeScheduleSlotTime(lesson.time)
+      const targetTeacher = (lesson.teacherId ?? lesson.teacher ?? "").trim()
+      const siblings = sortedLessons.filter((candidate) => {
+        if (candidate.id === lesson.id) return false
+        if (normalizeScheduleSlotTime(candidate.time) !== targetTime) return false
+        if (parseLessonStart(candidate.dateKey, candidate.time).getDay() !== targetWeekday) return false
+        const teacher = (candidate.teacherId ?? candidate.teacher ?? "").trim()
+        if (targetTeacher && teacher && teacher !== targetTeacher) return false
+        return true
+      })
+      return siblings.some((candidate) => {
+        const diff = Math.abs(dayDiffByDateKey(candidate.dateKey, lesson.dateKey))
+        return diff >= 7 && diff % 7 === 0
+      })
+    },
+    [sortedLessons]
+  )
 
   const desktopDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(desktopAnchorDate, i)), [desktopAnchorDate])
   const desktopDayKeys = useMemo(() => desktopDays.map((d) => toDateKey(d)), [desktopDays])
@@ -130,7 +202,7 @@ export function StudentSchedulePage() {
   const desktopLessons = useMemo(
     () =>
       sortedLessons.filter((l) => {
-        const ts = parseLessonStart(l.dateKey, l.time).getTime()
+        const ts = lessonStartMs(l.dateKey, l.time)
         return ts >= weekStartTs && ts < weekEndTs
       }),
     [sortedLessons, weekEndTs, weekStartTs]
@@ -149,12 +221,20 @@ export function StudentSchedulePage() {
     }
     return map
   }, [dateSlots])
+  const strictRescheduleDateSlots = useMemo(() => {
+    const byDate: DateSlots = {}
+    for (const [dateKey, slots] of Object.entries(dateSlots)) {
+      const filtered = slots.filter((time) => isValidRescheduleTargetSlot(dateKey, time))
+      if (filtered.length > 0) byDate[dateKey] = filtered
+    }
+    return byDate
+  }, [dateSlots])
   const teacherCards = useMemo(() => {
     const byTeacher = new Map<string, { name: string; avatarUrl?: string; upcoming: number; past: number }>()
     for (const lesson of sortedLessons) {
       const name = lesson.teacher?.trim() || "Преподаватель"
       const prev = byTeacher.get(name) ?? { name, avatarUrl: lesson.teacherAvatarUrl, upcoming: 0, past: 0 }
-      const ts = parseLessonStart(lesson.dateKey, lesson.time).getTime()
+      const ts = lessonStartMs(lesson.dateKey, lesson.time)
       if (ts > nowTs) prev.upcoming += 1
       else prev.past += 1
       if (!prev.avatarUrl && lesson.teacherAvatarUrl) prev.avatarUrl = lesson.teacherAvatarUrl
@@ -191,18 +271,15 @@ export function StudentSchedulePage() {
     el.scrollTop = 8 * 56
   }, [desktopTab, desktopAnchorDate])
 
-  const openLesson = async (lesson: ScheduledLesson) => {
-    setSelectedLesson(lesson)
-    setFlowStep("menu")
-    setFlowType("single")
-    setSelectedDateKey("")
+  /** Общая загрузка слотов для переноса (и из карточки урока, и из меню «⋯» на десктопе). */
+  const loadRescheduleSlotsForLesson = useCallback(async (lesson: ScheduledLesson) => {
     setDateSlots({})
     setScheduleSlotsError(null)
     setSlotsLoading(true)
     try {
       const now = getAppNow()
       const to = new Date(now)
-      to.setDate(to.getDate() + 21)
+      to.setDate(to.getDate() + STUDENT_RESCHEDULE_DAYS_AHEAD)
       const teacherParam = lesson.teacherId ? `&teacher_id=${encodeURIComponent(lesson.teacherId)}` : ""
       const res = await fetch(
         `/api/schedule?from=${encodeURIComponent(now.toISOString())}&to=${encodeURIComponent(to.toISOString())}${teacherParam}`
@@ -217,7 +294,7 @@ export function StudentSchedulePage() {
       for (const s of payload.slots ?? []) {
         const { dateKey, time } = wallClockFromSlotAt(s.slot_at)
         const timeNorm = normalizeScheduleSlotTime(time)
-        if (!isValidRescheduleTargetSlot(dateKey, timeNorm)) continue
+        if (!isValidStudentBookingTargetSlot(dateKey, timeNorm)) continue
         const prev = byDate[dateKey] ?? []
         if (!prev.includes(timeNorm)) byDate[dateKey] = [...prev, timeNorm]
       }
@@ -225,6 +302,14 @@ export function StudentSchedulePage() {
     } finally {
       setSlotsLoading(false)
     }
+  }, [])
+
+  const openLesson = async (lesson: ScheduledLesson) => {
+    setSelectedLesson(lesson)
+    setFlowStep("menu")
+    setFlowType("single")
+    setSelectedDateKey("")
+    await loadRescheduleSlotsForLesson(lesson)
   }
   const loadDateSlots = async () => {
     setPlanLoadingSlots(true)
@@ -232,7 +317,7 @@ export function StudentSchedulePage() {
     try {
       const now = getAppNow()
       const to = new Date(now)
-      to.setDate(to.getDate() + 21)
+      to.setDate(to.getDate() + STUDENT_RESCHEDULE_DAYS_AHEAD)
       const teacherId = selectedLesson?.teacherId || upcoming[0]?.teacherId || lessons[0]?.teacherId
       const teacherParam = teacherId ? `&teacher_id=${encodeURIComponent(teacherId)}` : ""
       const res = await fetch(
@@ -248,7 +333,7 @@ export function StudentSchedulePage() {
       for (const s of payload.slots ?? []) {
         const { dateKey, time } = wallClockFromSlotAt(s.slot_at)
         const timeNorm = normalizeScheduleSlotTime(time)
-        if (!isValidRescheduleTargetSlot(dateKey, timeNorm)) continue
+        if (!isValidStudentBookingTargetSlot(dateKey, timeNorm)) continue
         const prev = byDate[dateKey] ?? []
         if (!prev.includes(timeNorm)) byDate[dateKey] = [...prev, timeNorm]
       }
@@ -269,24 +354,45 @@ export function StudentSchedulePage() {
   const planLesson = async (time: string) => {
     if (!planDateKey) return
     setActionError(null)
-    const res = await fetch("/api/schedule/student-action", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "book",
-        teacher_id: selectedLesson?.teacherId || upcoming[0]?.teacherId || lessons[0]?.teacherId,
-        scope: planType,
-        to_date_key: planDateKey,
-        to_hour: Number(time.slice(0, 2))
+    setPlanSubmitting(true)
+    try {
+      const res = await fetch("/api/schedule/student-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "book",
+          teacher_id: selectedLesson?.teacherId || upcoming[0]?.teacherId || lessons[0]?.teacherId,
+          scope: planType,
+          to_date_key: planDateKey,
+          to_hour: Number(time.slice(0, 2))
+        })
       })
-    })
-    if (!res.ok) {
-      const payload = (await res.json().catch(() => ({}))) as { error?: string }
-      setActionError(payload.error ?? "Не удалось запланировать урок")
-      return
+      const payload = (await res.json().catch(() => ({}))) as { error?: string; ok?: boolean; booked?: number }
+      if (!res.ok) {
+        setActionError(payload.error ?? "Не удалось запланировать урок")
+        return
+      }
+      if (planType === "following" && Number(payload.booked ?? 0) <= 0) {
+        setActionError("Не удалось запланировать еженедельные занятия: подходящих слотов не найдено")
+        return
+      }
+      if (planType === "single" && payload.ok !== true) {
+        setActionError("Не удалось запланировать занятие")
+        return
+      }
+      if (planType === "following") {
+        const weekday = parseLessonStart(planDateKey, "00:00").getDay()
+        setPlanSuccessText(`Назначили регулярные занятия по ${formatRecurringWeekdayLabel(weekday)} в ${time}`)
+      } else {
+        setPlanSuccessText(`Назначили занятие на ${formatDateLabel(planDateKey)} в ${time}`)
+      }
+      setPlanOpen(false)
+      await refreshLessons()
+    } catch {
+      setActionError("Не удалось запланировать урок из-за сетевой ошибки. Попробуйте ещё раз.")
+    } finally {
+      setPlanSubmitting(false)
     }
-    setPlanOpen(false)
-    await refreshLessons()
   }
 
   const closeFlow = () => {
@@ -297,33 +403,32 @@ export function StudentSchedulePage() {
 
   const cancelLesson = async (lesson: ScheduledLesson, scope: "single" | "following" = "single") => {
     setActionError(null)
-    const res = await fetch("/api/schedule/student-action", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "cancel",
-        teacher_id: lesson.teacherId,
-        scope,
-        lesson: { slot_at: `${lesson.dateKey}T${lesson.time}:00`, date_key: lesson.dateKey, time: lesson.time }
+    setCancelSubmittingScope(scope)
+    try {
+      const res = await fetch("/api/schedule/student-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "cancel",
+          teacher_id: lesson.teacherId,
+          scope,
+          lesson: { slot_at: `${lesson.dateKey}T${lesson.time}:00`, date_key: lesson.dateKey, time: lesson.time }
+        })
       })
-    })
-    if (!res.ok) {
-      const payload = (await res.json().catch(() => ({}))) as { error?: string }
-      setActionError(payload.error ?? "Не удалось отменить урок. Попробуйте ещё раз.")
-      return false
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => ({}))) as { error?: string }
+        setActionError(payload.error ?? "Не удалось отменить урок. Попробуйте ещё раз.")
+        return false
+      }
+      closeFlow()
+      setCancelConfirmLesson(null)
+      await refreshLessons()
+      setCancelSuccessInfo({ lesson, scope })
+      setCancelSuccessOpen(true)
+      return true
+    } finally {
+      setCancelSubmittingScope(null)
     }
-    closeFlow()
-    setCancelConfirmLesson(null)
-    await refreshLessons()
-    if (cancelSuccessTimerRef.current !== null) {
-      window.clearTimeout(cancelSuccessTimerRef.current)
-    }
-    setCancelSuccessOpen(true)
-    cancelSuccessTimerRef.current = window.setTimeout(() => {
-      setCancelSuccessOpen(false)
-      cancelSuccessTimerRef.current = null
-    }, 2800)
-    return true
   }
 
   const openCancelConfirmation = (lesson: ScheduledLesson) => {
@@ -333,26 +438,41 @@ export function StudentSchedulePage() {
 
   const doCancel = () => {
     if (!selectedLesson) return
+    if (!isRecurringLesson(selectedLesson)) {
+      void cancelLesson(selectedLesson, "single")
+      return
+    }
     openCancelConfirmation(selectedLesson)
   }
 
   const doReschedule = async (toTime: string) => {
     if (!selectedLesson || !selectedDateKey) return
-    await fetch("/api/schedule/student-action", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "reschedule",
-        teacher_id: selectedLesson.teacherId,
-        scope: flowType,
-        to_date_key: selectedDateKey,
-        to_hour: Number(toTime.slice(0, 2)),
-        lesson: { slot_at: `${selectedLesson.dateKey}T${selectedLesson.time}:00`, date_key: selectedLesson.dateKey, time: selectedLesson.time }
+    setActionError(null)
+    setRescheduleSubmitting(true)
+    try {
+      const res = await fetch("/api/schedule/student-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "reschedule",
+          teacher_id: selectedLesson.teacherId,
+          scope: flowType,
+          to_date_key: selectedDateKey,
+          to_hour: Number(toTime.slice(0, 2)),
+          lesson: { slot_at: `${selectedLesson.dateKey}T${selectedLesson.time}:00`, date_key: selectedLesson.dateKey, time: selectedLesson.time }
+        })
       })
-    })
-    setSuccessText(`${selectedDateKey} · ${toTime}`)
-    setFlowStep("success")
-    await refreshLessons()
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => ({}))) as { error?: string }
+        setActionError(payload.error ?? "Не удалось перенести урок")
+        return
+      }
+      setSuccessText(`${selectedDateKey} · ${toTime}`)
+      setFlowStep("success")
+      await refreshLessons()
+    } finally {
+      setRescheduleSubmitting(false)
+    }
   }
 
   return (
@@ -461,17 +581,18 @@ export function StudentSchedulePage() {
                 {dayLessons.map((l) => {
                   const hour = Number(l.time.slice(0, 2))
                   const top = (hour - desktopHours[0]) * 56 + 4
+                  const lessonTs = lessonStartMs(l.dateKey, l.time)
+                  const isPastLesson = lessonTs <= nowTs
                   const weekday = parseLessonStart(l.dateKey, l.time).getDay()
                   const recurrenceKey = `${weekday}-${l.time}`
                   const isRecurring = recurringKeys.has(recurrenceKey)
-                  return (
-                    <button
-                      key={`desk-${l.id}-${l.time}`}
-                      type="button"
-                      className="absolute left-1 right-1 z-10 rounded-lg border border-[var(--ds-sage-strong)] bg-[color-mix(in_srgb,var(--ds-sage)_68%,#ffffff)] px-2 py-1 pl-10 pr-7 text-left shadow-sm hover:bg-[color-mix(in_srgb,var(--ds-sage)_78%,#ffffff)]"
-                      style={{ top }}
-                      onClick={(e) => setDesktopMenu({ x: e.clientX, y: e.clientY, lesson: l })}
-                    >
+                  const cardClass = `absolute left-1 right-1 z-10 rounded-lg border px-2 py-1 pl-10 pr-7 text-left shadow-sm ${
+                    isPastLesson
+                      ? "cursor-default border-black/10 bg-ds-neutral-row text-ds-text-muted opacity-70 dark:border-white/10"
+                      : "border-[var(--ds-sage-strong)] bg-[color-mix(in_srgb,var(--ds-sage)_68%,#ffffff)] hover:bg-[color-mix(in_srgb,var(--ds-sage)_78%,#ffffff)]"
+                  }`
+                  const cardInner = (
+                    <>
                       <span className="absolute left-1.5 top-1.5 h-5 w-5 overflow-hidden rounded-[5px] bg-ds-surface/80">
                         <img
                           src={l.teacherAvatarUrl || "/placeholders/teacher-avatar.svg"}
@@ -486,8 +607,29 @@ export function StudentSchedulePage() {
                           <CalendarCheck2 size={14} strokeWidth={2.6} />
                         )}
                       </TooltipHint>
-                      <div className="text-xs font-medium text-ds-text-primary">{l.time}</div>
-                      <div className="truncate text-xs text-ds-text-primary">{l.teacher ?? "Преподаватель"}</div>
+                      <div className={`text-xs font-medium ${isPastLesson ? "text-ds-text-muted" : "text-ds-text-primary"}`}>{l.time}</div>
+                      <div className={`truncate text-xs ${isPastLesson ? "text-ds-text-muted" : "text-ds-text-primary"}`}>{l.teacher ?? "Преподаватель"}</div>
+                    </>
+                  )
+                  return isPastLesson ? (
+                    <div
+                      key={`desk-${l.id}-${l.time}`}
+                      className={cardClass}
+                      style={{ top }}
+                      role="note"
+                      aria-label={`Прошедший урок ${l.time}, ${l.teacher ?? "Преподаватель"}`}
+                    >
+                      {cardInner}
+                    </div>
+                  ) : (
+                    <button
+                      key={`desk-${l.id}-${l.time}`}
+                      type="button"
+                      className={cardClass}
+                      style={{ top }}
+                      onClick={(e) => setDesktopMenu({ x: e.clientX, y: e.clientY, lesson: l })}
+                    >
+                      {cardInner}
                     </button>
                   )
                 })}
@@ -500,7 +642,7 @@ export function StudentSchedulePage() {
 
       <div className={`${desktopTab === "lessons" ? "hidden md:block" : "hidden"}`}>
         <Section title="Предстоящие уроки">
-          {upcoming.map((l) => (
+          {upcomingListPreview.map((l) => (
             <div key={`up-${l.id}`} className="flex items-center justify-between rounded-xl border border-black/10 dark:border-white/10 bg-ds-surface px-4 py-4">
               <button type="button" className="flex flex-1 items-center gap-3 text-left" onClick={() => void openLesson(l)}>
                 <div className="h-12 w-12 overflow-hidden rounded-md bg-[#dfe3e9]">
@@ -546,7 +688,25 @@ export function StudentSchedulePage() {
                     <div className="text-sm text-ds-text-muted">{g.teacher}, {upcoming[0]?.title ?? "Урок"}</div>
                   </div>
                 </div>
-                <button type="button" className="rounded-md p-1 text-ds-text-primary hover:bg-ds-surface-hover dark:hover:bg-white/10" aria-label="Меню урока">
+                <button
+                  type="button"
+                  className="rounded-md p-1 text-ds-text-primary hover:bg-ds-surface-hover dark:hover:bg-white/10"
+                  aria-label="Меню урока"
+                  onClick={(e) => {
+                    const representativeLesson = upcoming.find((lesson) => {
+                      const teacherName = lesson.teacher?.trim() || "Преподаватель"
+                      return lesson.time === g.time && teacherName === g.teacher
+                    })
+                    if (representativeLesson) {
+                      setDesktopMenu({ x: e.clientX, y: e.clientY, lesson: representativeLesson })
+                      return
+                    }
+                    // Fallback: open plan flow for recurring lessons if exact lesson wasn't found.
+                    setPlanOpen(true)
+                    setPlanType("following")
+                    setPlanStep("date")
+                  }}
+                >
                   <Ellipsis size={20} />
                 </button>
               </div>
@@ -643,7 +803,7 @@ export function StudentSchedulePage() {
         </section>
       ) : null}
       <Section title="Предстоящие">
-        {upcoming.map((l) => (
+        {upcomingListPreview.map((l) => (
           <LessonCard key={l.id} lesson={l} onClick={() => void openLesson(l)} />
         ))}
       </Section>
@@ -684,9 +844,13 @@ export function StudentSchedulePage() {
             <button
               className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-base font-medium text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)]"
               onClick={() => {
-                setSelectedLesson(desktopMenu.lesson)
-                setFlowStep("type")
+                const lesson = desktopMenu.lesson
                 setDesktopMenu(null)
+                setSelectedLesson(lesson)
+                setFlowType("single")
+                setSelectedDateKey("")
+                setFlowStep(isRecurringLesson(lesson) ? "type" : "date")
+                void loadRescheduleSlotsForLesson(lesson)
               }}
             >
               <CalendarDays size={16} /> Перенести
@@ -715,10 +879,15 @@ export function StudentSchedulePage() {
       {selectedLesson ? (
         <LessonModal onClose={closeFlow} successTone={flowStep === "success"}>
           {flowStep === "menu" ? (
-            <StepMenu lesson={selectedLesson} onCancel={doCancel} onReschedule={() => setFlowStep("type")} />
+            <StepMenu
+              lesson={selectedLesson}
+              onCancel={doCancel}
+              onReschedule={() => setFlowStep(isRecurringLesson(selectedLesson) ? "type" : "date")}
+            />
           ) : null}
           {flowStep === "type" ? (
             <StepType
+              allowFollowing={isRecurringLesson(selectedLesson)}
               onBack={() => setFlowStep("menu")}
               onPick={(value) => {
                 setFlowType(value)
@@ -729,9 +898,9 @@ export function StudentSchedulePage() {
           {flowStep === "date" ? (
             flowType === "following" ? (
               <StepWeekday
-                lesson={selectedLesson}
+                originWeekday={parseLessonStart(selectedLesson.dateKey, selectedLesson.time).getDay()}
                 weeklySlotsByWeekday={weeklySlotsByWeekday}
-                onBack={() => setFlowStep("type")}
+                onBack={() => setFlowStep(isRecurringLesson(selectedLesson) ? "type" : "menu")}
                 onPick={(targetWeekday) => {
                   const candidate = Object.keys(dateSlots)
                     .filter((k) => parseLessonStart(k, "00:00").getDay() === targetWeekday && (dateSlots[k] ?? []).length > 0)
@@ -751,10 +920,10 @@ export function StudentSchedulePage() {
             ) : (
               <StepDate
                 lesson={selectedLesson}
-                dateSlots={dateSlots}
+                dateSlots={strictRescheduleDateSlots}
                 slotsLoading={slotsLoading}
                 slotsError={scheduleSlotsError}
-                onBack={() => setFlowStep("type")}
+                onBack={() => setFlowStep(isRecurringLesson(selectedLesson) ? "type" : "menu")}
                 onPick={(dateKey) => {
                   setSelectedDateKey(dateKey)
                   setFlowStep("time")
@@ -768,6 +937,8 @@ export function StudentSchedulePage() {
               flowType={flowType}
               dateKey={selectedDateKey}
               slots={dateSlots[selectedDateKey] ?? []}
+              errorMessage={actionError}
+              isSubmitting={rescheduleSubmitting}
               onBack={() => setFlowStep("date")}
               onPick={(time) => void doReschedule(time)}
             />
@@ -780,9 +951,13 @@ export function StudentSchedulePage() {
         <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/35 p-4" onClick={() => setCancelConfirmLesson(null)}>
           <div className="w-full max-w-md rounded-2xl bg-ds-surface p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-2xl font-semibold text-ds-text-primary">Отменить урок</h3>
-            <p className="mt-2 text-sm text-ds-text-muted">
-              Выберите, что отменить: только это занятие или всю регулярную цепочку начиная с этого урока.
-            </p>
+            {isRecurringLesson(cancelConfirmLesson) ? (
+              <p className="mt-2 text-sm text-ds-text-muted">
+                Выберите, что отменить: только это занятие или всю регулярную цепочку начиная с этого урока.
+              </p>
+            ) : (
+              <p className="mt-2 text-sm text-ds-text-muted">Это разовое занятие. Будет отменен только выбранный урок.</p>
+            )}
             {actionError ? (
               <div className="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-800 dark:bg-red-950/45 dark:text-red-200">{actionError}</div>
             ) : null}
@@ -790,41 +965,101 @@ export function StudentSchedulePage() {
               <button
                 type="button"
                 className="rounded-lg px-3 py-2 text-sm text-ds-text-primary hover:bg-black/5 dark:hover:bg-white/10"
+                disabled={cancelSubmittingScope !== null}
                 onClick={() => setCancelConfirmLesson(null)}
               >
                 Закрыть
               </button>
               <button
                 type="button"
-                className="rounded-lg border border-black/10 dark:border-white/10 px-3 py-2 text-sm hover:bg-ds-surface-hover"
+                disabled={cancelSubmittingScope !== null}
+                className="rounded-lg border border-black/10 dark:border-white/10 px-3 py-2 text-sm hover:bg-ds-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={() => void cancelLesson(cancelConfirmLesson, "single")}
               >
-                Только этот
+                {cancelSubmittingScope === "single" ? "Отменяем..." : "Отменить"}
               </button>
-              <button
-                type="button"
-                className="rounded-lg border border-red-600/25 bg-red-500/10 px-3 py-2 text-sm text-red-800 hover:bg-red-500/15 dark:border-red-500/35 dark:bg-red-950/45 dark:text-red-200 dark:hover:bg-red-950/55"
-                onClick={() => void cancelLesson(cancelConfirmLesson, "following")}
-              >
-                Все последующие
-              </button>
+              {isRecurringLesson(cancelConfirmLesson) ? (
+                <button
+                  type="button"
+                  disabled={cancelSubmittingScope !== null}
+                  className="rounded-lg border border-red-600/25 bg-red-500/10 px-3 py-2 text-sm text-red-800 hover:bg-red-500/15 dark:border-red-500/35 dark:bg-red-950/45 dark:text-red-200 dark:hover:bg-red-950/55 disabled:cursor-not-allowed disabled:opacity-60"
+                  onClick={() => void cancelLesson(cancelConfirmLesson, "following")}
+                >
+                  {cancelSubmittingScope === "following" ? "Отменяем..." : "Все последующие"}
+                </button>
+              ) : null}
             </div>
+            {cancelSubmittingScope !== null ? (
+              <p className="mt-3 text-xs text-ds-text-muted">Применяем изменения в расписании, это может занять пару секунд.</p>
+            ) : null}
           </div>
         </div>
       ) : null}
 
       {cancelSuccessOpen ? (
         <div
-          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/40 p-6"
+          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/35 p-6"
           role="alertdialog"
           aria-live="assertive"
           aria-labelledby="student-cancel-success-title"
+          onClick={() => {
+            setCancelSuccessOpen(false)
+            setCancelSuccessInfo(null)
+          }}
         >
-          <div className="w-full max-w-sm rounded-2xl bg-red-700 px-8 py-10 text-center text-white shadow-2xl dark:bg-red-800">
-            <p id="student-cancel-success-title" className="text-2xl font-semibold text-white">
-              Отменили урок
+          <div
+            className="w-full max-w-md rounded-2xl border border-black/10 bg-[#ead7d9] px-8 py-8 text-center text-[#161616] shadow-2xl dark:border-white/10 dark:bg-[#3a2b2e] dark:text-[#f5f1f1]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p id="student-cancel-success-title" className="text-2xl font-semibold">
+              {cancelSuccessInfo?.scope === "following" ? "Отменили все последующие" : "Отменили урок"}
             </p>
-            <p className="mt-2 text-sm font-medium text-white/85">Слот освобождён в вашем расписании и у преподавателя.</p>
+            <p className="mt-2 text-sm opacity-80">Слот освобожден в вашем расписании и у преподавателя.</p>
+            {cancelSuccessInfo ? (
+              <div className="mt-4 rounded-xl bg-black/5 px-4 py-3 text-left text-sm dark:bg-white/10">
+                <p className="font-medium">{formatLessonHeader(cancelSuccessInfo.lesson)}</p>
+                <p className="mt-1 text-xs opacity-80">{cancelSuccessInfo.lesson.teacher ?? "Преподаватель"}</p>
+                <p className="mt-1 text-xs opacity-80">
+                  {cancelSuccessInfo.scope === "single" ? "Отменили только это занятие" : "Отменили все последующие занятия в цепочке"}
+                </p>
+              </div>
+            ) : null}
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                className="rounded-md bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-black/85"
+                onClick={() => {
+                  setCancelSuccessOpen(false)
+                  setCancelSuccessInfo(null)
+                }}
+              >
+                Понятно
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {studentScheduleNotice ? (
+        <div className="fixed inset-0 z-[141] flex items-center justify-center bg-black/35 p-6" onClick={closeStudentNotice}>
+          <div className="w-full max-w-md rounded-2xl bg-[var(--ds-sage)] px-7 py-7 text-black shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <p className="text-2xl font-semibold">{studentScheduleNotice.title}</p>
+            <p className="mt-2 text-sm opacity-85">{studentScheduleNotice.message}</p>
+            {studentScheduleNotice.fromLabel || studentScheduleNotice.toLabel ? (
+              <div className="mt-3 rounded-xl bg-white/45 px-4 py-3 text-left text-sm">
+                {studentScheduleNotice.fromLabel ? <p><span className="font-semibold">Было:</span> {studentScheduleNotice.fromLabel}</p> : null}
+                {studentScheduleNotice.toLabel ? <p className="mt-1"><span className="font-semibold">Стало:</span> {studentScheduleNotice.toLabel}</p> : null}
+              </div>
+            ) : null}
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                className="rounded-md bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-black/85"
+                onClick={closeStudentNotice}
+              >
+                Понятно
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
@@ -836,7 +1071,8 @@ export function StudentSchedulePage() {
               <h3 className="mb-4 text-3xl font-semibold text-ds-text-primary">Как запланировать занятие?</h3>
               <button
                 type="button"
-                className="mb-2 flex w-full items-center justify-between rounded-xl bg-[var(--ds-neutral-row)] px-4 py-3 text-left text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)]"
+                disabled={planSubmitting}
+                className="mb-2 flex w-full items-center justify-between rounded-xl bg-[var(--ds-neutral-row)] px-4 py-3 text-left text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)] disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={() => {
                   setPlanType("single")
                   setPlanStep("date")
@@ -847,7 +1083,8 @@ export function StudentSchedulePage() {
               </button>
               <button
                 type="button"
-                className="flex w-full items-center justify-between rounded-xl bg-[var(--ds-neutral-row)] px-4 py-3 text-left text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)]"
+                disabled={planSubmitting}
+                className="flex w-full items-center justify-between rounded-xl bg-[var(--ds-neutral-row)] px-4 py-3 text-left text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)] disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={() => {
                   setPlanType("following")
                   setPlanStep("date")
@@ -873,12 +1110,18 @@ export function StudentSchedulePage() {
             ) : (
             planType === "following" ? (
               <StepWeekday
-                lesson={{ id: "plan", dateKey: toDateKey(getAppTodayStart()), time: "10:00", title: "Занятие", type: "lesson" }}
                 weeklySlotsByWeekday={weeklySlotsByWeekday}
                 onBack={() => setPlanStep("type")}
                 onPick={(weekday) => {
-                  const candidate = Object.keys(dateSlots).filter((k) => parseLessonStart(k, "00:00").getDay() === weekday && (dateSlots[k] ?? []).length > 0).sort()[0]
-                  if (candidate) setPlanDateKey(candidate)
+                  const candidate = Object.keys(dateSlots)
+                    .filter((k) => parseLessonStart(k, "00:00").getDay() === weekday && (dateSlots[k] ?? []).length > 0)
+                    .sort()[0]
+                  if (!candidate) {
+                    setActionError("На выбранный день недели нет доступных будущих слотов.")
+                    return
+                  }
+                  setActionError(null)
+                  setPlanDateKey(candidate)
                   setPlanStep("time")
                 }}
               />
@@ -888,6 +1131,7 @@ export function StudentSchedulePage() {
                 dateSlots={dateSlots}
                 slotsLoading={false}
                 slotsError={scheduleSlotsError}
+                showRescheduleHint={false}
                 onBack={() => setPlanStep("type")}
                 onPick={(dateKey) => {
                   setPlanDateKey(dateKey)
@@ -910,12 +1154,41 @@ export function StudentSchedulePage() {
               flowType={planType}
               dateKey={planDateKey}
               slots={dateSlots[planDateKey] ?? []}
+              mode="plan"
+              errorMessage={actionError}
+              isSubmitting={planSubmitting}
               onBack={() => setPlanStep("date")}
               onPick={(time) => void planLesson(time)}
             />
             )
           ) : null}
         </LessonModal>
+      ) : null}
+
+      {planSuccessText ? (
+        <div
+          className="fixed inset-0 z-[142] flex items-center justify-center bg-black/35 p-6"
+          role="status"
+          aria-live="polite"
+          onClick={() => setPlanSuccessText(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-[var(--ds-sage)] px-7 py-7 text-black shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-2xl font-semibold">Урок запланирован</p>
+            <p className="mt-2 text-sm opacity-90">{planSuccessText}</p>
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                className="rounded-md bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-black/85"
+                onClick={() => setPlanSuccessText(null)}
+              >
+                Понятно
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   )
@@ -1025,11 +1298,13 @@ function StepMenu({
   )
 }
 
-function StepType({ onBack, onPick }: { onBack: () => void; onPick: (v: FlowType) => void }) {
+function StepType({ allowFollowing, onBack, onPick }: { allowFollowing: boolean; onBack: () => void; onPick: (v: FlowType) => void }) {
   return (
     <div>
       <button className="mb-3 rounded-lg px-2 py-1 text-sm text-ds-text-muted hover:bg-[var(--ds-neutral-row-hover)] hover:text-ds-text-primary" onClick={onBack}>Назад</button>
-      <h3 className="mb-4 text-4xl font-semibold text-ds-text-primary">Что вы хотите перенести?</h3>
+      <h3 className="mb-4 text-4xl font-semibold text-ds-text-primary">
+        {allowFollowing ? "Что вы хотите перенести?" : "Перенести урок"}
+      </h3>
       <button
         type="button"
         className="mb-2 flex w-full items-center justify-between rounded-xl bg-[var(--ds-neutral-row)] px-4 py-3 text-left text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)]"
@@ -1040,16 +1315,18 @@ function StepType({ onBack, onPick }: { onBack: () => void; onPick: (v: FlowType
         </div>
         <ChevronRight size={18} className="shrink-0 text-ds-text-muted" />
       </button>
-      <button
-        type="button"
-        className="flex w-full items-center justify-between rounded-xl bg-[var(--ds-neutral-row)] px-4 py-3 text-left text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)]"
-        onClick={() => onPick("following")}
-      >
-        <div>
-          <div className="text-lg font-medium">Все регулярные занятия</div>
-        </div>
-        <ChevronRight size={18} className="shrink-0 text-ds-text-muted" />
-      </button>
+      {allowFollowing ? (
+        <button
+          type="button"
+          className="flex w-full items-center justify-between rounded-xl bg-[var(--ds-neutral-row)] px-4 py-3 text-left text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)]"
+          onClick={() => onPick("following")}
+        >
+          <div>
+            <div className="text-lg font-medium">Все регулярные занятия</div>
+          </div>
+          <ChevronRight size={18} className="shrink-0 text-ds-text-muted" />
+        </button>
+      ) : null}
     </div>
   )
 }
@@ -1059,6 +1336,7 @@ function StepDate({
   dateSlots,
   slotsLoading,
   slotsError,
+  showRescheduleHint = true,
   onBack,
   onPick
 }: {
@@ -1066,10 +1344,11 @@ function StepDate({
   dateSlots: DateSlots
   slotsLoading?: boolean
   slotsError?: string | null
+  showRescheduleHint?: boolean
   onBack: () => void
   onPick: (dateKey: string) => void
 }) {
-  const days = nextDaysFromAppNow(21)
+  const days = nextDaysFromAppNow(STUDENT_RESCHEDULE_DAYS_AHEAD)
   return (
     <div>
       <button className="mb-3 rounded-lg px-2 py-1 text-sm text-ds-text-muted hover:bg-[var(--ds-neutral-row-hover)] hover:text-ds-text-primary" onClick={onBack}>Назад</button>
@@ -1096,7 +1375,7 @@ function StepDate({
           )
         })}
       </div>
-      {!canRescheduleLesson(lesson.dateKey, lesson.time) ? (
+      {showRescheduleHint && !canRescheduleLesson(lesson.dateKey, lesson.time) ? (
         <p className="mt-3 text-sm text-red-700 dark:text-red-300">Перенос недоступен: до начала урока осталось менее 24 часов.</p>
       ) : null}
     </div>
@@ -1104,17 +1383,16 @@ function StepDate({
 }
 
 function StepWeekday({
-  lesson,
+  originWeekday,
   weeklySlotsByWeekday,
   onBack,
   onPick
 }: {
-  lesson: ScheduledLesson
+  originWeekday?: number
   weeklySlotsByWeekday: Record<number, string[]>
   onBack: () => void
   onPick: (weekday: number) => void
 }) {
-  const baseWeekday = parseLessonStart(lesson.dateKey, lesson.time).getDay()
   const weekdays = [1, 2, 3, 4, 5, 6, 0]
   return (
     <div>
@@ -1126,23 +1404,36 @@ function StepWeekday({
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {weekdays.map((weekday) => {
           const availableCount = (weeklySlotsByWeekday[weekday] ?? []).length
-          const isCurrent = weekday === baseWeekday
+          const isCurrent = originWeekday !== undefined && weekday === originWeekday
           const label = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"][weekday]
           return (
             <button
               key={`weekday-${weekday}`}
               disabled={availableCount === 0}
+              type="button"
               className={`rounded-xl border px-3 py-3 text-left ${
                 availableCount > 0
                   ? isCurrent
-                    ? "border-[var(--ds-sage-strong)] bg-[var(--ds-sage)] text-ds-text-primary hover:bg-[var(--ds-sage-hover)]"
+                    ? "group border-[var(--ds-sage-strong)] bg-[var(--ds-sage)] text-ds-text-primary hover:bg-[var(--ds-sage-hover)]"
                     : "border-black/10 bg-ds-surface text-ds-text-primary hover:bg-ds-surface-hover dark:border-white/10"
                   : "border-black/5 bg-ds-neutral-row text-ds-text-tertiary dark:border-white/10"
               }`}
               onClick={() => onPick(weekday)}
             >
-              <div className="text-sm font-medium">{label}</div>
-              <div className="text-xs">{availableCount > 0 ? `слотов: ${availableCount}` : "Нет доступных слотов"}</div>
+              <div
+                className={`text-sm font-medium${
+                  availableCount > 0 && isCurrent ? " group-hover:text-black dark:group-hover:text-black" : ""
+                }`}
+              >
+                {label}
+              </div>
+              <div
+                className={`text-xs${
+                  availableCount > 0 && isCurrent ? " group-hover:text-black/90 dark:group-hover:text-black/90" : ""
+                }`}
+              >
+                {availableCount > 0 ? `слотов: ${availableCount}` : "Нет доступных слотов"}
+              </div>
             </button>
           )
         })}
@@ -1156,6 +1447,9 @@ function StepTime({
   flowType,
   dateKey,
   slots,
+  mode = "reschedule",
+  errorMessage,
+  isSubmitting,
   onBack,
   onPick
 }: {
@@ -1163,43 +1457,62 @@ function StepTime({
   flowType: FlowType
   dateKey: string
   slots: string[]
+  mode?: "reschedule" | "plan"
+  errorMessage?: string | null
+  isSubmitting?: boolean
   onBack: () => void
   onPick: (time: string) => void
 }) {
   const lessonWeekday = parseLessonStart(lesson.dateKey, lesson.time).getDay()
   const targetWeekday = parseLessonStart(dateKey, "00:00").getDay()
   const regular = slots.filter((t) => targetWeekday === lessonWeekday && isValidRescheduleTargetSlot(dateKey, t))
-  const single = slots.filter((t) => (targetWeekday !== lessonWeekday || !regular.includes(t)) && isValidRescheduleTargetSlot(dateKey, t))
-  const weeklyOptions = slots.filter((t) => isValidRescheduleTargetSlot(dateKey, t))
+  const single = slots.filter((t) => isValidRescheduleTargetSlot(dateKey, t))
+  const weeklyOptions = slots.filter((t) => isValidStudentBookingTargetSlot(dateKey, t))
+  const planOptions = slots.filter((t) => isValidStudentBookingTargetSlot(dateKey, t))
   return (
     <div>
       <button className="mb-3 rounded-lg px-2 py-1 text-sm text-ds-text-muted hover:bg-[var(--ds-neutral-row-hover)] hover:text-ds-text-primary" onClick={onBack}>Назад</button>
       <h3 className="mb-3 text-3xl font-semibold text-ds-text-primary">{formatDateLabel(dateKey)}</h3>
-      {flowType === "following" ? (
+      {mode === "plan" ? (
+        <>
+          <div className="mb-2 text-lg font-medium text-ds-text-primary">
+            {flowType === "following" ? "Слоты для еженедельного расписания" : "Доступные слоты"}
+          </div>
+          <SlotsGrid slots={planOptions} onPick={onPick} disabled={Boolean(isSubmitting)} />
+        </>
+      ) : flowType === "following" ? (
         <>
           <div className="mb-2 text-lg font-medium text-ds-text-primary">Слоты для регулярного переноса</div>
-          <SlotsGrid slots={weeklyOptions} onPick={onPick} />
+          <SlotsGrid slots={weeklyOptions} onPick={onPick} disabled={Boolean(isSubmitting)} />
         </>
       ) : (
         <>
-          <div className="mb-2 text-lg font-medium text-ds-text-primary">Регулярные слоты</div>
-          <SlotsGrid slots={regular} onPick={onPick} />
-          <div className="mb-2 mt-4 text-lg font-medium text-ds-text-primary">Разовые слоты</div>
-          <SlotsGrid slots={single} onPick={onPick} />
+          <div className="mb-2 text-lg font-medium text-ds-text-primary">Разовые слоты</div>
+          <SlotsGrid slots={single} onPick={onPick} disabled={Boolean(isSubmitting)} />
         </>
       )}
+      {isSubmitting ? (
+        <p className="mt-3 text-sm text-ds-text-muted">{mode === "plan" ? "Планируем урок..." : "Переносим урок..."}</p>
+      ) : null}
+      {errorMessage ? (
+        <div className="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-800 dark:bg-red-950/45 dark:text-red-200">
+          {errorMessage}
+        </div>
+      ) : null}
     </div>
   )
 }
 
-function SlotsGrid({ slots, onPick }: { slots: string[]; onPick: (time: string) => void }) {
+function SlotsGrid({ slots, onPick, disabled = false }: { slots: string[]; onPick: (time: string) => void; disabled?: boolean }) {
   if (slots.length === 0) return <div className="rounded-xl bg-ds-neutral-row px-4 py-3 text-sm text-ds-text-muted">Нет доступных слотов</div>
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {slots.map((time) => (
         <button
           key={time}
-          className="rounded-xl bg-[var(--ds-neutral-row)] px-3 py-2 text-center text-base text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)]"
+          type="button"
+          disabled={disabled}
+          className="rounded-xl bg-[var(--ds-neutral-row)] px-3 py-2 text-center text-base text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)] disabled:cursor-not-allowed disabled:opacity-60"
           onClick={() => onPick(time)}
         >
           {time}
@@ -1244,7 +1557,8 @@ function toDateKey(d: Date) {
 
 /** Дни для шага «Выберите день» — календарные Y-M-D в часовом поясе школы, как у слотов из API. */
 function nextDaysFromAppNow(count: number) {
-  const { dateKey: start } = wallClockFromDateInSchoolTz(getAppNow())
+  // Только от полуночи «сегодня» по логике приложения — без вчера и без смешения с wall-clock TZ.
+  const start = dateKeyFromDate(getAppTodayStart())
   const arr: string[] = []
   let dk = start
   for (let i = 0; i < count; i++) {
@@ -1257,6 +1571,19 @@ function nextDaysFromAppNow(count: number) {
 function formatDateLabel(dateKey: string) {
   const d = new Date(`${dateKey}T00:00:00`)
   return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short", weekday: "short" })
+}
+
+function formatRecurringWeekdayLabel(weekday: number): string {
+  const map: Record<number, string> = {
+    0: "воскресеньям",
+    1: "понедельникам",
+    2: "вторникам",
+    3: "средам",
+    4: "четвергам",
+    5: "пятницам",
+    6: "субботам"
+  }
+  return map[weekday] ?? "выбранным дням"
 }
 
 function capitalize(s: string) {

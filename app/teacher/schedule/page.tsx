@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import {
   Ban,
   Bell,
@@ -22,6 +22,7 @@ import {
   X
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { getAppNow } from "@/lib/app-time"
 import { firstRecurringSlotDateKey } from "@/lib/schedule/calendar-ymd"
 import { isFirstScheduledSlotInPast, nextEligibleStartDateKey } from "@/lib/schedule/recurring-slot-eligibility"
 import { addDays, buildHourlyIsoSlots, startOfWeekMonday } from "@/lib/teacher-schedule"
@@ -154,7 +155,7 @@ export default function TeacherSchedulePage() {
   const [timezone, setTimezone] = useState("Europe/Moscow")
   const [drag, setDrag] = useState<DragState | null>(null)
   const [popover, setPopover] = useState<{ x: number; y: number; dayIdx: number; fromHour: number; toHour: number } | null>(null)
-  const [nowTs, setNowTs] = useState(Date.now())
+  const [nowTs, setNowTs] = useState(() => getAppNow().getTime())
   const [saving, setSaving] = useState(false)
   const [ready, setReady] = useState(false)
   const [calendarRangeLoading, setCalendarRangeLoading] = useState(false)
@@ -207,6 +208,12 @@ export default function TeacherSchedulePage() {
   const [rescheduleOpen, setRescheduleOpen] = useState(false)
   const [rescheduleSlot, setRescheduleSlot] = useState({ date: "", hour: "10" })
   const [actionToast, setActionToast] = useState<string | null>(null)
+  const [actionSubmitting, setActionSubmitting] = useState(false)
+  const [actionResultPopup, setActionResultPopup] = useState<{
+    tone: "success" | "cancel"
+    title: string
+    message: string
+  } | null>(null)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [scheduleNotifications, setScheduleNotifications] = useState<ScheduleNotificationItem[]>([])
   const [notificationDetails, setNotificationDetails] = useState<ScheduleNotificationItem | null>(null)
@@ -221,12 +228,13 @@ export default function TeacherSchedulePage() {
   }, [anchorDate, showWeekends, viewMode, weekStart])
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNowTs(Date.now()), 60_000)
+    setNowTs(getAppNow().getTime())
+    const timer = window.setInterval(() => setNowTs(getAppNow().getTime()), 60_000)
     return () => window.clearInterval(timer)
   }, [])
 
   useEffect(() => {
-    if (createOpen) setNowTs(Date.now())
+    if (createOpen) setNowTs(getAppNow().getTime())
   }, [createOpen])
 
   useEffect(() => {
@@ -240,6 +248,13 @@ export default function TeacherSchedulePage() {
     if (!notificationsOpen || !user || (user.role !== "teacher" && user.role !== "curator")) return
     markScheduleNotificationsRead("teacher", user.id)
   }, [notificationsOpen, user])
+
+  useEffect(() => {
+    if (!lessonActions) return
+    const slotMs = new Date(lessonActions.lesson.slot_at).getTime()
+    if (!Number.isFinite(slotMs) || slotMs > nowTs) return
+    setLessonActions(null)
+  }, [lessonActions, nowTs])
 
   useEffect(() => {
     if (!scheduleSearchPulse) return
@@ -487,18 +502,21 @@ export default function TeacherSchedulePage() {
       const hour = Number(time.slice(0, 2))
       const dayIdx = visibleDateKeys.findIndex((key) => key === dateKey)
       if (dayIdx < 0) continue
-      const dt = new Date(`${dateKey}T${time}:00`)
+      const fromSlotAt = new Date(lesson.slot_at).getTime()
+      const startMs = Number.isFinite(fromSlotAt)
+        ? fromSlotAt
+        : new Date(`${dateKey}T${String(hour).padStart(2, "0")}:00`).getTime()
       byDay[dayIdx].push({
         top: hour * ROW_HEIGHT,
         label: lesson.student_name || lesson.title || "Занятие",
         time,
         lesson,
         hour,
-        isPast: dt.getTime() < Date.now()
+        isPast: Number.isFinite(startMs) && startMs <= nowTs
       })
     }
     return byDay
-  }, [externalLessons, timezone, visibleDays])
+  }, [externalLessons, timezone, visibleDays, nowTs])
 
   const searchResults = useMemo(() => {
     const q = searchText.trim().toLowerCase()
@@ -654,12 +672,22 @@ export default function TeacherSchedulePage() {
     setLessonActions(null)
   }
 
-  const rescheduleExternalLesson = async (scope: "single" | "following") => {
-    if (!lessonDecision || lessonDecision.action !== "reschedule" || !lessonDecision.toDateKey || lessonDecision.toHour === undefined) return
-    await fetch("/api/schedule/external-lesson", {
+  const postJson = useCallback(async (url: string, payload: unknown) => {
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+      body: JSON.stringify(payload)
+    })
+    const body = (await res.json().catch(() => ({}))) as { error?: string }
+    if (!res.ok) throw new Error(body.error || "Операция не выполнена")
+    return body
+  }, [])
+
+  const rescheduleExternalLesson = async (scope: "single" | "following") => {
+    if (!lessonDecision || lessonDecision.action !== "reschedule" || !lessonDecision.toDateKey || lessonDecision.toHour === undefined) return
+    setActionSubmitting(true)
+    try {
+      await postJson("/api/schedule/external-lesson", {
         action: "reschedule",
         lesson: lessonDecision.lesson,
         to_date_key: lessonDecision.toDateKey,
@@ -667,61 +695,89 @@ export default function TeacherSchedulePage() {
         scope,
         timezone
       })
-    })
-    setRescheduleOpen(false)
-    setLessonDecision(null)
-    const fromDate = new Date(lessonDecision.lesson.slot_at)
-    const fromLabel = `${localDateKey(fromDate)} ${String(fromDate.getHours()).padStart(2, "0")}:00`
-    const toLabel = `${lessonDecision.toDateKey} ${String(lessonDecision.toHour).padStart(2, "0")}:00`
-    pushScheduleNotification({
-      audience: "student",
-      audienceId: lessonDecision.lesson.student_id,
-      title: "Преподаватель перенёс занятие",
-      message: scope === "following" ? "Изменены все последующие занятия." : "Изменено время ближайшего занятия.",
-      fromLabel,
-      toLabel,
-      targetDateKey: lessonDecision.toDateKey
-    })
-    setActionToast(scope === "following" ? "Перенесены все последующие занятия" : "Занятие перенесено")
-    window.setTimeout(() => setActionToast(null), 2500)
-    await refreshCalendarData()
+      setRescheduleOpen(false)
+      setLessonDecision(null)
+      const fromDate = new Date(lessonDecision.lesson.slot_at)
+      const fromLabel = `${localDateKey(fromDate)} ${String(fromDate.getHours()).padStart(2, "0")}:00`
+      const toLabel = `${lessonDecision.toDateKey} ${String(lessonDecision.toHour).padStart(2, "0")}:00`
+      pushScheduleNotification({
+        audience: "student",
+        audienceId: lessonDecision.lesson.student_id,
+        title: "Преподаватель перенёс занятие",
+        message: scope === "following" ? "Изменены все последующие занятия." : "Изменено время ближайшего занятия.",
+        fromLabel,
+        toLabel,
+        targetDateKey: lessonDecision.toDateKey
+      })
+      setActionToast(scope === "following" ? "Перенесены все последующие занятия" : "Занятие перенесено")
+      window.setTimeout(() => setActionToast(null), 2500)
+      setActionResultPopup({
+        tone: "success",
+        title: scope === "following" ? "Перенесли все последующие" : "Занятие перенесено",
+        message: `${fromLabel} → ${toLabel}`
+      })
+      await refreshCalendarData()
+    } catch (error) {
+      setActionToast(error instanceof Error ? error.message : "Не удалось перенести занятие")
+      window.setTimeout(() => setActionToast(null), 3500)
+    } finally {
+      setActionSubmitting(false)
+    }
   }
 
   const confirmCancelExternalLesson = async (scope: "single" | "following") => {
     if (!lessonDecision || lessonDecision.action !== "cancel") return
-    await fetch("/api/schedule/external-lesson", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "cancel", lesson: lessonDecision.lesson, scope, timezone })
-    })
-    pushScheduleNotification({
-      audience: "student",
-      audienceId: lessonDecision.lesson.student_id,
-      title: "Преподаватель отменил занятие",
-      message: scope === "following" ? "Отменены все последующие занятия." : "Отменено одно занятие.",
-      fromLabel: `${localDateKey(new Date(lessonDecision.lesson.slot_at))} ${String(new Date(lessonDecision.lesson.slot_at).getHours()).padStart(2, "0")}:00`
-    })
-    setLessonDecision(null)
-    setActionToast(scope === "following" ? "Отменены все последующие занятия" : "Занятие отменено")
-    window.setTimeout(() => setActionToast(null), 2500)
-    await refreshCalendarData()
+    setActionSubmitting(true)
+    try {
+      await postJson("/api/schedule/external-lesson", {
+        action: "cancel",
+        lesson: lessonDecision.lesson,
+        scope,
+        timezone
+      })
+      pushScheduleNotification({
+        audience: "student",
+        audienceId: lessonDecision.lesson.student_id,
+        title: "Преподаватель отменил занятие",
+        message: scope === "following" ? "Отменены все последующие занятия." : "Отменено одно занятие.",
+        fromLabel: `${localDateKey(new Date(lessonDecision.lesson.slot_at))} ${String(new Date(lessonDecision.lesson.slot_at).getHours()).padStart(2, "0")}:00`
+      })
+      setLessonDecision(null)
+      setActionToast(scope === "following" ? "Отменены все последующие занятия" : "Занятие отменено")
+      window.setTimeout(() => setActionToast(null), 2500)
+      setActionResultPopup({
+        tone: "cancel",
+        title: scope === "following" ? "Отменили все последующие" : "Занятие отменено",
+        message: `${localDateKey(new Date(lessonDecision.lesson.slot_at))} ${String(new Date(lessonDecision.lesson.slot_at).getHours()).padStart(2, "0")}:00`
+      })
+      await refreshCalendarData()
+    } catch (error) {
+      setActionToast(error instanceof Error ? error.message : "Не удалось отменить занятие")
+      window.setTimeout(() => setActionToast(null), 3500)
+    } finally {
+      setActionSubmitting(false)
+    }
   }
 
   const saveLessonStatus = async () => {
     if (!statusLesson) return
-    await fetch("/api/schedule/lesson-status", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    setActionSubmitting(true)
+    try {
+      await postJson("/api/schedule/lesson-status", {
         lesson: statusLesson,
         status: statusValue
       })
-    })
-    setLessonStatusOpen(false)
-    setStatusLesson(null)
-    setActionToast(statusValue === "completed" ? "Отмечено как проведено" : statusValue === "charged_absence" ? "Отмечено как поздняя отмена (засчитано)" : "Статус занятия обновлён")
-    window.setTimeout(() => setActionToast(null), 2500)
-    await refreshCalendarData()
+      setLessonStatusOpen(false)
+      setStatusLesson(null)
+      setActionToast(statusValue === "completed" ? "Отмечено как проведено" : statusValue === "charged_absence" ? "Отмечено как поздняя отмена (засчитано)" : "Статус занятия обновлён")
+      window.setTimeout(() => setActionToast(null), 2500)
+      await refreshCalendarData()
+    } catch (error) {
+      setActionToast(error instanceof Error ? error.message : "Не удалось обновить статус")
+      window.setTimeout(() => setActionToast(null), 3500)
+    } finally {
+      setActionSubmitting(false)
+    }
   }
 
   const addAvailabilityInterval = (day: WeekdayKey) => {
@@ -1074,38 +1130,62 @@ export default function TeacherSchedulePage() {
                         const lesson = b.lesson
                         const externalPulse =
                           scheduleSearchPulse?.kind === "external" && scheduleSearchPulse.slotAt === lesson.slot_at
-                        return (
+                        const activeClass =
+                          lesson.type === "charged_absence"
+                            ? "pointer-events-auto absolute left-[2px] right-[2px] rounded-[6px] p-1.5 pl-7 text-left text-[11px] transition hover:ring-2 bg-[#f6c7c3] text-[#7f1d1d] hover:bg-[#f0b4ae] hover:ring-[#b3261e]/20 dark:bg-[#4a2528] dark:text-[#fecaca] dark:hover:bg-[#5c2e32] dark:hover:ring-[#f87171]/25"
+                            : "pointer-events-auto absolute left-[2px] right-[2px] rounded-[6px] p-1.5 pl-7 text-left text-[11px] transition hover:ring-2 bg-[#81c995]/70 text-[#0d652d] hover:bg-[#81c995] hover:ring-[#0d652d]/20 dark:bg-[#1e3d2e]/95 dark:text-[#b9f6ca] dark:hover:bg-[#255238] dark:hover:ring-[#81c995]/30"
+                        const pastClass = `pointer-events-none absolute left-[2px] right-[2px] rounded-[6px] border border-black/10 bg-ds-neutral-row p-1.5 pl-7 text-left text-[11px] text-ds-text-muted opacity-70 dark:border-white/10 ${externalPulse ? "schedule-lesson-search-pulse" : ""}`
+                        const cardClass = b.isPast ? pastClass : `${activeClass} ${externalPulse ? "schedule-lesson-search-pulse" : ""}`
+                        const cardInner = (
+                          <>
+                            <span className="absolute left-1.5 top-1.5 h-4 w-4 overflow-hidden rounded-[4px] bg-white/80 dark:bg-white/10">
+                              <img
+                                src={lesson.student_avatar_url || "/students/yana.png"}
+                                alt={lesson.student_name || "Ученик"}
+                                className="h-full w-full object-cover"
+                              />
+                            </span>
+                            {lesson.type === "completed" ? (
+                              <CheckCircle2
+                                size={12}
+                                className={`absolute right-1 top-1 ${b.isPast ? "text-ds-text-muted" : "text-[#0d652d] dark:text-[#b9f6ca]"}`}
+                              />
+                            ) : null}
+                            {lesson.type === "charged_absence" && !b.isPast ? (
+                              <span className="absolute right-1 top-1 rounded bg-[#b3261e] px-1 text-[9px] text-white">late</span>
+                            ) : null}
+                            <div className="truncate leading-tight">{b.label}</div>
+                          </>
+                        )
+                        return b.isPast ? (
+                          <div
+                            key={`${dayIdx}-external-${i}`}
+                            data-external-slot-at={lesson.slot_at}
+                            className={cardClass}
+                            style={{ top: b.top + 1, height: SLOT_HEIGHT }}
+                            role="note"
+                            aria-label={`Прошедший урок ${b.label}`}
+                          >
+                            {cardInner}
+                          </div>
+                        ) : (
                           <button
-                          key={`${dayIdx}-external-${i}`}
-                          type="button"
-                          data-external-slot-at={lesson.slot_at}
-                          className={`pointer-events-auto absolute left-[2px] right-[2px] rounded-[6px] p-1.5 pl-7 text-left text-[11px] transition hover:ring-2 ${
-                            lesson.type === "charged_absence"
-                              ? "bg-[#f6c7c3] text-[#7f1d1d] hover:bg-[#f0b4ae] hover:ring-[#b3261e]/20 dark:bg-[#4a2528] dark:text-[#fecaca] dark:hover:bg-[#5c2e32] dark:hover:ring-[#f87171]/25"
-                              : "bg-[#81c995]/70 text-[#0d652d] hover:bg-[#81c995] hover:ring-[#0d652d]/20 dark:bg-[#1e3d2e]/95 dark:text-[#b9f6ca] dark:hover:bg-[#255238] dark:hover:ring-[#81c995]/30"
-                          } ${b.isPast ? "opacity-70" : ""} ${externalPulse ? "schedule-lesson-search-pulse" : ""}`}
-                          style={{ top: b.top + 1, height: SLOT_HEIGHT }}
-                          draggable
-                          onDragStart={() => {
-                            if (!lesson) return
-                            setDraggedLesson(lesson)
-                            setDragTarget(null)
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setLessonActions({ x: e.clientX, y: e.clientY, lesson })
-                          }}
-                        >
-                          <span className="absolute left-1.5 top-1.5 h-4 w-4 overflow-hidden rounded-[4px] bg-white/80">
-                            <img
-                              src={lesson.student_avatar_url || "/students/yana.png"}
-                              alt={lesson.student_name || "Ученик"}
-                              className="h-full w-full object-cover"
-                            />
-                          </span>
-                          {lesson.type === "completed" ? <CheckCircle2 size={12} className="absolute right-1 top-1 text-[#0d652d]" /> : null}
-                          {lesson.type === "charged_absence" ? <span className="absolute right-1 top-1 rounded bg-[#b3261e] px-1 text-[9px] text-white">late</span> : null}
-                          <div className="truncate leading-tight">{b.label}</div>
+                            key={`${dayIdx}-external-${i}`}
+                            type="button"
+                            data-external-slot-at={lesson.slot_at}
+                            className={cardClass}
+                            style={{ top: b.top + 1, height: SLOT_HEIGHT }}
+                            draggable
+                            onDragStart={() => {
+                              setDraggedLesson(lesson)
+                              setDragTarget(null)
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setLessonActions({ x: e.clientX, y: e.clientY, lesson })
+                            }}
+                          >
+                            {cardInner}
                           </button>
                         )
                       })}
@@ -1257,6 +1337,7 @@ export default function TeacherSchedulePage() {
               <button
                 type="button"
                 className="rounded-lg px-3 py-2 text-sm text-[#202124] transition-colors hover:bg-black/[0.06] active:bg-black/10 dark:text-[#e8eaed] dark:hover:bg-white/[0.1] dark:active:bg-white/[0.14]"
+                disabled={actionSubmitting}
                 onClick={() => setLessonDecision(null)}
               >
                 Отмена
@@ -1264,16 +1345,18 @@ export default function TeacherSchedulePage() {
               <button
                 type="button"
                 className="rounded-lg border border-black/10 px-3 py-2 text-sm text-[#202124] transition-colors hover:bg-black/[0.06] dark:border-white/15 dark:text-[#e8eaed] dark:hover:bg-white/[0.1] dark:active:bg-white/[0.14]"
+                disabled={actionSubmitting}
                 onClick={() => (lessonDecision.action === "cancel" ? void confirmCancelExternalLesson("single") : void rescheduleExternalLesson("single"))}
               >
-                Только это
+                {actionSubmitting ? <Loader2 className="mx-auto size-4 animate-spin" aria-hidden /> : "Только это"}
               </button>
               <button
                 type="button"
                 className="rounded-lg border border-black/10 bg-black px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-black/85 active:bg-black/90 dark:border-[#b8d97a]/40 dark:bg-[var(--ds-sage-strong)] dark:text-[#121212] dark:hover:bg-[var(--ds-sage-hover)] dark:active:opacity-95"
+                disabled={actionSubmitting}
                 onClick={() => (lessonDecision.action === "cancel" ? void confirmCancelExternalLesson("following") : void rescheduleExternalLesson("following"))}
               >
-                Все последующие
+                {actionSubmitting ? <Loader2 className="mx-auto size-4 animate-spin" aria-hidden /> : "Все последующие"}
               </button>
             </div>
           </div>
@@ -1312,15 +1395,17 @@ export default function TeacherSchedulePage() {
             <div className="mt-4 flex justify-end gap-2">
               <button
                 className="rounded-lg px-4 py-2 text-sm text-[#202124] hover:bg-black/5 dark:text-[#e8eaed] dark:hover:bg-white/10"
+                disabled={actionSubmitting}
                 onClick={() => setRescheduleOpen(false)}
               >
                 Отмена
               </button>
               <button
                 className="rounded-lg border border-black/10 bg-black px-5 py-2 text-sm text-white hover:bg-black/85 dark:border-[#b8d97a]/40 dark:bg-[var(--ds-sage-strong)] dark:text-[#121212] dark:hover:bg-[var(--ds-sage-hover)]"
+                disabled={actionSubmitting}
                 onClick={() => void rescheduleExternalLesson("single")}
               >
-                Сохранить
+                {actionSubmitting ? <Loader2 className="mx-auto size-4 animate-spin" aria-hidden /> : "Сохранить"}
               </button>
             </div>
           </div>
@@ -1378,6 +1463,7 @@ export default function TeacherSchedulePage() {
               <button
                 type="button"
                 className="rounded-lg px-3 py-2 text-sm text-[#202124] transition-colors hover:bg-black/[0.06] active:bg-black/10 dark:text-[#e8eaed] dark:hover:bg-white/[0.1] dark:active:bg-white/[0.14]"
+                disabled={actionSubmitting}
                 onClick={() => setLessonStatusOpen(false)}
               >
                 Отмена
@@ -1385,9 +1471,10 @@ export default function TeacherSchedulePage() {
               <button
                 type="button"
                 className="rounded-lg border border-black/10 bg-black px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-black/85 active:bg-black/90 dark:border-[#b8d97a]/40 dark:bg-[var(--ds-sage-strong)] dark:text-[#121212] dark:hover:bg-[var(--ds-sage-hover)] dark:active:opacity-95"
+                disabled={actionSubmitting}
                 onClick={() => void saveLessonStatus()}
               >
-                Сохранить
+                {actionSubmitting ? <Loader2 className="mx-auto size-4 animate-spin" aria-hidden /> : "Сохранить"}
               </button>
             </div>
           </div>
@@ -1486,7 +1573,7 @@ export default function TeacherSchedulePage() {
 
       {createOpen ? (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/35 p-4">
-          <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl dark:bg-[#1a1d21]">
+          <div className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl dark:bg-[#1a1d21]">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0 flex-1 pr-2">
                 <h2 className="text-2xl font-semibold text-[#202124] dark:text-white">Создать занятие</h2>
@@ -1568,10 +1655,10 @@ export default function TeacherSchedulePage() {
                   Одна дата и время — занятие появится только в выбранный день.
                 </p>
               )}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2 text-sm text-[#5f6368] dark:text-[#b0b6c0]">
                   <span className="block">{createScheduleKind === "single" ? "Дата занятия" : "Начиная с даты"}</span>
-                  <div className="mt-1">
+                  <div className="mt-2">
                     <DateMiniSelect
                       value={createStartDateKey}
                       onChange={setCreateStartDateKey}
@@ -1580,7 +1667,7 @@ export default function TeacherSchedulePage() {
                 </div>
                 <div className="text-sm text-[#5f6368] dark:text-[#b0b6c0]">
                   <span className="block">Время</span>
-                  <div className="mt-1">
+                  <div className="mt-2">
                     <TimeSelect
                       value={`${String(createHour).padStart(2, "0")}:00`}
                       options={HOUR_OPTIONS}
@@ -1592,14 +1679,14 @@ export default function TeacherSchedulePage() {
                 {createScheduleKind === "recurring" ? (
                   <label className="text-sm text-[#5f6368] dark:text-[#b0b6c0]">
                     Горизонт (недель)
-                    <div className="mt-1 flex w-full items-stretch overflow-hidden rounded-lg border border-black/10 bg-[#f8f9fa] dark:border-white/10 dark:bg-[#23272d]">
+                    <div className="mt-2 flex h-11 w-full items-stretch overflow-hidden rounded-lg border border-black/10 bg-[#f8f9fa] dark:border-white/10 dark:bg-[#23272d]">
                       <input
                         type="number"
                         min={1}
                         max={26}
                         value={createWeeks}
                         onChange={(e) => setCreateWeeks(Math.min(26, Math.max(1, Number(e.target.value) || 1)))}
-                        className="w-full bg-transparent px-3 py-2 text-[#202124] outline-none [appearance:textfield] dark:text-white [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        className="h-11 w-full bg-transparent px-3 py-2 text-[#202124] outline-none [appearance:textfield] dark:text-white [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                       />
                       <div className="flex flex-col border-l border-black/10 dark:border-white/10">
                         <button
@@ -1623,19 +1710,19 @@ export default function TeacherSchedulePage() {
                   </label>
                 ) : null}
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <label className="col-span-2 text-sm text-[#5f6368]">
                   Название занятия
                   <input
                     value={createTitle}
                     onChange={(e) => setCreateTitle(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-black/10 bg-[#f8f9fa] px-3 py-2 text-[#202124] dark:border-white/10 dark:bg-[#23272d] dark:text-white"
+                    className="mt-2 h-11 w-full rounded-md bg-[#f8f9fa] px-3 py-2 text-[#202124] dark:bg-[#23272d] dark:text-white"
                     placeholder="Например: Занятие с Ириной"
                   />
                 </label>
                 <div className="text-sm text-[#5f6368]">
                   <span className="block">Тип</span>
-                  <div className="mt-1">
+                  <div className="mt-2">
                     <CustomSelect
                       value={createMode}
                       options={[
@@ -1648,7 +1735,7 @@ export default function TeacherSchedulePage() {
                 </div>
                 <div className="text-sm text-[#5f6368]">
                   <span className="block">Ученик</span>
-                  <div className="mt-1">
+                  <div className="mt-2">
                     <CustomSelect
                       value={createStudentId}
                       options={[{ value: "", label: "Выбрать ученика" }, ...students.map((s) => ({ value: s.id, label: s.name }))]}
@@ -1660,7 +1747,7 @@ export default function TeacherSchedulePage() {
               </div>
             </div>
             {createPastSlotHint.firstInPast ? (
-              <div className="rounded-xl border border-amber-200/90 bg-amber-50 px-4 py-3 text-left text-sm text-amber-950 dark:border-amber-500/35 dark:bg-amber-950/30 dark:text-amber-50">
+              <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-left text-sm text-amber-950 dark:bg-amber-950/30 dark:text-amber-50">
                 <p className="font-medium">
                   В часовом поясе календаря выбранное время на ближайшую дату из шаблона уже прошло — такое занятие создать нельзя.
                 </p>
@@ -1675,7 +1762,7 @@ export default function TeacherSchedulePage() {
                     </p>
                     <button
                       type="button"
-                      className="shrink-0 rounded-lg bg-amber-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-950 active:scale-[0.99] dark:bg-amber-300 dark:text-amber-950 dark:hover:bg-amber-200"
+                      className="shrink-0 rounded-md bg-black px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-black/85 active:scale-[0.99] dark:bg-black dark:text-white dark:hover:bg-black/85"
                       onClick={() => setCreateStartDateKey(createPastSlotHint.suggestedStart!)}
                     >
                       {createScheduleKind === "single" ? "Установить эту дату" : "Начать с этой даты"}
@@ -1837,6 +1924,31 @@ export default function TeacherSchedulePage() {
       {actionToast ? (
         <div className="fixed bottom-4 right-4 z-[100] rounded-lg bg-[#202124] px-3 py-2 text-sm text-white shadow-lg">
           {actionToast}
+        </div>
+      ) : null}
+
+      {actionResultPopup ? (
+        <div className="fixed inset-0 z-[135] flex items-center justify-center bg-black/35 p-4" onClick={() => setActionResultPopup(null)}>
+          <div
+            className={`w-full max-w-md rounded-2xl p-6 text-center shadow-2xl ${
+              actionResultPopup.tone === "success"
+                ? "bg-[var(--ds-sage)] text-black"
+                : "bg-[#f6dede] text-black dark:bg-[#f2caca]"
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-2xl font-semibold">{actionResultPopup.title}</p>
+            <p className="mt-2 text-sm opacity-80">{actionResultPopup.message}</p>
+            <div className="mt-5 flex justify-center">
+              <button
+                type="button"
+                className="rounded-md bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-black/85"
+                onClick={() => setActionResultPopup(null)}
+              >
+                Закрыть
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -2047,14 +2159,14 @@ function CustomSelect({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between rounded-lg border border-black/10 bg-[#f8f9fa] px-3 py-2 text-left text-[#202124] dark:border-white/10 dark:bg-[#23272d] dark:text-white disabled:opacity-50"
+        className="flex h-11 w-full items-center justify-between rounded-md bg-[#f8f9fa] px-3 py-2 text-left text-[#202124] dark:bg-[#23272d] dark:text-white disabled:opacity-50"
       >
         <span className="truncate">{active}</span>
         <ChevronDown size={16} className="text-[#5f6368] dark:text-[#b0b6c0]" />
       </button>
       {open && !disabled ? (
         <div
-          className="absolute left-0 top-[calc(100%+4px)] z-[95] flex max-h-56 w-full flex-col gap-1 overflow-auto rounded-lg border border-black/10 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-[#23272d]"
+          className="absolute left-0 top-[calc(100%+4px)] z-[95] flex max-h-56 w-full flex-col gap-1 overflow-auto rounded-md bg-white p-1.5 shadow-xl dark:bg-[#23272d]"
           role="listbox"
           onPointerDown={(e) => e.stopPropagation()}
         >
@@ -2271,7 +2383,7 @@ function DateMiniSelect({
     <div ref={rootRef} className="relative">
       <button
         type="button"
-        className="flex w-full items-center justify-between rounded-lg border border-black/10 bg-[#f8f9fa] px-3 py-2 text-left text-[#202124] dark:border-white/10 dark:bg-[#23272d] dark:text-white"
+        className="flex h-11 w-full items-center justify-between rounded-md bg-[#f8f9fa] px-3 py-2 text-left text-[#202124] dark:bg-[#23272d] dark:text-white"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="dialog"
@@ -2281,7 +2393,7 @@ function DateMiniSelect({
       </button>
       {open ? (
         <div
-          className="absolute left-0 top-[calc(100%+6px)] z-[95] w-[320px] rounded-xl border border-black/10 bg-white p-3 shadow-xl dark:border-white/10 dark:bg-[#23272d]"
+          className="absolute left-0 top-[calc(100%+6px)] z-[95] w-[320px] rounded-lg bg-white p-3 shadow-xl dark:bg-[#23272d]"
           onPointerDown={(e) => e.stopPropagation()}
         >
           <div className="mb-2 flex items-center justify-between">

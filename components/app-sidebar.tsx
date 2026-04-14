@@ -77,10 +77,17 @@ export function AppSidebar({ variant = "sidebar" }: AppSidebarProps) {
   const levelLabel = t(levelKey)
   const firstName = user?.name?.split(" ")[0] ?? "Яна"
   const avatarSrc = user?.avatar ?? FIGMA_STUDENT_AVATAR
+  const hasHskFromDb =
+    user?.role === "student" &&
+    typeof user?.hskLevel === "number" &&
+    user.hskLevel >= 0 &&
+    user.hskLevel <= 5
   const subtitle =
     user?.role === "teacher" || user?.role === "curator"
       ? (user?.profileSubtitle ?? "Преподаватель")
-      : (user?.profileSubtitle ?? t("profile.subtitle", { level: levelLabel }))
+      : hasHskFromDb
+        ? t("profile.studentHskSubtitle", { hsk: `HSK ${user.hskLevel}` })
+        : (user?.profileSubtitle ?? t("profile.subtitle", { level: levelLabel }))
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard"

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { normalizeMeetingUrl } from "@/lib/online-class-link"
 import { wallClockFromSlotAt } from "@/lib/schedule-display-tz"
 import { resolveTeacherIdFromStudentSlots } from "@/lib/schedule/resolve-teacher-from-student-slots"
 import { normalizeScheduleSlotTime } from "@/lib/schedule/slot-time"
@@ -54,10 +55,11 @@ export async function GET() {
 
   let teacherName: string | undefined
   let teacherAvatarUrl: string | undefined
+  let effectiveTeacherMeetingUrl: string | undefined
   if (effectiveTeacherId) {
     const { data: teacherProfile } = await supabase
       .from("profiles")
-      .select("id, first_name, last_name, full_name, avatar_url")
+      .select("id, first_name, last_name, full_name, avatar_url, online_meeting_url")
       .eq("id", effectiveTeacherId)
       .maybeSingle<{
         id: string
@@ -65,6 +67,7 @@ export async function GET() {
         last_name: string | null
         full_name: string | null
         avatar_url: string | null
+        online_meeting_url: string | null
       }>()
     if (teacherProfile) {
       teacherName =
@@ -72,6 +75,7 @@ export async function GET() {
         [teacherProfile.first_name?.trim() ?? "", teacherProfile.last_name?.trim() ?? ""].filter(Boolean).join(" ").trim() ||
         undefined
       teacherAvatarUrl = teacherProfile.avatar_url?.trim() || undefined
+      effectiveTeacherMeetingUrl = normalizeMeetingUrl(teacherProfile.online_meeting_url) ?? undefined
     }
   }
 
@@ -93,12 +97,13 @@ export async function GET() {
 
   const teacherAvatarByName = new Map<string, string>()
   const teacherNameById = new Map<string, string>()
+  const teacherMeetingUrlById = new Map<string, string>()
   const teacherIds = [...new Set((teacherBookedRows ?? []).map((r) => (r as { teacher_id?: string }).teacher_id).filter((x): x is string => Boolean(x)))]
   if (effectiveTeacherId && !teacherIds.includes(effectiveTeacherId)) teacherIds.push(effectiveTeacherId)
   if (teacherIds.length > 0) {
     const { data: teacherProfiles } = await supabase
       .from("profiles")
-      .select("id, first_name, last_name, full_name, avatar_url")
+      .select("id, first_name, last_name, full_name, avatar_url, online_meeting_url")
       .in("id", teacherIds)
     for (const row of teacherProfiles ?? []) {
       const p = row as {
@@ -107,12 +112,15 @@ export async function GET() {
         last_name: string | null
         full_name: string | null
         avatar_url: string | null
+        online_meeting_url: string | null
       }
       const resolvedName =
         p.full_name?.trim() ||
         [p.first_name?.trim() ?? "", p.last_name?.trim() ?? ""].filter(Boolean).join(" ").trim() ||
         "Преподаватель"
       teacherNameById.set(p.id, resolvedName)
+      const meetingNorm = normalizeMeetingUrl(p.online_meeting_url)
+      if (meetingNorm) teacherMeetingUrlById.set(p.id, meetingNorm)
       const avatar = resolveTeacherAvatarUrl(supabase, p.avatar_url) || ""
       if (!avatar) continue
       const variants = [resolvedName, p.full_name?.trim() ?? ""]
@@ -157,19 +165,23 @@ export async function GET() {
     const { dateKey, time } = wallClockFromSlotAt(row.slot_at)
     const timeNorm = normalizeScheduleSlotTime(time)
     const inferredTeacherName = row.teacher_id ? teacherNameById.get(row.teacher_id) : teacherName
+    const tid = row.teacher_id ?? undefined
+    const meeting =
+      (tid ? teacherMeetingUrlById.get(tid) : undefined) ?? effectiveTeacherMeetingUrl
     return {
       id: `slot-${me.id}-${dateKey}-${timeNorm}`,
       dateKey,
       time: timeNorm,
       title: "Занятие",
       type: "lesson" as const,
-      teacherId: row.teacher_id ?? undefined,
+      teacherId: tid,
       teacher: inferredTeacherName ?? teacherName,
       teacherAvatarUrl:
         teacherAvatarUrl ||
         teacherAvatarByName.get(normalizeName(inferredTeacherName)) ||
         fallbackAvatarByTeacherName(inferredTeacherName) ||
-        undefined
+        undefined,
+      onlineMeetingUrl: meeting
     }
   })
 
@@ -184,6 +196,7 @@ export async function GET() {
       teacherId?: string
       teacher?: string
       teacherAvatarUrl?: string
+      onlineMeetingUrl?: string
     }
   >()
   for (const r of directRows ?? []) {
@@ -201,7 +214,10 @@ export async function GET() {
         teacherAvatarUrl ||
         teacherAvatarByName.get(normalizeName(r.teacher_name)) ||
         fallbackAvatarByTeacherName(r.teacher_name ?? teacherName) ||
-        undefined
+        undefined,
+      onlineMeetingUrl:
+        (effectiveTeacherId ? teacherMeetingUrlById.get(effectiveTeacherId) : undefined) ??
+        effectiveTeacherMeetingUrl
     })
   }
   for (const l of inferred) {
@@ -215,7 +231,8 @@ export async function GET() {
       ...prev,
       teacherId: prev.teacherId ?? l.teacherId,
       teacher: prev.teacher ?? l.teacher,
-      teacherAvatarUrl: prev.teacherAvatarUrl ?? l.teacherAvatarUrl
+      teacherAvatarUrl: prev.teacherAvatarUrl ?? l.teacherAvatarUrl,
+      onlineMeetingUrl: prev.onlineMeetingUrl ?? l.onlineMeetingUrl
     })
   }
   return NextResponse.json({ lessons: Array.from(merged.values()).sort((a, b) => (a.dateKey === b.dateKey ? a.time.localeCompare(b.time) : a.dateKey.localeCompare(b.dateKey))) })

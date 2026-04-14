@@ -15,7 +15,7 @@ export async function hydrateTeacherStudentsFromProfiles(
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, first_name, last_name, full_name, avatar_url")
+    .select("id, first_name, last_name, full_name, avatar_url, hsk_level, hsk_goal")
     .in("id", ids)
 
   if (error || !data?.length) return students
@@ -26,6 +26,8 @@ export async function hydrateTeacherStudentsFromProfiles(
     last_name: string | null
     full_name: string | null
     avatar_url: string | null
+    hsk_level: number | null
+    hsk_goal: number | null
   }
 
   const byId = new Map((data as Row[]).map((p) => [p.id, p]))
@@ -40,7 +42,9 @@ export async function hydrateTeacherStudentsFromProfiles(
     return {
       ...s,
       name: name.trim() ? name : s.name,
-      avatar: avatarUrl ? avatarUrl : s.avatar
+      avatar: avatarUrl ? avatarUrl : s.avatar,
+      hskLevel: p.hsk_level,
+      hskGoal: p.hsk_goal
     }
   })
 }

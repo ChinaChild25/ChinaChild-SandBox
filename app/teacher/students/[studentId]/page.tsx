@@ -15,30 +15,99 @@ import {
   type ApiScheduleLessonRow,
   type UpcomingLessonDisplay
 } from "@/lib/teacher-schedule-display"
-import { getTeacherStudentById, type TeacherStudentMock } from "@/lib/teacher-students-mock"
+import {
+  createRemoteTeacherStudentStub,
+  resolveTeacherStudentRouteParam,
+  type TeacherStudentMock
+} from "@/lib/teacher-students-mock"
+import { TeacherStudentHskGoalSelect } from "@/components/teacher/student-hsk-goal-select"
+import { TeacherStudentHskLevelSelect } from "@/components/teacher/student-hsk-level-select"
 import { StartChatWithStudentButton } from "@/components/teacher/start-chat-with-student-button"
+
+const PROFILE_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export default function TeacherStudentDetailPage() {
   const params = useParams()
   const studentId = typeof params.studentId === "string" ? params.studentId : ""
   const { usesSupabase } = useAuth()
-  const [s, setS] = useState<TeacherStudentMock | undefined>(() => getTeacherStudentById(studentId))
+  const [s, setS] = useState<TeacherStudentMock | undefined>(() => resolveTeacherStudentRouteParam(studentId))
+  const [remoteLookup, setRemoteLookup] = useState<"idle" | "loading" | "done">("idle")
 
   useEffect(() => {
-    setS(getTeacherStudentById(studentId))
-  }, [studentId])
+    const fromMock = resolveTeacherStudentRouteParam(studentId)
+    if (fromMock) {
+      setS(fromMock)
+      setRemoteLookup("done")
+      return
+    }
+    if (!usesSupabase || !studentId.trim()) {
+      setS(undefined)
+      setRemoteLookup("done")
+      return
+    }
+    if (!PROFILE_UUID_RE.test(studentId.trim())) {
+      setS(undefined)
+      setRemoteLookup("done")
+      return
+    }
+    let cancelled = false
+    setS(undefined)
+    setRemoteLookup("loading")
+    void fetch(`/api/schedule/teacher-student-brief?student_id=${encodeURIComponent(studentId.trim())}`)
+      .then(async (res) => {
+        const data = (await res.json().catch(() => ({}))) as {
+          id?: string
+          name?: string
+          avatarUrl?: string
+          hskLevel?: number | null
+          hskGoal?: number | null
+          error?: string
+        }
+        if (cancelled) return
+        if (!res.ok || !data.id || typeof data.name !== "string") {
+          setS(undefined)
+          return
+        }
+        const hl = data.hskLevel
+        const hg = data.hskGoal
+        setS(
+          createRemoteTeacherStudentStub({
+            id: data.id,
+            name: data.name,
+            avatarUrl: typeof data.avatarUrl === "string" ? data.avatarUrl : "/placeholders/student-avatar.svg",
+            hskLevel: typeof hl === "number" ? hl : hl === null ? null : undefined,
+            hskGoal: typeof hg === "number" ? hg : hg === null ? null : undefined
+          })
+        )
+      })
+      .catch(() => {
+        if (!cancelled) setS(undefined)
+      })
+      .finally(() => {
+        if (!cancelled) setRemoteLookup("done")
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [studentId, usesSupabase])
 
   useEffect(() => {
-    if (!usesSupabase) return
-    const base = getTeacherStudentById(studentId)
-    if (!base?.chatProfileId) return
+    if (!usesSupabase || !s?.chatProfileId) return
     const supabase = createBrowserSupabaseClient()
-    void hydrateTeacherStudentsFromProfiles(supabase, [base]).then(([next]) => setS(next))
-  }, [usesSupabase, studentId])
+    let cancelled = false
+    void hydrateTeacherStudentsFromProfiles(supabase, [s]).then(([next]) => {
+      if (!cancelled) setS(next)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [usesSupabase, studentId, s?.id])
 
-  const [scheduleItems, setScheduleItems] = useState<UpcomingLessonDisplay[]>(() =>
-    studentId ? getUpcomingLessonsDisplay(studentId, 14) : []
-  )
+  const [scheduleItems, setScheduleItems] = useState<UpcomingLessonDisplay[]>(() => {
+    const sid = resolveTeacherStudentRouteParam(studentId)?.id ?? studentId
+    return sid ? getUpcomingLessonsDisplay(sid, 14) : []
+  })
   const [scheduleLoading, setScheduleLoading] = useState(false)
   const [scheduleError, setScheduleError] = useState<string | null>(null)
 
@@ -82,6 +151,13 @@ export default function TeacherStudentDetailPage() {
   }, [usesSupabase, s?.id, s?.chatProfileId])
 
   if (!s) {
+    if (remoteLookup === "loading") {
+      return (
+        <div className="ds-figma-page">
+          <p className="text-ds-text-secondary">Загружаем карточку ученика…</p>
+        </div>
+      )
+    }
     return (
       <div className="ds-figma-page">
         <p className="text-ds-text-secondary">Ученик не найден.</p>
@@ -120,12 +196,35 @@ export default function TeacherStudentDetailPage() {
                 <h1 className="text-[32px] font-bold leading-tight text-ds-ink sm:text-[38px]">{s.name}</h1>
                 <p className="mt-1 text-[16px] text-ds-text-secondary">{s.group}</p>
                 <div className="mt-4 flex flex-wrap items-center gap-3 text-[15px]">
-                  <span className="rounded-full bg-ds-sage/35 px-4 py-1.5 font-semibold text-ds-ink dark:bg-ds-sage/20">
-                    Цель: {s.hskTarget}
-                  </span>
-                  <span className="rounded-full bg-[var(--ds-neutral-row)] px-4 py-1.5 text-ds-text-secondary dark:bg-white/10">
-                    Уровень: {s.levelLabel}
-                  </span>
+                  {usesSupabase && s.chatProfileId?.trim() ? (
+                    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[13px] font-semibold text-ds-ink">Уровень HSK</span>
+                        <TeacherStudentHskLevelSelect
+                          studentProfileId={s.chatProfileId.trim()}
+                          initialLevel={s.hskLevel}
+                          onSaved={(level) => setS((prev) => (prev ? { ...prev, hskLevel: level } : prev))}
+                        />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[13px] font-semibold text-ds-ink">Цель</span>
+                        <TeacherStudentHskGoalSelect
+                          studentProfileId={s.chatProfileId.trim()}
+                          initialGoal={s.hskGoal}
+                          onSaved={(goal) => setS((prev) => (prev ? { ...prev, hskGoal: goal } : prev))}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="rounded-full bg-ds-sage/35 px-4 py-1.5 font-semibold text-ds-ink dark:bg-ds-sage/20">
+                        Цель: {s.hskTarget}
+                      </span>
+                      <span className="rounded-full bg-[var(--ds-neutral-row)] px-4 py-1.5 text-ds-text-secondary dark:bg-white/10">
+                        Уровень: {s.levelLabel}
+                      </span>
+                    </>
+                  )}
                   {s.chatProfileId ? (
                     <StartChatWithStudentButton
                       studentProfileId={s.chatProfileId}

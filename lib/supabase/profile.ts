@@ -11,12 +11,17 @@ export type ProfileRow = {
   full_name: string | null
   phone: string | null
   avatar_url: string | null
+  online_meeting_url: string | null
+  /** 0–5, только для role = student */
+  hsk_level?: number | null
+  /** 1–5, цель экзамена */
+  hsk_goal?: number | null
   created_at: string | null
   updated_at: string | null
 }
 
-const PROFILE_COLUMNS =
-  "id, role, first_name, last_name, full_name, phone, avatar_url, created_at, updated_at"
+/** Явный список колонок ломает вход, если в удалённой БД ещё нет миграций (например hsk_goal). `*` возвращает только существующие поля. */
+const PROFILE_SELECT = "*"
 
 function parseRole(raw: string): UserRole | null {
   const r = String(raw).trim().toLowerCase()
@@ -54,6 +59,8 @@ export function mapProfileRowToAppUser(profile: ProfileRow, email: string | null
       ? profile.created_at.slice(0, 10)
       : template.joinDate
 
+  const meetingUrl = profile.online_meeting_url?.trim()
+
   return {
     ...template,
     id: profile.id,
@@ -65,7 +72,11 @@ export function mapProfileRowToAppUser(profile: ProfileRow, email: string | null
     firstName: profile.first_name?.trim() || undefined,
     lastName: profile.last_name?.trim() || undefined,
     profileFullName: profile.full_name?.trim() || undefined,
-    joinDate: joinFromProfile
+    joinDate: joinFromProfile,
+    hskLevel: role === "student" ? profile.hsk_level ?? null : undefined,
+    hskGoal: role === "student" ? profile.hsk_goal ?? null : undefined,
+    onlineMeetingUrl:
+      role === "teacher" && meetingUrl && /^https?:\/\//i.test(meetingUrl) ? meetingUrl : undefined
   }
 }
 
@@ -79,7 +90,7 @@ export async function fetchProfileForAuthUser(
 ): Promise<ProfileFetchResult> {
   const { data, error } = await supabase
     .from("profiles")
-    .select(PROFILE_COLUMNS)
+    .select(PROFILE_SELECT)
     .eq("id", authUser.id)
     .maybeSingle()
 
@@ -117,6 +128,10 @@ export type ProfileWritableFields = {
   full_name?: string | null
   phone?: string | null
   avatar_url?: string | null
+  /** Только для преподавателя; пустая строка → null */
+  online_meeting_url?: string | null
+  /** Только ученик — своя цель HSK 1–5 */
+  hsk_goal?: number | null
 }
 
 export async function updateProfileFields(
@@ -124,12 +139,14 @@ export async function updateProfileFields(
   userId: string,
   fields: ProfileWritableFields
 ): Promise<{ error: Error | null }> {
-  const payload: Record<string, string | null> = {}
+  const payload: Record<string, string | number | null> = {}
   if (fields.first_name !== undefined) payload.first_name = fields.first_name
   if (fields.last_name !== undefined) payload.last_name = fields.last_name
   if (fields.full_name !== undefined) payload.full_name = fields.full_name
   if (fields.phone !== undefined) payload.phone = fields.phone
   if (fields.avatar_url !== undefined) payload.avatar_url = fields.avatar_url
+  if (fields.online_meeting_url !== undefined) payload.online_meeting_url = fields.online_meeting_url
+  if (fields.hsk_goal !== undefined) payload.hsk_goal = fields.hsk_goal
 
   if (Object.keys(payload).length === 0) return { error: null }
 

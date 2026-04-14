@@ -1,5 +1,8 @@
 import { getAppNow } from "@/lib/app-time"
 import { mockLessons } from "@/lib/mock-data"
+import { normalizeMeetingUrl } from "@/lib/online-class-link"
+import { normalizeScheduleSlotTime } from "@/lib/schedule/slot-time"
+import { parseLessonStart, type ScheduledLesson } from "@/lib/schedule-lessons"
 
 export type ClassDisplayType = "Урок" | "Тест"
 
@@ -23,6 +26,10 @@ export type ClassListItem = {
   textColor: string
   grade?: number | null
   slug?: string
+  /** Занятие из расписания (не курс): показывать «Подключиться» без slug урока */
+  showOnlineConnect?: boolean
+  /** Персональная ссылка преподавателя на видеозвонок */
+  joinUrl?: string
 }
 
 const ONLINE_TEACHER = "Чжао Ли"
@@ -53,7 +60,7 @@ export function lessonBoundsFromScheduled(isoDate: string, duration: string): { 
   return { start, end }
 }
 
-function formatClassDateRu(isoDate: string): string {
+export function formatClassDateRu(isoDate: string): string {
   const [y, m, d] = isoDate.split("-").map((x) => parseInt(x, 10))
   const dt = new Date(y, m - 1, d)
   return dt.toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })
@@ -100,7 +107,68 @@ export function canJoinOnlineClass(isoDate: string, timeRange: string): boolean 
   return true
 }
 
-/** Предстоящие и прошедшие — статус по «сейчас» приложения, порядок по дате урока */
+/** Подсказка для отключённых кнопок «Подключиться» / «Начать занятие». */
+export const ONLINE_JOIN_UNAVAILABLE_TITLE =
+  "Подключение доступно только в день занятия (по календарю школы) и до его окончания."
+
+/**
+ * Слот из расписания API: `dateKey` + время начала, длительность 60 мин (как в student-lessons).
+ * Согласовано с `canJoinOnlineClass` для карточек «Занятия».
+ */
+export function canJoinOnlineClassFromScheduleSlot(dateKey: string, timeHHMM: string): boolean {
+  const timeNorm = normalizeScheduleSlotTime(timeHHMM)
+  const start = parseLessonStart(dateKey, timeNorm)
+  const end = new Date(start.getTime() + 60 * 60 * 1000)
+  const endHm = `${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`
+  return canJoinOnlineClass(dateKey, `${timeNorm}–${endHm}`)
+}
+
+/** Карточки «Занятия» из реального расписания ученика (Supabase через /api/schedule/student-lessons). */
+export function classListItemsFromScheduledLessons(lessons: ScheduledLesson[]): ClassListItem[] {
+  const now = getAppNow().getTime()
+  const items: ClassListItem[] = []
+
+  for (const l of lessons) {
+    const timeNorm = normalizeScheduleSlotTime(l.time)
+    const start = parseLessonStart(l.dateKey, timeNorm)
+    const end = new Date(start.getTime() + 60 * 60 * 1000)
+    const sortKey = start.getTime()
+    const status: "upcoming" | "completed" = now >= end.getTime() ? "completed" : "upcoming"
+    const type = lessonTitleToType(l.title, "lesson")
+    const vis = visualByType[type]
+    const [y, mo, d] = l.dateKey.split("-").map((x) => parseInt(x, 10))
+    const dt = new Date(y, mo - 1, d)
+    const endHm = `${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`
+    const timeRange = `${timeNorm}–${endHm}`
+
+    items.push({
+      id: l.id,
+      isoDate: l.dateKey,
+      sortKey,
+      dateLineRu: formatClassDateRu(l.dateKey),
+      dateLabel: String(d),
+      monthShort: dt.toLocaleString("ru-RU", { month: "short" }).replace(".", ""),
+      timeRange,
+      title: l.title?.trim() || "Занятие",
+      description: "",
+      type,
+      status,
+      teacher: l.teacher?.trim() || ONLINE_TEACHER,
+      bgColor: vis.bg,
+      textColor: vis.text,
+      grade: null,
+      slug: undefined,
+      showOnlineConnect: status === "upcoming" && type === "Урок",
+      joinUrl: normalizeMeetingUrl(l.onlineMeetingUrl)
+    })
+  }
+
+  const upcoming = items.filter((c) => c.status === "upcoming").sort((a, b) => a.sortKey - b.sortKey)
+  const done = items.filter((c) => c.status === "completed").sort((a, b) => b.sortKey - a.sortKey)
+  return [...upcoming, ...done]
+}
+
+/** Демо-данные (моки курса) — для превью без API */
 export function getClassesForStudent(): ClassListItem[] {
   const fromLessons = mockLessons.map(classListItemFromMockLesson)
 

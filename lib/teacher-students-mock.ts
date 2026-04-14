@@ -24,6 +24,10 @@ export type TeacherStudentMock = {
   grade: { value: number; max: number }
   hskTarget: HskBand
   levelLabel: string
+  /** 0–5 из profiles.hsk_level при Supabase; приоритет над levelLabel в журнале */
+  hskLevel?: number | null
+  /** 1–5 цель из profiles.hsk_goal */
+  hskGoal?: number | null
   strengths: string[]
   weaknesses: string[]
   tracks: { title: string; percent: number }[]
@@ -280,4 +284,41 @@ export function getTeacherStudentById(id: string): TeacherStudentMock | undefine
 export function getTeacherStudentByChatProfileId(chatProfileId: string): TeacherStudentMock | undefined {
   const q = chatProfileId.trim()
   return TEACHER_STUDENTS_MOCK.find((s) => (s.chatProfileId?.trim() ?? "") === q)
+}
+
+/** Маршрут `/teacher/students/:id` — демо-id или UUID профиля из Supabase. */
+export function resolveTeacherStudentRouteParam(param: string): TeacherStudentMock | undefined {
+  const p = param.trim()
+  if (!p) return undefined
+  return getTeacherStudentById(p) ?? getTeacherStudentByChatProfileId(p)
+}
+
+/** Карточка ученика только из БД (нет строки в TEACHER_STUDENTS_MOCK); метрики — заглушки. */
+export function createRemoteTeacherStudentStub(brief: {
+  id: string
+  name: string
+  avatarUrl: string
+  hskLevel?: number | null
+  hskGoal?: number | null
+}): TeacherStudentMock {
+  return {
+    id: brief.id,
+    chatProfileId: brief.id,
+    name: brief.name,
+    avatar: brief.avatarUrl,
+    group: "—",
+    homeworks: { done: 0, total: 0 },
+    attendance: { done: 0, total: 0 },
+    tests: { score: 0, max: 100 },
+    grade: { value: 0, max: 100 },
+    hskTarget: "HSK 1",
+    levelLabel: "—",
+    hskLevel: brief.hskLevel ?? null,
+    hskGoal: brief.hskGoal ?? null,
+    strengths: [],
+    weaknesses: [],
+    tracks: [],
+    lastTests: [],
+    seedLessons: []
+  }
 }

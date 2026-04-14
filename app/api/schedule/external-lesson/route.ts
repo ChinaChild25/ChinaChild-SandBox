@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { SCHEDULE_WALL_CLOCK_TIMEZONE, wallClockFromSlotAt } from "@/lib/schedule-display-tz"
 import { reconcileStudentScheduleFireAndForget } from "@/lib/schedule/reconcile-student-schedule"
-import { findBookedTeacherSlotAt } from "@/lib/schedule/teacher-booked-slot"
 import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
@@ -31,6 +30,21 @@ function weekdayFromDateKey(dateKey: string): number {
   return new Date(y, m - 1, d).getDay()
 }
 
+function mapRpcError(message: string): { status: number; error: string } {
+  if (/forbidden|not authenticated/i.test(message)) return { status: 403, error: message }
+  if (/slot is not available|new slot is not available|same slot/i.test(message)) {
+    return { status: 409, error: "Выбранный слот недоступен" }
+  }
+  if (/slot not found|old slot not found|new slot not found|slot ownership mismatch/i.test(message)) {
+    return { status: 400, error: "Не удалось выполнить перенос: исходный или целевой слот не найден" }
+  }
+  return { status: 400, error: message }
+}
+
+function isMissingRpcFunction(message: string): boolean {
+  return /could not find the function|schema cache/i.test(message)
+}
+
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as Body | null
   const action = body?.action
@@ -51,73 +65,77 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Teacher access required" }, { status: 403 })
   }
 
-  const timeZone = body?.timezone?.trim() || SCHEDULE_WALL_CLOCK_TIMEZONE
+  const scheduleTimeZone = SCHEDULE_WALL_CLOCK_TIMEZONE
 
   const { dateKey: oldDateKey, time: oldTime } = lessonWallKeys(lesson)
   const oldWeekday = weekdayFromDateKey(oldDateKey)
-  const title = lesson.title || "Занятие"
   const studentId = lesson.student_id
   let mutated = false
 
   try {
+    const oldSlotAt = wallClockSlotAtIso(oldDateKey, oldTime, scheduleTimeZone)
     if (action === "cancel" && scope === "single") {
-      const { error: delErr } = await supabase
-        .from("student_schedule_slots")
-        .delete()
-        .eq("student_id", lesson.student_id)
-        .eq("date_key", oldDateKey)
-        .eq("time", oldTime)
-      if (delErr) return NextResponse.json({ error: delErr.message }, { status: 400 })
-      const oldTeacherSlotAtCancel =
-        (await findBookedTeacherSlotAt(supabase, me.id, lesson.student_id, oldDateKey, oldTime)) ??
-        lesson.slot_at
-      await supabase.from("teacher_schedule_slots").upsert(
-        {
-          teacher_id: me.id,
-          slot_at: oldTeacherSlotAtCancel,
-          status: "free",
-          booked_student_id: null
-        },
-        { onConflict: "teacher_id,slot_at" }
-      )
+      const { error } = await supabase.rpc("cancel_slot_atomic", {
+        p_slot_at: oldSlotAt,
+        p_teacher_id: me.id,
+        p_student_id: lesson.student_id,
+        p_timezone: scheduleTimeZone
+      })
+      if (error) {
+        const mapped = mapRpcError(error.message || "RPC failed")
+        return NextResponse.json({ error: mapped.error }, { status: mapped.status })
+      }
       mutated = true
       return NextResponse.json({ ok: true })
     }
     if (action === "cancel" && scope === "following") {
-      const { data: chainRows, error: chainErr } = await supabase
-        .from("student_schedule_slots")
-        .select("date_key, time")
-        .eq("student_id", lesson.student_id)
-        .eq("title", title)
-        .eq("time", oldTime)
-        .gte("date_key", oldDateKey)
-      if (chainErr) return NextResponse.json({ error: chainErr.message }, { status: 400 })
-      for (const row of chainRows ?? []) {
-        const d = new Date(`${row.date_key}T00:00:00`)
-        if (d.getDay() !== oldWeekday) continue
-        await supabase
-          .from("student_schedule_slots")
-          .delete()
-          .eq("student_id", lesson.student_id)
-          .eq("date_key", row.date_key)
-          .eq("time", row.time)
-        const slotAtFree =
-          (await findBookedTeacherSlotAt(supabase, me.id, lesson.student_id, row.date_key, row.time)) ??
-          wallClockSlotAtIso(row.date_key, row.time, timeZone)
-        await supabase
+      const { data: cancelledCount, error } = await supabase.rpc("cancel_following_slots_atomic", {
+        p_teacher_id: me.id,
+        p_student_id: lesson.student_id,
+        p_anchor_slot_at: oldSlotAt,
+        p_anchor_weekday: oldWeekday,
+        p_anchor_time: oldTime,
+        p_timezone: scheduleTimeZone
+      })
+      if (error && !isMissingRpcFunction(error.message || "")) {
+        const mapped = mapRpcError(error.message || "RPC failed")
+        return NextResponse.json({ error: mapped.error }, { status: mapped.status })
+      }
+      if (error && isMissingRpcFunction(error.message || "")) {
+        const { data: bookedRows, error: bookedErr } = await supabase
           .from("teacher_schedule_slots")
-          .upsert(
-            {
-              teacher_id: me.id,
-              slot_at: slotAtFree,
-              status: "free",
-              booked_student_id: null
-            },
-            { onConflict: "teacher_id,slot_at" }
-          )
+          .select("slot_at")
+          .eq("teacher_id", me.id)
+          .eq("booked_student_id", lesson.student_id)
+          .eq("status", "booked")
+        if (bookedErr) return NextResponse.json({ error: bookedErr.message }, { status: 400 })
+        let fallbackCancelled = 0
+        for (const row of bookedRows ?? []) {
+          const wall = wallClockFromSlotAt((row as { slot_at: string }).slot_at)
+          if (wall.dateKey < oldDateKey) continue
+          if (weekdayFromDateKey(wall.dateKey) !== oldWeekday) continue
+          if (normalizeScheduleSlotTime(wall.time) !== oldTime) continue
+          const { error: fallbackErr } = await supabase.rpc("cancel_slot_atomic", {
+            p_slot_at: (row as { slot_at: string }).slot_at,
+            p_teacher_id: me.id,
+            p_student_id: lesson.student_id,
+            p_timezone: scheduleTimeZone
+          })
+          if (fallbackErr) {
+            const mapped = mapRpcError(fallbackErr.message || "RPC failed")
+            return NextResponse.json({ error: mapped.error }, { status: mapped.status })
+          }
+          fallbackCancelled += 1
+        }
+        if (fallbackCancelled <= 0) return NextResponse.json({ error: "Не найдено занятий для отмены" }, { status: 409 })
+        mutated = true
+        return NextResponse.json({ ok: true, cancelled: fallbackCancelled })
+      }
+      if (Number(cancelledCount ?? 0) <= 0) {
+        return NextResponse.json({ error: "Не найдено занятий для отмены" }, { status: 409 })
       }
       mutated = true
-      return NextResponse.json({ ok: true })
+      return NextResponse.json({ ok: true, cancelled: Number(cancelledCount ?? 0) })
     }
 
     const toDateKey = body?.to_date_key
@@ -126,51 +144,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid reschedule target" }, { status: 400 })
     }
     const toTime = `${String(toHour).padStart(2, "0")}:00`
-    const newSlotAt = wallClockSlotAtIso(toDateKey, toTime, timeZone)
+    const newSlotAt = wallClockSlotAtIso(toDateKey, toTime, scheduleTimeZone)
 
     if (scope === "single") {
-      const { error: delErr } = await supabase
-        .from("student_schedule_slots")
-        .delete()
-        .eq("student_id", lesson.student_id)
-        .eq("date_key", oldDateKey)
-        .eq("time", oldTime)
-      if (delErr) return NextResponse.json({ error: delErr.message }, { status: 400 })
-
-      const oldTeacherSlotAt =
-        (await findBookedTeacherSlotAt(supabase, me.id, lesson.student_id, oldDateKey, oldTime)) ??
-        lesson.slot_at
-      await supabase.from("teacher_schedule_slots").upsert(
-        {
-          teacher_id: me.id,
-          slot_at: oldTeacherSlotAt,
-          status: "free",
-          booked_student_id: null
-        },
-        { onConflict: "teacher_id,slot_at" }
-      )
-
-      const { error: insErr } = await supabase.from("student_schedule_slots").upsert(
-        {
-          student_id: lesson.student_id,
-          date_key: toDateKey,
-          time: toTime,
-          title,
-          type: "lesson",
-          teacher_name: null
-        },
-        { onConflict: "student_id,date_key,time" }
-      )
-      if (insErr) return NextResponse.json({ error: insErr.message }, { status: 400 })
-      await supabase.from("teacher_schedule_slots").upsert(
-        {
-          teacher_id: me.id,
-          slot_at: newSlotAt,
-          status: "booked",
-          booked_student_id: lesson.student_id
-        },
-        { onConflict: "teacher_id,slot_at" }
-      )
+      const { error } = await supabase.rpc("reschedule_slot_atomic", {
+        p_old_slot_at: oldSlotAt,
+        p_new_slot_at: newSlotAt,
+        p_teacher_id: me.id,
+        p_student_id: lesson.student_id,
+        p_timezone: scheduleTimeZone
+      })
+      if (error) {
+        const mapped = mapRpcError(error.message || "RPC failed")
+        return NextResponse.json({ error: mapped.error }, { status: mapped.status })
+      }
       mutated = true
       return NextResponse.json({ ok: true })
     }
@@ -178,76 +165,28 @@ export async function POST(req: Request) {
     const oldStart = new Date(`${oldDateKey}T00:00:00`)
     const newStart = new Date(`${toDateKey}T00:00:00`)
     const deltaDays = Math.round((newStart.getTime() - oldStart.getTime()) / (24 * 60 * 60 * 1000))
-    const { data: chainRows, error: chainErr } = await supabase
-      .from("student_schedule_slots")
-      .select("date_key, time")
-      .eq("student_id", lesson.student_id)
-      .eq("title", title)
-      .eq("time", oldTime)
-      .gte("date_key", oldDateKey)
-    if (chainErr) return NextResponse.json({ error: chainErr.message }, { status: 400 })
-
-    for (const row of chainRows ?? []) {
-      const baseDate = new Date(`${row.date_key}T00:00:00`)
-      if (baseDate.getDay() !== oldWeekday) continue
-      const targetDate = new Date(baseDate)
-      targetDate.setDate(targetDate.getDate() + deltaDays)
-      const targetDateKey = toLocalDateKey(targetDate)
-
-      await supabase
-        .from("student_schedule_slots")
-        .delete()
-        .eq("student_id", lesson.student_id)
-        .eq("date_key", row.date_key)
-        .eq("time", row.time)
-      const slotAtOldFree =
-        (await findBookedTeacherSlotAt(supabase, me.id, lesson.student_id, row.date_key, row.time)) ??
-        wallClockSlotAtIso(row.date_key, row.time, timeZone)
-      await supabase
-        .from("teacher_schedule_slots")
-        .upsert(
-          {
-            teacher_id: me.id,
-            slot_at: slotAtOldFree,
-            status: "free",
-            booked_student_id: null
-          },
-          { onConflict: "teacher_id,slot_at" }
-        )
-      await supabase.from("student_schedule_slots").upsert(
-        {
-          student_id: lesson.student_id,
-          date_key: targetDateKey,
-          time: toTime,
-          title,
-          type: "lesson",
-          teacher_name: null
-        },
-        { onConflict: "student_id,date_key,time" }
-      )
-      await supabase
-        .from("teacher_schedule_slots")
-        .upsert(
-          {
-            teacher_id: me.id,
-            slot_at: wallClockSlotAtIso(targetDateKey, toTime, timeZone),
-            status: "booked",
-            booked_student_id: lesson.student_id
-          },
-          { onConflict: "teacher_id,slot_at" }
-        )
+    const { data: movedCount, error } = await supabase.rpc("reschedule_following_slots_atomic", {
+      p_teacher_id: me.id,
+      p_student_id: lesson.student_id,
+      p_anchor_slot_at: oldSlotAt,
+      p_anchor_weekday: oldWeekday,
+      p_anchor_time: oldTime,
+      p_delta_days: deltaDays,
+      p_target_time: toTime,
+      p_timezone: scheduleTimeZone
+    })
+    if (error) {
+      const mapped = mapRpcError(error.message || "RPC failed")
+      return NextResponse.json({ error: mapped.error }, { status: mapped.status })
+    }
+    if (Number(movedCount ?? 0) <= 0) {
+      return NextResponse.json({ error: "Не найдено занятий для переноса" }, { status: 409 })
     }
 
     mutated = true
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true, moved: Number(movedCount ?? 0) })
   } finally {
     if (mutated) void reconcileStudentScheduleFireAndForget(supabase, studentId)
   }
 }
 
-function toLocalDateKey(date: Date) {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, "0")
-  const d = String(date.getDate()).padStart(2, "0")
-  return `${y}-${m}-${d}`
-}

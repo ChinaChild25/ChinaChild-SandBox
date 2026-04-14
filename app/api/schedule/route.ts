@@ -4,26 +4,6 @@ import { resolveTeacherIdFromStudentSlots } from "@/lib/schedule/resolve-teacher
 import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { startOfLocalDay } from "@/lib/teacher-schedule"
-import {
-  emptyWeeklyTemplate,
-  intervalsToHourlyStatuses,
-  WEEKDAY_KEYS,
-  type AvailabilityInterval,
-  type WeekdayKey,
-  type WeeklyTemplate
-} from "@/lib/teacher-availability-template"
-
-/** Если в БД нет ни одного «зелёного» интервала — синтезируем окно 9–21, иначе перенос пустой при пустом json. */
-const DEFAULT_STUDENT_OPEN_HOURS: AvailabilityInterval[] = [{ start: "09:00", end: "21:00" }]
-const DEFAULT_STUDENT_WEEKLY_IF_NO_TEMPLATE: WeeklyTemplate = {
-  sunday: DEFAULT_STUDENT_OPEN_HOURS,
-  monday: DEFAULT_STUDENT_OPEN_HOURS,
-  tuesday: DEFAULT_STUDENT_OPEN_HOURS,
-  wednesday: DEFAULT_STUDENT_OPEN_HOURS,
-  thursday: DEFAULT_STUDENT_OPEN_HOURS,
-  friday: DEFAULT_STUDENT_OPEN_HOURS,
-  saturday: DEFAULT_STUDENT_OPEN_HOURS
-}
 
 type ProfileLite = {
   id: string
@@ -35,42 +15,6 @@ function parseDateOr(defaultValue: Date, raw: string | null): Date {
   if (!raw) return defaultValue
   const d = new Date(raw)
   return Number.isNaN(d.getTime()) ? defaultValue : d
-}
-
-function formatYmdInTz(instant: Date, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).formatToParts(instant)
-  const pick = (t: Intl.DateTimeFormatPart["type"]) => parts.find((p) => p.type === t)?.value ?? ""
-  return `${pick("year")}-${pick("month")}-${pick("day")}`
-}
-
-function addOneDayYmd(dateKey: string): string {
-  const [y, m, d] = dateKey.split("-").map((x) => parseInt(x, 10))
-  if (![y, m, d].every((n) => Number.isFinite(n))) return dateKey
-  const x = new Date(Date.UTC(y, m - 1, d, 12, 0, 0))
-  x.setUTCDate(x.getUTCDate() + 1)
-  const yy = x.getUTCFullYear()
-  const mm = String(x.getUTCMonth() + 1).padStart(2, "0")
-  const dd = String(x.getUTCDate()).padStart(2, "0")
-  return `${yy}-${mm}-${dd}`
-}
-
-function weekdayKeyFromDateKey(dateKey: string): WeekdayKey {
-  const [y, m, d] = dateKey.split("-").map((x) => parseInt(x, 10))
-  const dow = new Date(Date.UTC(y, m - 1, d, 12, 0, 0)).getUTCDay()
-  const map: WeekdayKey[] = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
-  return map[dow]
-}
-
-function weeklyTemplateHasAnyFreeHour(weekly: WeeklyTemplate): boolean {
-  for (const k of WEEKDAY_KEYS) {
-    if (intervalsToHourlyStatuses(weekly[k] ?? []).some((s) => s === "free")) return true
-  }
-  return false
 }
 
 export async function GET(req: NextRequest) {
@@ -155,76 +99,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ slots: rows })
   }
 
-  // Слоты для ученика = пересечение «зелёных» часов шаблона доступности преподавателя
-  // (weekly_template) с фактическими строками teacher_schedule_slots: не busy и не booked.
-  // Так перенос/запись в ЛК совпадают с зелёными ячейками в календаре преподавателя.
-  const slotByIso = new Map(rows.map((r) => [r.slot_at, r]))
-  const slotByWallKey = new Map<string, (typeof rows)[number]>()
-  for (const r of rows) {
-    const w = wallClockFromSlotAt(r.slot_at)
-    const tm = normalizeScheduleSlotTime(w.time)
-    slotByWallKey.set(`${w.dateKey}|${tm}`, r)
-  }
-
-  const { data: tmpl } = await supabase
-    .from("teacher_schedule_templates")
-    .select("weekly_template, timezone")
-    .eq("teacher_id", teacherId)
-    .maybeSingle<{ weekly_template: WeeklyTemplate | null; timezone: string | null }>()
-  const weeklyFromDb = (tmpl?.weekly_template as WeeklyTemplate | null) ?? emptyWeeklyTemplate()
-  const weeklyForSynth = weeklyTemplateHasAnyFreeHour(weeklyFromDb)
-    ? weeklyFromDb
-    : DEFAULT_STUDENT_WEEKLY_IF_NO_TEMPLATE
-  const teacherTz = tmpl?.timezone?.trim() || SCHEDULE_WALL_CLOCK_TIMEZONE
-
-  const synthesized: Array<{
-    teacher_id: string
-    slot_at: string
-    status: "free"
-    booked_student_id: null
-  }> = []
-
-  const end = startOfLocalDay(to)
-  const startKey = formatYmdInTz(from, teacherTz)
-  const lastKey = formatYmdInTz(new Date(end.getTime() - 1), teacherTz)
-
-  for (let dk = startKey; dk <= lastKey; dk = addOneDayYmd(dk)) {
-    const weekday = weekdayKeyFromDateKey(dk)
-    const hourly = intervalsToHourlyStatuses(weeklyForSynth[weekday] ?? [])
-    for (let hour = 0; hour < 24; hour++) {
-      const timeStr = `${String(hour).padStart(2, "0")}:00`
-      if (hourly[hour] !== "free") continue
-      const iso = wallClockSlotAtIso(dk, timeStr, teacherTz)
-      const row = slotByIso.get(iso) ?? slotByWallKey.get(`${dk}|${timeStr}`)
-      if (row?.status === "busy" || row?.status === "booked") continue
-      synthesized.push({
-        teacher_id: teacherId,
-        slot_at: iso,
-        status: "free",
-        booked_student_id: null
-      })
-    }
-  }
-
-  // Шаблон в БД пустой / ни одного «зелёного» часа — в календаре преподавателя слоты всё равно могут быть
-  // материализованы как free после «Сохранить». Показываем их ученику, иначе перенос невозможен.
-  if (synthesized.length === 0 && !weeklyTemplateHasAnyFreeHour(weeklyFromDb)) {
-    const seenIso = new Set<string>()
-    for (const r of rows) {
-      if (r.status !== "free") continue
-      const w = wallClockFromSlotAt(r.slot_at)
-      const t = normalizeScheduleSlotTime(w.time)
-      const iso = wallClockSlotAtIso(w.dateKey, t, teacherTz)
-      if (seenIso.has(iso)) continue
-      seenIso.add(iso)
-      synthesized.push({
-        teacher_id: teacherId,
-        slot_at: iso,
-        status: "free",
-        booked_student_id: null
-      })
-    }
-  }
-
-  return NextResponse.json({ slots: synthesized })
+  // Для ученика отдаём только реально существующие materialized free-слоты.
+  // Иначе UI показывает «виртуальные» часы из шаблона, которые нельзя атомарно забронировать.
+  const freeRows = rows.filter((row) => row.status === "free")
+  return NextResponse.json({ slots: freeRows })
 }

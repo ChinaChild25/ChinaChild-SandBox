@@ -16,8 +16,14 @@ export interface User {
   assignedTeacherSlug?: string
   /** Телефон в профиле (настройки) */
   phone?: string
+  /** Персональная ссылка на онлайн-урок (Zoom / VooV и т.д.) — только преподаватель */
+  onlineMeetingUrl?: string
   /** Подзаголовок под именем, напр. «студентка 1 степени» */
   profileSubtitle?: string
+  /** Уровень HSK 0–5 из БД; задаёт только преподаватель */
+  hskLevel?: number | null
+  /** Цель HSK 1–5; ученик и преподаватель */
+  hskGoal?: number | null
   avatar?: string
   dashboardStats?: {
     attendedLessons: number

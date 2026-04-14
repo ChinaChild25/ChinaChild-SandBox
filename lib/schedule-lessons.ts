@@ -25,14 +25,16 @@ export type ScheduledLesson = {
   teacher?: string
   teacherId?: string
   teacherAvatarUrl?: string
+  /** Ссылка на видеозвонок преподавателя (из profiles.online_meeting_url) */
+  onlineMeetingUrl?: string
 }
 
 const STORAGE_KEY = "chinachild-schedule-lessons-v2"
 
 export const MS_24H = 24 * 60 * 60 * 1000
 export const MS_7D = 7 * MS_24H
-/** Окно выбора нового слота учеником — как запрос слотов в ЛК (см. openLesson /api/schedule …+21d). */
-export const MS_STUDENT_RESCHEDULE_MAX_HORIZON = 21 * MS_24H
+/** Окно выбора нового слота учеником — не более 7 суток вперёд. */
+export const MS_STUDENT_RESCHEDULE_MAX_HORIZON = 7 * MS_24H
 
 export function dateKeyFromDate(d: Date): string {
   const y = d.getFullYear()
@@ -84,6 +86,21 @@ export function isValidRescheduleTargetSlot(dateKey: string, timeStr: string): b
   const nowMs = scheduleNowUtcMs()
   if (Number.isNaN(slotMs)) return false
   if (slotMs <= nowMs + MS_24H) return false
+  if (slotMs > nowMs + MS_STUDENT_RESCHEDULE_MAX_HORIZON) return false
+  return true
+}
+
+/**
+ * Новое бронирование / «Запланировать урок»: слот строго в будущем и в пределах горизонта.
+ * Без правила «+24 ч» — оно только для переноса существующего занятия.
+ */
+export function isValidStudentBookingTargetSlot(dateKey: string, timeStr: string): boolean {
+  const tz = SCHEDULE_WALL_CLOCK_TIMEZONE
+  const t = normalizeScheduleSlotTime(timeStr)
+  const slotMs = new Date(wallClockSlotAtIso(dateKey, t, tz)).getTime()
+  const nowMs = scheduleNowUtcMs()
+  if (Number.isNaN(slotMs)) return false
+  if (slotMs <= nowMs) return false
   if (slotMs > nowMs + MS_STUDENT_RESCHEDULE_MAX_HORIZON) return false
   return true
 }

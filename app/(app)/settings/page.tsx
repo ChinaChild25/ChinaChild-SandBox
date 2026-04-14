@@ -14,6 +14,7 @@ import {
 import { LAST_LOGIN_STORAGE_KEY, useAuth } from "@/lib/auth-context"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
 import { AvatarCropDialog, type AvatarCropApplyResult } from "@/components/settings/avatar-crop-dialog"
+import { StudentHskGoalSettings } from "@/components/hsk/student-hsk-goal-settings"
 import { updateProfileFields } from "@/lib/supabase/profile"
 import { AVATAR_MAX_FILE_BYTES, uploadUserAvatar, validateAvatarInputFile } from "@/lib/supabase/upload-avatar"
 import {
@@ -22,6 +23,7 @@ import {
   readNotificationPreferences,
   type NotificationPreferences
 } from "@/lib/notification-preferences"
+import { normalizeMeetingUrl } from "@/lib/online-class-link"
 import { placeholderImages } from "@/lib/placeholders"
 import type { UiLocale } from "@/lib/ui-messages"
 import { localeToBcp47, useUiLocale } from "@/lib/ui-locale"
@@ -132,8 +134,11 @@ export default function SettingsPage() {
 
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
-  const [displayFullName, setDisplayFullName] = useState("")
   const [phone, setPhone] = useState("")
+  const [teacherMeetingUrlInput, setTeacherMeetingUrlInput] = useState("")
+  const [meetingUrlBusy, setMeetingUrlBusy] = useState(false)
+  const [meetingUrlErr, setMeetingUrlErr] = useState<string | null>(null)
+  const [meetingUrlOk, setMeetingUrlOk] = useState(false)
   const [notifications, setNotifications] = useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFERENCES)
   const [accentKey, setAccentKey] = useState<AccentKey>("sage")
   const [passwords, setPasswords] = useState({ cur: "", next: "", repeat: "" })
@@ -169,8 +174,8 @@ export default function SettingsPage() {
     const parts = user.name.split(" ").filter(Boolean)
     setFirstName(user.firstName ?? parts[0] ?? "")
     setLastName(user.lastName ?? parts.slice(1).join(" ") ?? "")
-    setDisplayFullName(user.profileFullName ?? "")
     setPhone(user.phone ?? "")
+    setTeacherMeetingUrlInput(user.onlineMeetingUrl ?? "")
   }, [user])
 
   useEffect(() => {
@@ -221,14 +226,12 @@ export default function SettingsPage() {
     setProfileSaveOk(false)
     setProfileBannerErr(null)
 
-    const full =
-      displayFullName.trim() || `${firstName.trim()} ${lastName.trim()}`.trim()
+    const full = `${firstName.trim()} ${lastName.trim()}`.trim() || null
 
     if (!usesSupabase) {
       updateUser({
         firstName: firstName.trim() || undefined,
         lastName: lastName.trim() || undefined,
-        profileFullName: displayFullName.trim() || undefined,
         name: full || user.name,
         phone: phone.trim() || undefined
       })
@@ -242,7 +245,7 @@ export default function SettingsPage() {
     const { error } = await updateProfileFields(supabase, user.id, {
       first_name: firstName.trim() || null,
       last_name: lastName.trim() || null,
-      full_name: full || null,
+      full_name: full,
       phone: phone.trim() || null
     })
     setProfileSaving(false)
@@ -260,6 +263,47 @@ export default function SettingsPage() {
 
     setProfileSaveOk(true)
     window.setTimeout(() => setProfileSaveOk(false), 2500)
+  }
+
+  const handleConfirmTeacherMeetingUrl = async () => {
+    if (!user || user.role !== "teacher") return
+    setMeetingUrlErr(null)
+    setMeetingUrlOk(false)
+    const trimmed = teacherMeetingUrlInput.trim()
+    if (trimmed && !normalizeMeetingUrl(teacherMeetingUrlInput)) {
+      setMeetingUrlErr("Укажите корректную ссылку (http/https) или очистите поле.")
+      return
+    }
+
+    const normalized = normalizeMeetingUrl(teacherMeetingUrlInput) ?? null
+
+    if (!usesSupabase) {
+      updateUser({ onlineMeetingUrl: normalized || undefined })
+      setMeetingUrlOk(true)
+      window.setTimeout(() => setMeetingUrlOk(false), 3500)
+      return
+    }
+
+    setMeetingUrlBusy(true)
+    const supabase = createBrowserSupabaseClient()
+    const { error } = await updateProfileFields(supabase, user.id, {
+      online_meeting_url: normalized
+    })
+    setMeetingUrlBusy(false)
+
+    if (error) {
+      setMeetingUrlErr(error.message)
+      return
+    }
+
+    const r = await refreshProfile()
+    if (!r.ok) {
+      setMeetingUrlErr(r.message ?? "Сохранено, но не удалось обновить профиль.")
+      return
+    }
+
+    setMeetingUrlOk(true)
+    window.setTimeout(() => setMeetingUrlOk(false), 3500)
   }
 
   const handleAccentPick = (k: AccentKey) => {
@@ -375,10 +419,17 @@ export default function SettingsPage() {
     Intermediate: "profile.levelIntermediate",
     Advanced: "profile.levelAdvanced"
   }[user.level ?? "Beginner"] as string
+  const hasHskFromDb =
+    user.role === "student" &&
+    typeof user.hskLevel === "number" &&
+    user.hskLevel >= 0 &&
+    user.hskLevel <= 5
   const subtitle =
     user.role === "teacher"
       ? (user.profileSubtitle ?? "Преподаватель")
-      : (user.profileSubtitle ?? t("profile.subtitle", { level: t(levelKey) }))
+      : hasHskFromDb
+        ? t("profile.studentHskSubtitle", { hsk: `HSK ${user.hskLevel}` })
+        : (user.profileSubtitle ?? t("profile.subtitle", { level: t(levelKey) }))
   const isDark = resolvedTheme === "dark"
 
   return (
@@ -479,9 +530,12 @@ export default function SettingsPage() {
               </div>
               <div className="min-w-0 flex-1 pt-1">
                 <div className="text-[17px] font-semibold text-ds-ink">
-                  {displayFullName.trim() || `${firstName} ${lastName}`.trim() || user.name}
+                  {`${firstName} ${lastName}`.trim() || user.name}
                 </div>
                 <div className="text-[14px] text-[#737373] dark:text-ds-text-tertiary">{subtitle}</div>
+                {user.role === "student" && usesSupabase ? (
+                  <p className="mt-1 text-[12px] text-ds-text-tertiary">{t("settings.hskLevelTeacherOnlyHint")}</p>
+                ) : null}
                 {usesSupabase ? (
                   <p className="mt-2 text-[12px] text-ds-text-tertiary">
                     Роль в системе: {user.role === "teacher" ? "преподаватель" : "ученик"}
@@ -520,12 +574,6 @@ export default function SettingsPage() {
             <SettingsField label="Имя" value={firstName} onChange={setFirstName} />
             <SettingsField label="Фамилия" value={lastName} onChange={setLastName} />
             <SettingsField
-              label="Полное имя (необязательно)"
-              value={displayFullName}
-              onChange={setDisplayFullName}
-              hint="Если пусто, для отображения используется «Имя + Фамилия»."
-            />
-            <SettingsField
               label={t("settings.email")}
               value={authEmail}
               readOnly
@@ -538,6 +586,60 @@ export default function SettingsPage() {
               type="tel"
               placeholder={t("settings.phonePlaceholder")}
             />
+            {user.role === "student" && usesSupabase ? (
+              <StudentHskGoalSettings
+                userId={user.id}
+                initialGoal={user.hskGoal}
+                onSaved={refreshProfile}
+                className="rounded-[var(--ds-radius-md)] border border-black/10 p-4 dark:border-white/10"
+              />
+            ) : null}
+            {user.role === "teacher" ? (
+              <div className="rounded-[var(--ds-radius-md)] border border-black/10 p-4 dark:border-white/10">
+                <label className="ds-settings-label" htmlFor="teacher-meeting-url">
+                  Постоянная ссылка на онлайн-урок
+                </label>
+                <p className="mb-3 text-[12px] leading-snug text-ds-text-tertiary">
+                  Укажите ссылку на Zoom, VooV Meeting или другой сервис. После нажатия «Окей» она сохранится в профиле и
+                  попадёт в журнал изменений; закреплённые за вами ученики откроют её кнопкой «Подключиться» в личном
+                  кабинете.
+                </p>
+                <input
+                  id="teacher-meeting-url"
+                  type="url"
+                  value={teacherMeetingUrlInput}
+                  onChange={(e) => {
+                    setMeetingUrlErr(null)
+                    setMeetingUrlOk(false)
+                    setTeacherMeetingUrlInput(e.target.value)
+                  }}
+                  placeholder="https://…"
+                  className="ds-settings-input"
+                  autoComplete="off"
+                />
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    disabled={meetingUrlBusy || profileSaving || avatarBusy}
+                    onClick={() => void handleConfirmTeacherMeetingUrl()}
+                    className="inline-flex h-10 min-w-[88px] items-center justify-center rounded-[var(--ds-radius-md)] bg-black px-4 text-[14px] font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-50 dark:bg-white dark:text-black"
+                  >
+                    {meetingUrlBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : "Окей"}
+                  </button>
+                  {meetingUrlOk ? (
+                    <span className="inline-flex items-center gap-1 text-[13px] text-ds-sage-strong dark:text-green-300" role="status">
+                      <Check size={16} strokeWidth={2.5} aria-hidden />
+                      Ссылка сохранена
+                    </span>
+                  ) : null}
+                </div>
+                {meetingUrlErr ? (
+                  <p className="mt-2 text-[13px] text-red-600 dark:text-red-300" role="alert">
+                    {meetingUrlErr}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           {profileSaveErr ? (

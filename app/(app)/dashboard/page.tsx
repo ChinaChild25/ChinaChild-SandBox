@@ -25,6 +25,9 @@ type DashboardLesson = {
   href: string
 }
 
+/** Блок «ближайшие уроки» на главной — не перегружать карточку длинным списком. */
+const DASHBOARD_UPCOMING_LESSONS_MAX = 4
+
 export default function DashboardPage() {
   const { user } = useAuth()
   const { t, locale } = useUiLocale()
@@ -63,7 +66,7 @@ export default function DashboardPage() {
           })
           .filter(({ start }) => Number.isFinite(start.getTime()) && start.getTime() > nowTs)
           .sort((a, b) => a.start.getTime() - b.start.getTime())
-          .slice(0, 4)
+          .slice(0, DASHBOARD_UPCOMING_LESSONS_MAX)
           .map(({ raw, start }) => ({
             id: raw.id,
             dateKey: raw.dateKey,

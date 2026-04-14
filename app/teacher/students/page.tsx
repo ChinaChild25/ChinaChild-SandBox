@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { ArrowRight, CalendarClock } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser"
@@ -13,6 +13,8 @@ import {
   scheduledLessonsFromApiRows,
   type ApiScheduleLessonRow
 } from "@/lib/teacher-schedule-display"
+import { TeacherStudentHskGoalSelect } from "@/components/teacher/student-hsk-goal-select"
+import { TeacherStudentHskLevelSelect } from "@/components/teacher/student-hsk-level-select"
 import { TEACHER_STUDENTS_ACTIVE, type TeacherStudentMock } from "@/lib/teacher-students-mock"
 import type { ScheduledLesson } from "@/lib/schedule-lessons"
 
@@ -24,6 +26,18 @@ type RemoteUpcomingState =
 export default function TeacherStudentsPage() {
   const { usesSupabase } = useAuth()
   const [students, setStudents] = useState<TeacherStudentMock[]>(TEACHER_STUDENTS_ACTIVE)
+
+  const patchStudentHsk = useCallback((cardId: string, level: number | null) => {
+    setStudents((prev) =>
+      prev.map((row) => (row.id === cardId ? { ...row, hskLevel: level } : row))
+    )
+  }, [])
+
+  const patchStudentHskGoal = useCallback((cardId: string, goal: number | null) => {
+    setStudents((prev) =>
+      prev.map((row) => (row.id === cardId ? { ...row, hskGoal: goal } : row))
+    )
+  }, [])
   const [remoteUpcoming, setRemoteUpcoming] = useState<RemoteUpcomingState>({ status: "mock" })
 
   useEffect(() => {
@@ -144,11 +158,32 @@ export default function TeacherStudentsPage() {
                       {s.name}
                     </Link>
                     <p className="mt-1 text-[14px] text-ds-text-secondary">{s.group}</p>
-                    <p className="mt-2 text-[13px] text-ds-ink">
-                      Цель: <span className="font-semibold text-ds-sage-strong">{s.hskTarget}</span>
-                      <span className="mx-1.5 text-ds-text-tertiary">·</span>
-                      <span className="text-ds-text-secondary">{s.levelLabel}</span>
-                    </p>
+                    {usesSupabase && linked && s.chatProfileId?.trim() ? (
+                      <div className="mt-2 flex flex-col gap-2 text-[13px] text-ds-ink">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold text-ds-sage-strong">Уровень HSK</span>
+                          <TeacherStudentHskLevelSelect
+                            studentProfileId={s.chatProfileId.trim()}
+                            initialLevel={s.hskLevel}
+                            onSaved={(level) => patchStudentHsk(s.id, level)}
+                          />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold text-ds-sage-strong">Цель</span>
+                          <TeacherStudentHskGoalSelect
+                            studentProfileId={s.chatProfileId.trim()}
+                            initialGoal={s.hskGoal}
+                            onSaved={(goal) => patchStudentHskGoal(s.id, goal)}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-[13px] text-ds-ink">
+                        Цель: <span className="font-semibold text-ds-sage-strong">{s.hskTarget}</span>
+                        <span className="mx-1.5 text-ds-text-tertiary">·</span>
+                        <span className="text-ds-text-secondary">{s.levelLabel}</span>
+                      </p>
+                    )}
                   </div>
                 </div>
 

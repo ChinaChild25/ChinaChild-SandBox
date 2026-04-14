@@ -19,6 +19,7 @@ export type ApiScheduleLessonRow = {
   teacherId?: string
   teacher?: string
   teacherAvatarUrl?: string
+  onlineMeetingUrl?: string
 }
 
 export function scheduledLessonsFromApiRows(rows: ApiScheduleLessonRow[]): ScheduledLesson[] {
@@ -30,7 +31,8 @@ export function scheduledLessonsFromApiRows(rows: ApiScheduleLessonRow[]): Sched
     type: "lesson",
     teacherId: l.teacherId,
     teacher: l.teacher,
-    teacherAvatarUrl: l.teacherAvatarUrl
+    teacherAvatarUrl: l.teacherAvatarUrl,
+    onlineMeetingUrl: l.onlineMeetingUrl
   }))
 }
 

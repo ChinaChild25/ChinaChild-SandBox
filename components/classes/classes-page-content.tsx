@@ -1,17 +1,23 @@
 "use client"
 
 import Link from "next/link"
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { ChevronRight, FileCheck, Video } from "lucide-react"
 
 import {
   canJoinOnlineClass,
-  getClassesForStudent,
-  type ClassDisplayType
+  classListItemsFromScheduledLessons,
+  ONLINE_JOIN_UNAVAILABLE_TITLE,
+  type ClassDisplayType,
+  type ClassListItem
 } from "@/lib/classes-mock"
-import { getOnlineClassJoinUrl } from "@/lib/online-class-link"
+import { resolveOnlineClassJoinUrl } from "@/lib/online-class-link"
+import type { ScheduledLesson } from "@/lib/schedule-lessons"
 
 const classTypes: Array<ClassDisplayType | "Все"> = ["Все", "Урок", "Тест"]
+
+/** Сколько ближайших занятий показывать в блоке «Предстоящие» (полный список — в расписании). */
+const CLASSES_UPCOMING_PREVIEW_MAX = 2
 
 function typeIcon(displayType: ClassDisplayType) {
   if (displayType === "Тест") return <FileCheck size={20} className="text-ds-text-tertiary" aria-hidden />
@@ -28,12 +34,36 @@ export function ClassesPageContent({
   subtitle: string
 }) {
   const [activeFilter, setActiveFilter] = useState<(typeof classTypes)[number]>("Все")
-  const allClasses = getClassesForStudent()
+  const [allClasses, setAllClasses] = useState<ClassListItem[]>([])
+  const [loadState, setLoadState] = useState<"loading" | "ok" | "error">("loading")
+
+  const loadClasses = useCallback(async () => {
+    setLoadState("loading")
+    try {
+      const res = await fetch("/api/schedule/student-lessons", { cache: "no-store" })
+      const payload = (await res.json()) as { lessons?: ScheduledLesson[]; error?: string }
+      if (!res.ok) {
+        setAllClasses([])
+        setLoadState("error")
+        return
+      }
+      setAllClasses(classListItemsFromScheduledLessons(payload.lessons ?? []))
+      setLoadState("ok")
+    } catch {
+      setAllClasses([])
+      setLoadState("error")
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadClasses()
+  }, [loadClasses])
 
   const filtered =
     activeFilter === "Все" ? allClasses : allClasses.filter((c) => c.type === activeFilter)
 
   const upcoming = filtered.filter((c) => c.status === "upcoming")
+  const upcomingPreview = upcoming.slice(0, CLASSES_UPCOMING_PREVIEW_MAX)
   const completed = filtered.filter((c) => c.status === "completed")
 
   return (
@@ -43,6 +73,18 @@ export function ClassesPageContent({
           <h1 className="text-[36px] font-bold leading-none text-ds-ink">{title}</h1>
           <p className="mt-1 text-[15px] text-[var(--ds-text-secondary)]">{subtitle}</p>
         </header>
+
+        {loadState === "loading" ? (
+          <p className="mb-6 text-[15px] text-[var(--ds-text-secondary)]">Загружаем занятия…</p>
+        ) : null}
+        {loadState === "error" ? (
+          <div className="mb-6 rounded-2xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-[14px] text-red-900 dark:bg-red-950/40 dark:text-red-100">
+            Не удалось загрузить расписание.{" "}
+            <button type="button" className="font-semibold underline underline-offset-2" onClick={() => void loadClasses()}>
+              Повторить
+            </button>
+          </div>
+        ) : null}
 
         <div className="mb-6 flex flex-wrap gap-2 md:mb-7">
           {classTypes.map((ft) => (
@@ -61,18 +103,37 @@ export function ClassesPageContent({
           ))}
         </div>
 
-        {upcoming.length > 0 ? (
+        {loadState === "ok" && upcomingPreview.length === 0 && completed.length === 0 ? (
+          <section className="mb-8 rounded-2xl border border-black/10 bg-[var(--ds-neutral-row)] px-5 py-6 text-[15px] text-ds-text-secondary dark:border-white/10">
+            Пока нет занятий в календаре. Запланируйте урок в{" "}
+            <Link href={scheduleFallbackHref} className="font-medium text-ds-ink underline underline-offset-2">
+              расписании
+            </Link>
+            .
+          </section>
+        ) : null}
+
+        {upcomingPreview.length > 0 ? (
           <section className="mb-8">
             <p className="mb-3 text-[13px] font-semibold uppercase tracking-[0.05em] text-ds-text-tertiary">
               Предстоящие
             </p>
             <ul className="space-y-3">
-              {upcoming.map((cls) => (
+              {upcomingPreview.map((cls) => (
                 <li key={cls.id}>
                   <ClassCard cls={cls} scheduleFallbackHref={scheduleFallbackHref} />
                 </li>
               ))}
             </ul>
+            {upcoming.length > CLASSES_UPCOMING_PREVIEW_MAX ? (
+              <p className="mt-4 text-[14px] text-[var(--ds-text-secondary)]">
+                Остальные предстоящие занятия — в{" "}
+                <Link href={scheduleFallbackHref} className="font-medium text-ds-ink underline underline-offset-2">
+                  расписании
+                </Link>
+                .
+              </p>
+            ) : null}
           </section>
         ) : null}
 
@@ -99,15 +160,15 @@ function ClassCard({
   cls,
   scheduleFallbackHref
 }: {
-  cls: ReturnType<typeof getClassesForStudent>[0]
+  cls: ClassListItem
   scheduleFallbackHref: "/schedule" | "/teacher/schedule"
 }) {
   const href = cls.slug ? `/${cls.slug}` : scheduleFallbackHref
-  const joinUrl = getOnlineClassJoinUrl()
-  const showJoin = cls.status === "upcoming" && cls.type === "Урок" && cls.slug != null
+  const joinUrl = resolveOnlineClassJoinUrl(cls.joinUrl)
+  const showJoin =
+    cls.status === "upcoming" && cls.type === "Урок" && (cls.slug != null || cls.showOnlineConnect === true)
   const joinActive = showJoin && canJoinOnlineClass(cls.isoDate, cls.timeRange)
-  const joinDisabledTitle =
-    "Подключение доступно только в день занятия (по календарю школы) и до его окончания."
+  const joinDisabledTitle = ONLINE_JOIN_UNAVAILABLE_TITLE
 
   return (
     <div className="ds-class-card group flex flex-col gap-3 rounded-2xl p-3 outline-offset-2 transition-colors focus-within:ring-2 focus-within:ring-ds-ink/25 sm:flex-row sm:items-center md:gap-4 md:p-4">

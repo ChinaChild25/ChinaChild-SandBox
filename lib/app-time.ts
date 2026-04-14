@@ -1,29 +1,16 @@
 /**
- * «Сейчас» в приложении: календарная дата зафиксирована на сценарий апреля 2026,
- * время суток берётся с устройства пользователя (часы идут в реальном времени).
- * Так расписание и правило 24 ч согласованы с моками, даже если системные даты другие.
- *
- * Важно: экран переноса ученика (nextDaysFromAppNow, запрос /api/schedule?from&to) должен
- * опираться на getAppNow / getAppTodayStart, а не на new Date(), иначе dateKey не совпадут
- * с isValidRescheduleTargetSlot и список слотов будет пустым.
+ * Единый источник текущего времени приложения.
+ * В прод-режиме всегда используем реальное «сейчас» пользователя/сервера,
+ * иначе валидация «слот в будущем» и разметка upcoming/past расходятся.
  */
-export const APP_REFERENCE_YEAR = 2026
-/** Апрель = 3 (JS) */
-export const APP_REFERENCE_MONTH = 3
-/** Текущий день сценария в апреле 2026 */
-export const APP_REFERENCE_DAY = 12
+const BOOT_NOW = new Date()
+// Backward-compatible exports for modules that still import reference constants.
+export const APP_REFERENCE_YEAR = BOOT_NOW.getFullYear()
+export const APP_REFERENCE_MONTH = BOOT_NOW.getMonth()
+export const APP_REFERENCE_DAY = BOOT_NOW.getDate()
 
 export function getAppNow(): Date {
-  const real = new Date()
-  return new Date(
-    APP_REFERENCE_YEAR,
-    APP_REFERENCE_MONTH,
-    APP_REFERENCE_DAY,
-    real.getHours(),
-    real.getMinutes(),
-    real.getSeconds(),
-    real.getMilliseconds()
-  )
+  return new Date()
 }
 
 /** Полночь «сегодня» по логике приложения */
