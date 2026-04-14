@@ -213,6 +213,8 @@ export default function TeacherSchedulePage() {
     tone: "success" | "cancel"
     title: string
     message: string
+    studentName?: string
+    studentAvatarUrl?: string
   } | null>(null)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [scheduleNotifications, setScheduleNotifications] = useState<ScheduleNotificationItem[]>([])
@@ -700,6 +702,12 @@ export default function TeacherSchedulePage() {
       const fromDate = new Date(lessonDecision.lesson.slot_at)
       const fromLabel = `${localDateKey(fromDate)} ${String(fromDate.getHours()).padStart(2, "0")}:00`
       const toLabel = `${lessonDecision.toDateKey} ${String(lessonDecision.toHour).padStart(2, "0")}:00`
+      const studentName = lessonDecision.lesson.student_name?.trim() || "Ученик"
+      const studentAvatarUrl = lessonDecision.lesson.student_avatar_url || "/students/yana.png"
+      const sourceWeekday = fromDate.getDay()
+      const targetWeekday = new Date(`${lessonDecision.toDateKey}T00:00:00`).getDay()
+      const fromRecurring = `по ${WEEKDAY_RU_DATIVE_PLURAL[sourceWeekday] ?? "выбранным дням"} в ${String(fromDate.getHours()).padStart(2, "0")}:00`
+      const toRecurring = `по ${WEEKDAY_RU_DATIVE_PLURAL[targetWeekday] ?? "выбранным дням"} в ${String(lessonDecision.toHour).padStart(2, "0")}:00`
       pushScheduleNotification({
         audience: "student",
         audienceId: lessonDecision.lesson.student_id,
@@ -714,7 +722,9 @@ export default function TeacherSchedulePage() {
       setActionResultPopup({
         tone: "success",
         title: scope === "following" ? "Перенесли все последующие" : "Занятие перенесено",
-        message: `${fromLabel} → ${toLabel}`
+        message: scope === "following" ? `${studentName}: ${fromRecurring} -> ${toRecurring}` : `${studentName}: ${fromLabel} -> ${toLabel}`,
+        studentName,
+        studentAvatarUrl
       })
       await refreshCalendarData()
     } catch (error) {
@@ -748,7 +758,9 @@ export default function TeacherSchedulePage() {
       setActionResultPopup({
         tone: "cancel",
         title: scope === "following" ? "Отменили все последующие" : "Занятие отменено",
-        message: `${localDateKey(new Date(lessonDecision.lesson.slot_at))} ${String(new Date(lessonDecision.lesson.slot_at).getHours()).padStart(2, "0")}:00`
+        message: `${localDateKey(new Date(lessonDecision.lesson.slot_at))} ${String(new Date(lessonDecision.lesson.slot_at).getHours()).padStart(2, "0")}:00`,
+        studentName: lessonDecision.lesson.student_name?.trim() || "Ученик",
+        studentAvatarUrl: lessonDecision.lesson.student_avatar_url || "/students/yana.png"
       })
       await refreshCalendarData()
     } catch (error) {
@@ -1938,6 +1950,18 @@ export default function TeacherSchedulePage() {
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-2xl font-semibold">{actionResultPopup.title}</p>
+            {actionResultPopup.studentName ? (
+              <div className="mt-3 flex items-center justify-center gap-2">
+                <span className="h-8 w-8 overflow-hidden rounded-full bg-black/10">
+                  <img
+                    src={actionResultPopup.studentAvatarUrl || "/students/yana.png"}
+                    alt={actionResultPopup.studentName}
+                    className="h-full w-full object-cover"
+                  />
+                </span>
+                <span className="text-sm font-medium opacity-90">{actionResultPopup.studentName}</span>
+              </div>
+            ) : null}
             <p className="mt-2 text-sm opacity-80">{actionResultPopup.message}</p>
             <div className="mt-5 flex justify-center">
               <button
