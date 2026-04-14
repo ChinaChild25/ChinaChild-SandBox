@@ -220,20 +220,32 @@ export async function GET() {
         effectiveTeacherMeetingUrl
     })
   }
-  for (const l of inferred) {
-    const key = `${l.dateKey}|${l.time}`
-    const prev = merged.get(key)
-    if (!prev) {
-      merged.set(key, l)
-      continue
+  const hasCanonicalBooked = inferred.length > 0
+  if (hasCanonicalBooked) {
+    // Canonical view: booked slots from teacher_schedule_slots.
+    // Keep student rows only as metadata fallback by same dateKey|time key.
+    const directByKey = new Map<string, (typeof directRows extends Array<infer U> ? U : never)>()
+    for (const row of directRows ?? []) {
+      const key = `${row.date_key}|${normalizeScheduleSlotTime(row.time)}`
+      directByKey.set(key, row)
     }
-    merged.set(key, {
-      ...prev,
-      teacherId: prev.teacherId ?? l.teacherId,
-      teacher: prev.teacher ?? l.teacher,
-      teacherAvatarUrl: prev.teacherAvatarUrl ?? l.teacherAvatarUrl,
-      onlineMeetingUrl: prev.onlineMeetingUrl ?? l.onlineMeetingUrl
-    })
+    const lessons = inferred
+      .map((lesson) => {
+        const key = `${lesson.dateKey}|${lesson.time}`
+        const direct = directByKey.get(key) as { title?: string } | undefined
+        return {
+          ...lesson,
+          title: (direct?.title ?? lesson.title).trim() || "Занятие"
+        }
+      })
+      .sort((a, b) => (a.dateKey === b.dateKey ? a.time.localeCompare(b.time) : a.dateKey.localeCompare(b.dateKey)))
+    return NextResponse.json({ lessons })
   }
-  return NextResponse.json({ lessons: Array.from(merged.values()).sort((a, b) => (a.dateKey === b.dateKey ? a.time.localeCompare(b.time) : a.dateKey.localeCompare(b.dateKey))) })
+
+  // Legacy fallback when canonical rows are temporarily absent.
+  return NextResponse.json({
+    lessons: Array.from(merged.values()).sort((a, b) =>
+      a.dateKey === b.dateKey ? a.time.localeCompare(b.time) : a.dateKey.localeCompare(b.dateKey)
+    )
+  })
 }

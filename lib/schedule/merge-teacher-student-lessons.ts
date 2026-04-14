@@ -207,20 +207,26 @@ export async function mergeTeacherStudentLessonsFromDb(
     })
   }
 
-  for (const l of inferred) {
-    const key = `${l.dateKey}|${l.time}`
-    const prev = merged.get(key)
-    if (!prev) {
-      merged.set(key, l)
-      continue
+  const hasCanonicalBooked = inferred.length > 0
+  if (hasCanonicalBooked) {
+    // Canonical view: teacher booked slots define actual upcoming lessons.
+    // Merge student_schedule only as metadata fallback for the same key.
+    const directByKey = new Map<string, (typeof directRows extends Array<infer U> ? U : never)>()
+    for (const row of directRows ?? []) {
+      const key = `${row.date_key}|${normalizeScheduleSlotTime(row.time)}`
+      directByKey.set(key, row)
     }
-    merged.set(key, {
-      ...prev,
-      teacherId: prev.teacherId ?? l.teacherId,
-      teacher: prev.teacher ?? l.teacher,
-      teacherAvatarUrl: prev.teacherAvatarUrl ?? l.teacherAvatarUrl,
-      onlineMeetingUrl: prev.onlineMeetingUrl ?? l.onlineMeetingUrl
-    })
+    const lessons = inferred
+      .map((lesson) => {
+        const key = `${lesson.dateKey}|${lesson.time}`
+        const direct = directByKey.get(key) as { title?: string } | undefined
+        return {
+          ...lesson,
+          title: (direct?.title ?? lesson.title).trim() || "Занятие"
+        }
+      })
+      .sort((a, b) => (a.dateKey === b.dateKey ? a.time.localeCompare(b.time) : a.dateKey.localeCompare(b.dateKey)))
+    return { ok: true, lessons }
   }
 
   const lessons = Array.from(merged.values()).sort((a, b) =>
