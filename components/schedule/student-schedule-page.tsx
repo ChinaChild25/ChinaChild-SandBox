@@ -5,17 +5,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { BookOpenCheck, CalendarCheck2, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Ellipsis, MessageSquare, Repeat, Star, UserRound, X } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { getAppNow, getAppTodayStart } from "@/lib/app-time"
-import { SCHEDULE_WALL_CLOCK_TIMEZONE } from "@/lib/schedule-display-tz"
-import { wallClockFromSlotAt } from "@/lib/schedule-display-tz"
-import { calendarWeekdayFromDateKey } from "@/lib/schedule/calendar-ymd"
+import { SCHEDULE_WALL_CLOCK_TIMEZONE, wallClockFromDateInSchoolTz, wallClockFromSlotAt } from "@/lib/schedule-display-tz"
+import { calendarWeekdayFromDateKey, mondayDateKeyOfWeekContaining } from "@/lib/schedule/calendar-ymd"
+import { minDateKeyForFollowingRescheduleWeekdayPicker } from "@/lib/schedule/following-series"
 import { addOneDayYmd } from "@/lib/schedule/date-ymd"
 import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
 import {
   canRescheduleLesson,
   dateKeyFromDate,
+  followingRescheduleSelectableTimesByWeekday,
+  formatSchoolCalendarWeekdayLongRu,
+  isValidFollowingRescheduleTargetForLesson,
+  isValidFollowingRescheduleTemplateSlot,
   isValidRescheduleTargetSlot,
-  isValidStudentBookingTargetSlot,
-  parseLessonStart,
+  isValidStudentWeeklyBookingAnchorSlot,
+  localWallClockNowEpochMs,
+  schoolCalendarAnchorUtc,
   type ScheduledLesson
 } from "@/lib/schedule-lessons"
 import {
@@ -30,8 +35,30 @@ type FlowType = "single" | "following"
 
 type DateSlots = Record<string, string[]>
 const STUDENT_RESCHEDULE_DAYS_AHEAD = 7
+/** Загрузка слотов для «Запланировать»: до 14 дней — якорь еженедельного плана тоже с отсечкой +24 ч. */
+const STUDENT_PLAN_SLOT_FETCH_DAYS = 14
+/** Загрузка слотов для переноса: шире 7 дней, иначе целевая среда после четверга выпадает из окна. */
+const STUDENT_RESCHEDULE_SLOT_FETCH_DAYS = 42
+
+/** Слоты по дню недели. minDateKey: отсечь даты раньше (для переноса — понедельник недели урока, чтобы среда до четверга попадала в ту же неделю). */
+function aggregateSlotsByWeekdayFromDateSlots(dateSlots: DateSlots, minDateKey: string | null): Record<number, string[]> {
+  const map: Record<number, string[]> = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] }
+  for (const [dateKey, slots] of Object.entries(dateSlots)) {
+    if (minDateKey && dateKey < minDateKey) continue
+    const weekday = calendarWeekdayFromDateKey(dateKey)
+    for (const slot of slots) {
+      if (!map[weekday].includes(slot)) map[weekday].push(slot)
+    }
+  }
+  for (const wd of Object.keys(map)) {
+    map[Number(wd)].sort()
+  }
+  return map
+}
 /** Сколько ближайших занятий показывать в списках «Предстоящие» (не календарная сетка). */
 const SCHEDULE_UPCOMING_LIST_MAX = 2
+/** Высота одного часа в десктопной сетке календаря (`h-14` = 3.5rem). */
+const STUDENT_DESKTOP_CALENDAR_HOUR_PX = 56
 type CancelSuccessInfo = { lesson: ScheduledLesson; scope: "single" | "following" }
 
 function lessonStartMs(dateKey: string, time: string): number {
@@ -75,6 +102,7 @@ export function StudentSchedulePage() {
   const [planLoadingSlots, setPlanLoadingSlots] = useState(false)
   const [planSuccessText, setPlanSuccessText] = useState<string | null>(null)
   const desktopCalendarScrollRef = useRef<HTMLDivElement | null>(null)
+  const [nowTs, setNowTs] = useState(() => localWallClockNowEpochMs())
 
   const refreshLessons = useCallback(async () => {
     const res = await fetch("/api/schedule/student-lessons")
@@ -88,6 +116,20 @@ export function StudentSchedulePage() {
     const timer = window.setInterval(() => void refreshLessons(), 30000)
     return () => window.clearInterval(timer)
   }, [user, refreshLessons])
+
+  useEffect(() => {
+    const tick = () => setNowTs(localWallClockNowEpochMs())
+    tick()
+    const id = window.setInterval(tick, 30_000)
+    const onVis = () => {
+      if (document.visibilityState === "visible") tick()
+    }
+    document.addEventListener("visibilitychange", onVis)
+    return () => {
+      window.clearInterval(id)
+      document.removeEventListener("visibilitychange", onVis)
+    }
+  }, [])
 
   useEffect(() => {
     if (user?.role !== "student") return
@@ -132,7 +174,6 @@ export function StudentSchedulePage() {
     [lessons]
   )
 
-  const nowTs = Date.now()
   const upcoming = sortedLessons.filter((l) => lessonStartMs(l.dateKey, l.time) > nowTs)
   const upcomingListPreview = useMemo(
     () => upcoming.slice(0, SCHEDULE_UPCOMING_LIST_MAX),
@@ -141,14 +182,13 @@ export function StudentSchedulePage() {
   const past = [...sortedLessons.filter((l) => lessonStartMs(l.dateKey, l.time) <= nowTs)].reverse()
 
   const weeklyGroups = useMemo(() => {
-    const map = new Map<string, { weekday: string; time: string; teacher: string; count: number }>()
+    const map = new Map<string, { weekday: number; time: string; teacher: string; count: number }>()
     for (const l of upcoming) {
-      const dt = parseLessonStart(l.dateKey, l.time)
-      const key = `${dt.getDay()}-${l.time}`
-      const weekday = dt.toLocaleDateString("ru-RU", { weekday: "long" })
+      const wd = calendarWeekdayFromDateKey(l.dateKey)
+      const key = `${wd}-${l.time}`
       const prev = map.get(key)
       map.set(key, {
-        weekday,
+        weekday: wd,
         time: l.time,
         teacher: l.teacher ?? "Преподаватель",
         count: (prev?.count ?? 0) + 1
@@ -169,8 +209,7 @@ export function StudentSchedulePage() {
   const recurringKeys = useMemo(() => {
     const counts = new Map<string, number>()
     for (const lesson of sortedLessons) {
-      const dt = parseLessonStart(lesson.dateKey, lesson.time)
-      const key = `${dt.getDay()}-${lesson.time}`
+      const key = `${calendarWeekdayFromDateKey(lesson.dateKey)}-${lesson.time}`
       counts.set(key, (counts.get(key) ?? 0) + 1)
     }
     return new Set(Array.from(counts.entries()).filter(([, count]) => count > 1).map(([key]) => key))
@@ -189,13 +228,13 @@ export function StudentSchedulePage() {
   }, [cancelSuccessInfo?.lesson, selectedLesson, sortedLessons])
   const isRecurringLesson = useCallback(
     (lesson: ScheduledLesson) => {
-      const targetWeekday = parseLessonStart(lesson.dateKey, lesson.time).getDay()
+      const targetWeekday = calendarWeekdayFromDateKey(lesson.dateKey)
       const targetTime = normalizeScheduleSlotTime(lesson.time)
       const targetTeacher = (lesson.teacherId ?? lesson.teacher ?? "").trim()
       const siblings = sortedLessons.filter((candidate) => {
         if (candidate.id === lesson.id) return false
         if (normalizeScheduleSlotTime(candidate.time) !== targetTime) return false
-        if (parseLessonStart(candidate.dateKey, candidate.time).getDay() !== targetWeekday) return false
+        if (calendarWeekdayFromDateKey(candidate.dateKey) !== targetWeekday) return false
         const teacher = (candidate.teacherId ?? candidate.teacher ?? "").trim()
         if (targetTeacher && teacher && teacher !== targetTeacher) return false
         return true
@@ -210,6 +249,19 @@ export function StudentSchedulePage() {
 
   const desktopDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(desktopAnchorDate, i)), [desktopAnchorDate])
   const desktopDayKeys = useMemo(() => desktopDays.map((d) => toDateKey(d)), [desktopDays])
+  /** Apple-style индикатор «сейчас»: время + точка + линия в текущем дне. */
+  const desktopCalendarNowLine = useMemo(() => {
+    const wall = wallClockFromDateInSchoolTz(getAppNow())
+    const dayIdx = desktopDayKeys.indexOf(wall.dateKey)
+    if (dayIdx < 0) return null
+    const t = normalizeScheduleSlotTime(wall.time)
+    const hh = Number.parseInt(t.slice(0, 2), 10)
+    const mm = Number.parseInt(t.slice(3, 5), 10)
+    if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null
+    const minutesFromMidnight = hh * 60 + mm + getAppNow().getSeconds() / 60
+    const top = (minutesFromMidnight / 60) * STUDENT_DESKTOP_CALENDAR_HOUR_PX
+    return { top, dayIdx, label: t.slice(0, 5) }
+  }, [desktopDayKeys, nowTs])
   const weekStartTs = desktopDays[0]?.getTime() ?? 0
   const weekEndTs = (desktopDays[6]?.getTime() ?? 0) + 24 * 60 * 60 * 1000
   const desktopLessons = useMemo(
@@ -221,19 +273,27 @@ export function StudentSchedulePage() {
     [sortedLessons, weekEndTs, weekStartTs]
   )
   const desktopHours = useMemo(() => Array.from({ length: 24 }, (_, i) => i), [])
-  const weeklySlotsByWeekday = useMemo(() => {
+  /** Еженедельный план: только слоты, где первый урок — не раньше чем через 24 ч (как разовый перенос). */
+  const weeklySlotsByWeekdayForPlan = useMemo(() => {
     const map: Record<number, string[]> = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] }
     for (const [dateKey, slots] of Object.entries(dateSlots)) {
-      const weekday = parseLessonStart(dateKey, "00:00").getDay()
+      const weekday = calendarWeekdayFromDateKey(dateKey)
       for (const slot of slots) {
+        const tn = normalizeScheduleSlotTime(slot)
+        if (!isValidStudentWeeklyBookingAnchorSlot(dateKey, tn)) continue
         if (!map[weekday].includes(slot)) map[weekday].push(slot)
       }
     }
-    for (const weekday of Object.keys(map)) {
-      map[Number(weekday)].sort()
+    for (const wd of Object.keys(map)) {
+      map[Number(wd)].sort()
     }
     return map
   }, [dateSlots])
+  const weeklySlotsByWeekdayForReschedule = useMemo(() => {
+    if (!selectedLesson) return aggregateSlotsByWeekdayFromDateSlots(dateSlots, null)
+    const weekStart = mondayDateKeyOfWeekContaining(selectedLesson.dateKey)
+    return followingRescheduleSelectableTimesByWeekday(dateSlots, selectedLesson.dateKey, weekStart)
+  }, [dateSlots, selectedLesson])
   const strictRescheduleDateSlots = useMemo(() => {
     const byDate: DateSlots = {}
     for (const [dateKey, slots] of Object.entries(dateSlots)) {
@@ -292,7 +352,7 @@ export function StudentSchedulePage() {
     try {
       const now = getAppNow()
       const to = new Date(now)
-      to.setDate(to.getDate() + STUDENT_RESCHEDULE_DAYS_AHEAD)
+      to.setDate(to.getDate() + STUDENT_RESCHEDULE_SLOT_FETCH_DAYS)
       const teacherParam = lesson.teacherId ? `&teacher_id=${encodeURIComponent(lesson.teacherId)}` : ""
       const res = await fetch(
         `/api/schedule?from=${encodeURIComponent(now.toISOString())}&to=${encodeURIComponent(to.toISOString())}${teacherParam}`
@@ -307,7 +367,7 @@ export function StudentSchedulePage() {
       for (const s of payload.slots ?? []) {
         const { dateKey, time } = wallClockFromSlotAt(s.slot_at)
         const timeNorm = normalizeScheduleSlotTime(time)
-        if (!isValidStudentBookingTargetSlot(dateKey, timeNorm)) continue
+        if (!isValidFollowingRescheduleTemplateSlot(dateKey, timeNorm)) continue
         const prev = byDate[dateKey] ?? []
         if (!prev.includes(timeNorm)) byDate[dateKey] = [...prev, timeNorm]
       }
@@ -318,6 +378,7 @@ export function StudentSchedulePage() {
   }, [])
 
   const openLesson = async (lesson: ScheduledLesson) => {
+    setActionError(null)
     setSelectedLesson(lesson)
     setFlowStep("menu")
     setFlowType("single")
@@ -330,7 +391,7 @@ export function StudentSchedulePage() {
     try {
       const now = getAppNow()
       const to = new Date(now)
-      to.setDate(to.getDate() + STUDENT_RESCHEDULE_DAYS_AHEAD)
+      to.setDate(to.getDate() + STUDENT_PLAN_SLOT_FETCH_DAYS)
       const teacherId = selectedLesson?.teacherId || upcoming[0]?.teacherId || lessons[0]?.teacherId
       const teacherParam = teacherId ? `&teacher_id=${encodeURIComponent(teacherId)}` : ""
       const res = await fetch(
@@ -346,7 +407,9 @@ export function StudentSchedulePage() {
       for (const s of payload.slots ?? []) {
         const { dateKey, time } = wallClockFromSlotAt(s.slot_at)
         const timeNorm = normalizeScheduleSlotTime(time)
-        if (!isValidStudentBookingTargetSlot(dateKey, timeNorm)) continue
+        const okSinglePlan = isValidRescheduleTargetSlot(dateKey, timeNorm)
+        const okWeeklyPlan = isValidStudentWeeklyBookingAnchorSlot(dateKey, timeNorm)
+        if (!okSinglePlan && !okWeeklyPlan) continue
         const prev = byDate[dateKey] ?? []
         if (!prev.includes(timeNorm)) byDate[dateKey] = [...prev, timeNorm]
       }
@@ -372,17 +435,37 @@ export function StudentSchedulePage() {
       const res = await fetch("/api/schedule/student-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "book",
-          teacher_id: selectedLesson?.teacherId || upcoming[0]?.teacherId || lessons[0]?.teacherId,
-          scope: planType,
-          to_date_key: planDateKey,
-          to_hour: Number(time.slice(0, 2))
-        })
+        body: JSON.stringify((() => {
+          const now = getAppNow()
+          return {
+            action: "book",
+            teacher_id: selectedLesson?.teacherId || upcoming[0]?.teacherId || lessons[0]?.teacherId,
+            scope: planType,
+            to_date_key: planDateKey,
+            to_hour: Number(time.slice(0, 2)),
+            now_date_key: dateKeyFromDate(now),
+            now_time: `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
+          }
+        })())
       })
-      const payload = (await res.json().catch(() => ({}))) as { error?: string; ok?: boolean; booked?: number }
+      const payload = (await res.json().catch(() => ({}))) as {
+        error?: string
+        ok?: boolean
+        booked?: number
+        requested?: number
+        partial?: boolean
+      }
       if (!res.ok) {
-        setActionError(payload.error ?? "Не удалось запланировать урок")
+        const partial = Boolean((payload as { partial?: boolean }).partial)
+        const bookedPartial = Number((payload as { booked?: number }).booked ?? 0)
+        if (partial && bookedPartial > 0 && planType === "following") {
+          setActionError(
+            `${payload.error ?? "Ошибка при бронировании"} Уже забронировано ${bookedPartial} из ${(payload as { requested?: number }).requested ?? "?"} занятий — проверьте расписание.`
+          )
+          await refreshLessons()
+        } else {
+          setActionError(payload.error ?? "Не удалось запланировать урок")
+        }
         return
       }
       if (planType === "following" && Number(payload.booked ?? 0) <= 0) {
@@ -394,8 +477,14 @@ export function StudentSchedulePage() {
         return
       }
       if (planType === "following") {
-        const weekday = parseLessonStart(planDateKey, "00:00").getDay()
-        setPlanSuccessText(`Назначили регулярные занятия по ${formatRecurringWeekdayLabel(weekday)} в ${time}`)
+        const weekday = calendarWeekdayFromDateKey(planDateKey)
+        if (payload.partial && payload.requested && payload.booked != null) {
+          setPlanSuccessText(
+            `Забронировано ${payload.booked} из ${payload.requested} занятий по ${formatRecurringWeekdayLabel(weekday)} в ${time}. Часть дат была недоступна — проверьте расписание.`
+          )
+        } else {
+          setPlanSuccessText(`Назначили регулярные занятия по ${formatRecurringWeekdayLabel(weekday)} в ${time}`)
+        }
       } else {
         setPlanSuccessText(`Назначили занятие на ${formatDateLabel(planDateKey)} в ${time}`)
       }
@@ -421,12 +510,17 @@ export function StudentSchedulePage() {
       const res = await fetch("/api/schedule/student-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "cancel",
-          teacher_id: lesson.teacherId,
-          scope,
-          lesson: { slot_at: `${lesson.dateKey}T${lesson.time}:00`, date_key: lesson.dateKey, time: lesson.time }
-        })
+        body: JSON.stringify((() => {
+          const now = getAppNow()
+          return {
+            action: "cancel",
+            teacher_id: lesson.teacherId,
+            scope,
+            lesson: { slot_at: `${lesson.dateKey}T${lesson.time}:00`, date_key: lesson.dateKey, time: lesson.time },
+            now_date_key: dateKeyFromDate(now),
+            now_time: `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
+          }
+        })())
       })
       if (!res.ok) {
         const payload = (await res.json().catch(() => ({}))) as { error?: string }
@@ -466,14 +560,19 @@ export function StudentSchedulePage() {
       const res = await fetch("/api/schedule/student-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "reschedule",
-          teacher_id: selectedLesson.teacherId,
-          scope: flowType,
-          to_date_key: selectedDateKey,
-          to_hour: Number(toTime.slice(0, 2)),
-          lesson: { slot_at: `${selectedLesson.dateKey}T${selectedLesson.time}:00`, date_key: selectedLesson.dateKey, time: selectedLesson.time }
-        })
+        body: JSON.stringify((() => {
+          const now = getAppNow()
+          return {
+            action: "reschedule",
+            teacher_id: selectedLesson.teacherId,
+            scope: flowType,
+            to_date_key: selectedDateKey,
+            to_hour: Number(toTime.slice(0, 2)),
+            lesson: { slot_at: `${selectedLesson.dateKey}T${selectedLesson.time}:00`, date_key: selectedLesson.dateKey, time: selectedLesson.time },
+            now_date_key: dateKeyFromDate(now),
+            now_time: `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
+          }
+        })())
       })
       if (!res.ok) {
         const payload = (await res.json().catch(() => ({}))) as { error?: string }
@@ -583,7 +682,7 @@ export function StudentSchedulePage() {
           ref={desktopCalendarScrollRef}
           className="max-h-[calc(56px*12)] overflow-y-auto overflow-x-hidden ds-hide-scrollbar"
         >
-        <div className="grid" style={{ gridTemplateColumns: `70px repeat(7, minmax(110px, 1fr))` }}>
+        <div className="relative grid" style={{ gridTemplateColumns: `70px repeat(7, minmax(110px, 1fr))` }}>
           <div className="border-r border-black/10 dark:border-white/10">
             {desktopHours.map((h) => (
               <div key={`th-${h}`} className="h-14 border-b border-black/10 dark:border-white/10 px-2 py-1 text-xs text-ds-text-muted">{String(h).padStart(2, "0")}:00</div>
@@ -598,10 +697,10 @@ export function StudentSchedulePage() {
                 ))}
                 {dayLessons.map((l) => {
                   const hour = Number(l.time.slice(0, 2))
-                  const top = (hour - desktopHours[0]) * 56 + 4
+                  const top = (hour - desktopHours[0]) * STUDENT_DESKTOP_CALENDAR_HOUR_PX + 4
                   const lessonTs = lessonStartMs(l.dateKey, l.time)
                   const isPastLesson = lessonTs <= nowTs
-                  const weekday = parseLessonStart(l.dateKey, l.time).getDay()
+                  const weekday = calendarWeekdayFromDateKey(l.dateKey)
                   const recurrenceKey = `${weekday}-${l.time}`
                   const isRecurring = recurringKeys.has(recurrenceKey)
                   const cardClass = `absolute left-1 right-1 z-10 rounded-lg border px-2 py-1 pl-10 pr-7 text-left shadow-sm ${
@@ -654,6 +753,27 @@ export function StudentSchedulePage() {
               </div>
             )
           })}
+          {desktopCalendarNowLine ? (
+            <div className="pointer-events-none absolute inset-x-0 z-[25]" style={{ top: desktopCalendarNowLine.top }} aria-hidden>
+              <div className="grid" style={{ gridTemplateColumns: `70px repeat(7, minmax(110px, 1fr))` }}>
+                <div className="relative">
+                  <span className="absolute right-1 top-[-10px] rounded-md bg-[#d93025] px-1.5 py-[1px] text-[11px] font-semibold leading-none text-white">
+                    {desktopCalendarNowLine.label}
+                  </span>
+                </div>
+                {desktopDayKeys.map((k, idx) => (
+                  <div key={`now-${k}`} className="relative h-0">
+                    <div
+                      className={`absolute inset-x-0 ${idx === desktopCalendarNowLine.dayIdx ? "border-t-2 border-[#d93025] dark:border-[#ea4335]" : "border-t-2 border-[#d93025]/35 dark:border-[#ea4335]/35"}`}
+                    />
+                    {idx === desktopCalendarNowLine.dayIdx ? (
+                      <div className="absolute left-0 top-[-4px] h-2 w-2 -translate-x-1/2 rounded-full bg-[#d93025] dark:bg-[#ea4335]" />
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
         </div>
       </div>
@@ -671,7 +791,7 @@ export function StudentSchedulePage() {
                   />
                 </div>
                 <div>
-                  <div className="text-xl font-medium text-ds-text-primary">{capitalize(parseLessonStart(l.dateKey, l.time).toLocaleDateString("ru-RU", { weekday: "long" }))}, {l.time}</div>
+                  <div className="text-xl font-medium text-ds-text-primary">{formatUpcomingLessonHeading(l.dateKey, l.time)}</div>
                   <div className="text-sm text-ds-text-muted">{l.teacher ?? "Преподаватель"}, {l.title}</div>
                 </div>
               </button>
@@ -702,7 +822,7 @@ export function StudentSchedulePage() {
                     />
                   </div>
                   <div>
-                    <div className="text-xl font-medium text-ds-text-primary">Каждый {g.weekday} {g.time}</div>
+                    <div className="text-xl font-medium text-ds-text-primary">{formatRecurringHeadlineRu(g.weekday, g.time)}</div>
                     <div className="text-sm text-ds-text-muted">{g.teacher}, {upcoming[0]?.title ?? "Урок"}</div>
                   </div>
                 </div>
@@ -723,6 +843,7 @@ export function StudentSchedulePage() {
                     setPlanOpen(true)
                     setPlanType("following")
                     setPlanStep("date")
+                    void loadDateSlots()
                   }}
                 >
                   <Ellipsis size={20} />
@@ -744,7 +865,7 @@ export function StudentSchedulePage() {
                   />
                 </div>
                 <div>
-                  <div className="text-lg font-medium text-ds-text-primary">{capitalize(parseLessonStart(l.dateKey, l.time).toLocaleDateString("ru-RU", { weekday: "long" }))}, {l.time}</div>
+                  <div className="text-lg font-medium text-ds-text-primary">{capitalize(formatSchoolCalendarWeekdayLongRu(l.dateKey))}, {l.time}</div>
                   <div className="text-sm text-ds-text-muted">{l.teacher ?? "Преподаватель"}, {l.title}</div>
                 </div>
               </div>
@@ -803,11 +924,17 @@ export function StudentSchedulePage() {
                 {upcoming[0].title}
               </div>
               <div className="mt-2 text-lg text-ds-text-muted">
-                {capitalize(parseLessonStart(upcoming[0].dateKey, upcoming[0].time).toLocaleDateString("ru-RU", {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "short"
-                }).replace(".", ""))} · {upcoming[0].time}
+                {capitalize(
+                  new Intl.DateTimeFormat("ru-RU", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "short",
+                    timeZone: "UTC"
+                  })
+                    .format(schoolCalendarAnchorUtc(upcoming[0].dateKey))
+                    .replace(".", "")
+                )}{" "}
+                · {upcoming[0].time}
               </div>
             </div>
             <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-[#e3e6ea]">
@@ -832,7 +959,7 @@ export function StudentSchedulePage() {
         ) : (
           weeklyGroups.map((g, idx) => (
             <div key={`${g.weekday}-${idx}`} className="rounded-xl border border-black/10 dark:border-white/10 bg-ds-surface px-4 py-4">
-              <div className="flex items-center gap-2 text-ds-text-primary"><Repeat size={16} /> Каждый {g.weekday} в {g.time}</div>
+              <div className="flex items-center gap-2 text-ds-text-primary"><Repeat size={16} /> {formatRecurringHeadlineRu(g.weekday, g.time)}</div>
               <div className="mt-1 text-sm text-ds-text-muted">{g.teacher}</div>
             </div>
           ))
@@ -860,9 +987,17 @@ export function StudentSchedulePage() {
             onClick={(e) => e.stopPropagation()}
           >
             <button
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-base font-medium text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)]"
+              type="button"
+              disabled={!canRescheduleLesson(desktopMenu.lesson.dateKey, desktopMenu.lesson.time)}
+              title={
+                canRescheduleLesson(desktopMenu.lesson.dateKey, desktopMenu.lesson.time)
+                  ? undefined
+                  : "До начала урока менее 24 часов — перенос недоступен"
+              }
+              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-base font-medium text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)] disabled:cursor-not-allowed disabled:opacity-50"
               onClick={() => {
                 const lesson = desktopMenu.lesson
+                if (!canRescheduleLesson(lesson.dateKey, lesson.time)) return
                 setDesktopMenu(null)
                 setSelectedLesson(lesson)
                 setFlowType("single")
@@ -899,6 +1034,11 @@ export function StudentSchedulePage() {
           {flowStep === "menu" ? (
             <StepMenu
               lesson={selectedLesson}
+              rescheduleBlockedReason={
+                canRescheduleLesson(selectedLesson.dateKey, selectedLesson.time)
+                  ? null
+                  : "До начала урока осталось менее 24 часов — перенос по правилам школы недоступен."
+              }
               onCancel={doCancel}
               onReschedule={() => setFlowStep(isRecurringLesson(selectedLesson) ? "type" : "date")}
             />
@@ -908,6 +1048,7 @@ export function StudentSchedulePage() {
               allowFollowing={isRecurringLesson(selectedLesson)}
               onBack={() => setFlowStep("menu")}
               onPick={(value) => {
+                setActionError(null)
                 setFlowType(value)
                 setFlowStep("date")
               }}
@@ -916,27 +1057,34 @@ export function StudentSchedulePage() {
           {flowStep === "date" ? (
             flowType === "following" ? (
               <StepWeekday
-                originWeekday={parseLessonStart(selectedLesson.dateKey, selectedLesson.time).getDay()}
-                weeklySlotsByWeekday={weeklySlotsByWeekday}
+                originWeekday={calendarWeekdayFromDateKey(selectedLesson.dateKey)}
+                weeklySlotsByWeekday={weeklySlotsByWeekdayForReschedule}
+                errorMessage={actionError}
                 onBack={() => setFlowStep(isRecurringLesson(selectedLesson) ? "type" : "menu")}
                 onPick={(targetWeekday) => {
+                  const minKey = minDateKeyForFollowingRescheduleWeekdayPicker(selectedLesson.dateKey, targetWeekday)
                   const candidate = Object.keys(dateSlots)
                     .filter(
                       (k) =>
-                        k >= selectedLesson.dateKey &&
+                        k >= minKey &&
                         calendarWeekdayFromDateKey(k) === targetWeekday &&
-                        (dateSlots[k] ?? []).length > 0
+                        (dateSlots[k] ?? []).some((t) =>
+                          isValidFollowingRescheduleTargetForLesson(
+                            selectedLesson.dateKey,
+                            k,
+                            normalizeScheduleSlotTime(t)
+                          )
+                        )
                     )
                     .sort()[0]
-                  if (candidate) {
-                    setSelectedDateKey(candidate)
-                  } else {
-                    const base = parseLessonStart(selectedLesson.dateKey, "00:00")
-                    const baseWeekday = base.getDay()
-                    const delta = (targetWeekday - baseWeekday + 7) % 7
-                    const target = addDays(base, delta)
-                    setSelectedDateKey(toDateKey(target))
+                  if (!candidate) {
+                    setActionError(
+                      "На этот день недели нет подходящих слотов в загруженном окне. Выберите другой день или другое время."
+                    )
+                    return
                   }
+                  setActionError(null)
+                  setSelectedDateKey(candidate)
                   setFlowStep("time")
                 }}
               />
@@ -1162,14 +1310,23 @@ export function StudentSchedulePage() {
             ) : (
             planType === "following" ? (
               <StepWeekday
-                weeklySlotsByWeekday={weeklySlotsByWeekday}
+                weeklySlotsByWeekday={weeklySlotsByWeekdayForPlan}
+                errorMessage={actionError}
                 onBack={() => setPlanStep("type")}
                 onPick={(weekday) => {
                   const candidate = Object.keys(dateSlots)
-                    .filter((k) => parseLessonStart(k, "00:00").getDay() === weekday && (dateSlots[k] ?? []).length > 0)
+                    .filter(
+                      (k) =>
+                        calendarWeekdayFromDateKey(k) === weekday &&
+                        (dateSlots[k] ?? []).some((t) =>
+                          isValidStudentWeeklyBookingAnchorSlot(k, normalizeScheduleSlotTime(t))
+                        )
+                    )
                     .sort()[0]
                   if (!candidate) {
-                    setActionError("На выбранный день недели нет доступных будущих слотов.")
+                    setActionError(
+                      "На выбранный день недели нет подходящих слотов в загруженном окне (до 14 дней). Попробуйте позже или другой день."
+                    )
                     return
                   }
                   setActionError(null)
@@ -1184,6 +1341,7 @@ export function StudentSchedulePage() {
                 slotsLoading={false}
                 slotsError={scheduleSlotsError}
                 showRescheduleHint={false}
+                singlePlanSlotRule
                 onBack={() => setPlanStep("type")}
                 onPick={(dateKey) => {
                   setPlanDateKey(dateKey)
@@ -1262,10 +1420,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function LessonCard({ lesson, onClick }: { lesson: ScheduledLesson; onClick: () => void }) {
-  const d = parseLessonStart(lesson.dateKey, lesson.time)
-  const month = d.toLocaleDateString("ru-RU", { month: "short" }).replace(".", "").toUpperCase()
-  const day = d.getDate()
-  const weekday = d.toLocaleDateString("ru-RU", { weekday: "long" })
+  const anchor = schoolCalendarAnchorUtc(lesson.dateKey)
+  const month = new Intl.DateTimeFormat("ru-RU", { month: "short", timeZone: "UTC" })
+    .format(anchor)
+    .replace(".", "")
+    .toUpperCase()
+  const day = anchor.getUTCDate()
+  const weekday = formatSchoolCalendarWeekdayLongRu(lesson.dateKey)
   return (
     <button
       type="button"
@@ -1325,22 +1486,29 @@ function LessonModal({
 
 function StepMenu({
   lesson,
+  rescheduleBlockedReason,
   onReschedule,
   onCancel
 }: {
   lesson: ScheduledLesson
+  rescheduleBlockedReason?: string | null
   onReschedule: () => void
   onCancel: () => void
 }) {
   const dayLabel = getLessonDayLabel(lesson.dateKey, lesson.time)
+  const blocked = Boolean(rescheduleBlockedReason)
   return (
     <div>
       <div className="mb-2 text-sm text-ds-text-muted">{dayLabel}</div>
       <h3 className="text-3xl font-semibold leading-tight text-ds-text-primary">{formatLessonHeader(lesson)}</h3>
       <p className="mt-2 text-lg text-ds-text-muted">{lesson.title}</p>
+      {blocked ? (
+        <p className="mt-4 rounded-xl bg-ds-neutral-row px-4 py-3 text-sm text-ds-text-muted">{rescheduleBlockedReason}</p>
+      ) : null}
       <button
         type="button"
-        className="mt-5 w-full rounded-xl bg-[var(--ds-neutral-row)] px-4 py-3 text-lg font-medium text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)]"
+        disabled={blocked}
+        className="mt-5 w-full rounded-xl bg-[var(--ds-neutral-row)] px-4 py-3 text-lg font-medium text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)] disabled:cursor-not-allowed disabled:opacity-55"
         onClick={onReschedule}
       >
         Перенести
@@ -1395,6 +1563,8 @@ function StepDate({
   slotsLoading,
   slotsError,
   showRescheduleHint = true,
+  /** План «разово»: день активен только при слоте с правилом +24 ч (не только «на следующей неделе» для weekly). */
+  singlePlanSlotRule = false,
   onBack,
   onPick
 }: {
@@ -1403,6 +1573,7 @@ function StepDate({
   slotsLoading?: boolean
   slotsError?: string | null
   showRescheduleHint?: boolean
+  singlePlanSlotRule?: boolean
   onBack: () => void
   onPick: (dateKey: string) => void
 }) {
@@ -1432,7 +1603,10 @@ function StepDate({
       ) : null}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {days.map((dateKey) => {
-          const available = (dateSlots[dateKey] ?? []).length > 0
+          const times = dateSlots[dateKey] ?? []
+          const available = singlePlanSlotRule
+            ? times.some((t) => isValidRescheduleTargetSlot(dateKey, normalizeScheduleSlotTime(t)))
+            : times.length > 0
           return (
             <button
               key={dateKey}
@@ -1453,11 +1627,13 @@ function StepDate({
 function StepWeekday({
   originWeekday,
   weeklySlotsByWeekday,
+  errorMessage,
   onBack,
   onPick
 }: {
   originWeekday?: number
   weeklySlotsByWeekday: Record<number, string[]>
+  errorMessage?: string | null
   onBack: () => void
   onPick: (weekday: number) => void
 }) {
@@ -1469,6 +1645,9 @@ function StepWeekday({
       <p className="mb-3 text-sm text-ds-text-muted">
         Для регулярного переноса выбирается шаблон недели, а не конкретная дата.
       </p>
+      {errorMessage ? (
+        <div className="mb-3 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-800 dark:bg-red-950/45 dark:text-red-200">{errorMessage}</div>
+      ) : null}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {weekdays.map((weekday) => {
           const availableCount = (weeklySlotsByWeekday[weekday] ?? []).length
@@ -1531,12 +1710,15 @@ function StepTime({
   onBack: () => void
   onPick: (time: string) => void
 }) {
-  const lessonWeekday = parseLessonStart(lesson.dateKey, lesson.time).getDay()
-  const targetWeekday = parseLessonStart(dateKey, "00:00").getDay()
+  const lessonWeekday = calendarWeekdayFromDateKey(lesson.dateKey)
+  const targetWeekday = calendarWeekdayFromDateKey(dateKey)
   const regular = slots.filter((t) => targetWeekday === lessonWeekday && isValidRescheduleTargetSlot(dateKey, t))
   const single = slots.filter((t) => isValidRescheduleTargetSlot(dateKey, t))
-  const weeklyOptions = slots.filter((t) => isValidStudentBookingTargetSlot(dateKey, t))
-  const planOptions = slots.filter((t) => isValidStudentBookingTargetSlot(dateKey, t))
+  const weeklyOptions = slots.filter((t) => isValidFollowingRescheduleTargetForLesson(lesson.dateKey, dateKey, t))
+  const planOptions =
+    mode === "plan" && flowType === "following"
+      ? slots.filter((t) => isValidStudentWeeklyBookingAnchorSlot(dateKey, normalizeScheduleSlotTime(t)))
+      : slots.filter((t) => isValidRescheduleTargetSlot(dateKey, t))
   return (
     <div>
       <button className="mb-3 rounded-lg px-2 py-1 text-sm text-ds-text-muted hover:bg-[var(--ds-neutral-row-hover)] hover:text-ds-text-primary" onClick={onBack}>Назад</button>
@@ -1639,9 +1821,13 @@ function formatLessonSubtitle(l: ScheduledLesson) {
 }
 
 function formatLessonHeader(l: ScheduledLesson) {
-  const d = parseLessonStart(l.dateKey, l.time)
-  const date = d.toLocaleDateString("ru-RU", { day: "numeric", month: "short", year: "numeric" })
-  return `${date} · ${l.time}`
+  const date = new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC"
+  }).format(schoolCalendarAnchorUtc(l.dateKey))
+  return `${date} · ${normalizeScheduleSlotTime(l.time)}`
 }
 
 function toDateKey(d: Date) {
@@ -1665,8 +1851,12 @@ function nextDaysFromAppNow(count: number) {
 }
 
 function formatDateLabel(dateKey: string) {
-  const d = new Date(`${dateKey}T00:00:00`)
-  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short", weekday: "short" })
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "short",
+    weekday: "short",
+    timeZone: "UTC"
+  }).format(schoolCalendarAnchorUtc(dateKey))
 }
 
 function formatRecurringWeekdayLabel(weekday: number): string {
@@ -1682,8 +1872,34 @@ function formatRecurringWeekdayLabel(weekday: number): string {
   return map[weekday] ?? "выбранным дням"
 }
 
+function formatRecurringHeadlineRu(weekday: number, time: string): string {
+  const normalizedTime = normalizeScheduleSlotTime(time)
+  const map: Record<number, string> = {
+    0: "Каждое воскресенье",
+    1: "Каждый понедельник",
+    2: "Каждый вторник",
+    3: "Каждую среду",
+    4: "Каждый четверг",
+    5: "Каждую пятницу",
+    6: "Каждую субботу"
+  }
+  return `${map[weekday] ?? "Каждую неделю"} в ${normalizedTime}`
+}
+
+function formatUpcomingLessonHeading(dateKey: string, time: string): string {
+  const weekday = capitalize(formatSchoolCalendarWeekdayLongRu(dateKey))
+  const datePart = new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC"
+  })
+    .format(schoolCalendarAnchorUtc(dateKey))
+    .replace(".", "")
+  return `${weekday}, ${datePart}, ${normalizeScheduleSlotTime(time)}`
+}
+
 function formatRecurringCancellationLabel(lesson: ScheduledLesson): string {
-  const weekday = parseLessonStart(lesson.dateKey, lesson.time).getDay()
+  const weekday = calendarWeekdayFromDateKey(lesson.dateKey)
   return `По ${formatRecurringWeekdayLabel(weekday)} в ${normalizeScheduleSlotTime(lesson.time)}`
 }
 
@@ -1712,18 +1928,22 @@ function formatWeekRange(start: Date, end: Date) {
   return `${s} — ${e}`
 }
 
-function getLessonDayLabel(dateKey: string, time: string): string {
-  const start = parseLessonStart(dateKey, time)
-  const now = getAppNow()
-  const startDay = new Date(start)
-  startDay.setHours(0, 0, 0, 0)
-  const nowDay = new Date(now)
-  nowDay.setHours(0, 0, 0, 0)
-  const diffDays = Math.round((startDay.getTime() - nowDay.getTime()) / (24 * 60 * 60 * 1000))
+function getLessonDayLabel(dateKey: string, _time: string): string {
+  const todayKey = dateKeyFromDate(getAppTodayStart())
+  const diffDays = dayDiffByDateKey(dateKey, todayKey)
   if (diffDays === 0) return "Сегодня"
   if (diffDays === 1) return "Завтра"
   if (diffDays === -1) return "Вчера"
-  return capitalize(start.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "short" }).replace(".", ""))
+  return capitalize(
+    new Intl.DateTimeFormat("ru-RU", {
+      weekday: "long",
+      day: "numeric",
+      month: "short",
+      timeZone: "UTC"
+    })
+      .format(schoolCalendarAnchorUtc(dateKey))
+      .replace(".", "")
+  )
 }
 
 function getTeacherProfileHref(teacherName: string): string {

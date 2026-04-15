@@ -1,8 +1,13 @@
 import { getAppNow } from "@/lib/app-time"
+import {
+  SCHEDULE_WALL_CLOCK_TIMEZONE,
+  wallClockFromDateInSchoolTz,
+  wallClockFromDateInTimeZone
+} from "@/lib/schedule-display-tz"
 import { mockLessons } from "@/lib/mock-data"
 import { normalizeMeetingUrl } from "@/lib/online-class-link"
 import { normalizeScheduleSlotTime } from "@/lib/schedule/slot-time"
-import { parseLessonStart, type ScheduledLesson } from "@/lib/schedule-lessons"
+import { lessonWallClockEpochMs, localWallClockNowEpochMs, type ScheduledLesson } from "@/lib/schedule-lessons"
 
 export type ClassDisplayType = "Урок" | "Тест"
 
@@ -117,28 +122,32 @@ export const ONLINE_JOIN_UNAVAILABLE_TITLE =
  */
 export function canJoinOnlineClassFromScheduleSlot(dateKey: string, timeHHMM: string): boolean {
   const timeNorm = normalizeScheduleSlotTime(timeHHMM)
-  const start = parseLessonStart(dateKey, timeNorm)
-  const end = new Date(start.getTime() + 60 * 60 * 1000)
-  const endHm = `${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`
-  return canJoinOnlineClass(dateKey, `${timeNorm}–${endHm}`)
+  const startMs = lessonWallClockEpochMs(dateKey, timeNorm)
+  const endMs = startMs + 60 * 60 * 1000
+  const nowMs = localWallClockNowEpochMs()
+  const todayKey = wallClockFromDateInSchoolTz(getAppNow()).dateKey
+  if (dateKey !== todayKey) return false
+  if (nowMs >= endMs) return false
+  return true
 }
 
 /** Карточки «Занятия» из реального расписания ученика (Supabase через /api/schedule/student-lessons). */
 export function classListItemsFromScheduledLessons(lessons: ScheduledLesson[]): ClassListItem[] {
-  const now = getAppNow().getTime()
+  const nowMs = localWallClockNowEpochMs()
   const items: ClassListItem[] = []
 
   for (const l of lessons) {
     const timeNorm = normalizeScheduleSlotTime(l.time)
-    const start = parseLessonStart(l.dateKey, timeNorm)
-    const end = new Date(start.getTime() + 60 * 60 * 1000)
-    const sortKey = start.getTime()
-    const status: "upcoming" | "completed" = now >= end.getTime() ? "completed" : "upcoming"
+    const sortKey = lessonWallClockEpochMs(l.dateKey, timeNorm)
+    const endMs = sortKey + 60 * 60 * 1000
+    const end = new Date(endMs)
+    const status: "upcoming" | "completed" = nowMs >= endMs ? "completed" : "upcoming"
     const type = lessonTitleToType(l.title, "lesson")
     const vis = visualByType[type]
     const [y, mo, d] = l.dateKey.split("-").map((x) => parseInt(x, 10))
     const dt = new Date(y, mo - 1, d)
-    const endHm = `${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`
+    const endWall = wallClockFromDateInTimeZone(end, SCHEDULE_WALL_CLOCK_TIMEZONE)
+    const endHm = normalizeScheduleSlotTime(endWall.time)
     const timeRange = `${timeNorm}–${endHm}`
 
     items.push({

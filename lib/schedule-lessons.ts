@@ -1,6 +1,8 @@
 /** Модель переносимых занятий в расписании (демо + localStorage). Дата слота — dateKey YYYY-MM-DD. */
 
 import { getAppNow } from "@/lib/app-time"
+import { calendarWeekdayFromDateKey } from "@/lib/schedule/calendar-ymd"
+import { firstFollowingMoveDateKeyForLesson } from "@/lib/schedule/following-series"
 import { SCHEDULE_WALL_CLOCK_TIMEZONE, wallClockFromDateInSchoolTz } from "@/lib/schedule-display-tz"
 import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
 import { TEACHER_HOURLY_SLOTS } from "@/lib/teacher-schedule"
@@ -36,6 +38,13 @@ export const MS_7D = 7 * MS_24H
 /** Окно выбора нового слота учеником — не более 7 суток вперёд. */
 export const MS_STUDENT_RESCHEDULE_MAX_HORIZON = 7 * MS_24H
 
+/** Горизонт выбора якоря еженедельного бронирования: до +14 суток от «сейчас» (школа). */
+export const MS_STUDENT_WEEKLY_BOOK_ANCHOR_MAX_HORIZON = 14 * MS_24H
+
+/** Регулярный перенос: горизонт шаблона / первого фактического слота — до ~6 недель от «сейчас». */
+export const MS_STUDENT_FOLLOWING_RESCHEDULE_TARGET_HORIZON = 42 * MS_24H
+type WallNow = { dateKey: string; time: string }
+
 export function dateKeyFromDate(d: Date): string {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, "0")
@@ -43,47 +52,75 @@ export function dateKeyFromDate(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
+function currentWallNow(now: Date = getAppNow()): WallNow {
+  return {
+    dateKey: dateKeyFromDate(now),
+    time: `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
+  }
+}
+
+function wallEpochMs(dateKey: string, timeHHMM: string): number {
+  const [y, mo, d] = dateKey.split("-").map((x) => parseInt(x, 10))
+  const t = normalizeScheduleSlotTime(timeHHMM)
+  const [hh, mm] = t.split(":").map((x) => parseInt(x, 10))
+  if (![y, mo, d, hh, mm].every((n) => Number.isFinite(n))) return Number.NaN
+  return Date.UTC(y, mo - 1, d, hh, mm, 0, 0)
+}
+
+/** Локальная полуночь Y-M-D в браузере (демо/localStorage). */
 export function parseLessonStart(dateKey: string, timeHHMM: string): Date {
   const [Y, M, D] = dateKey.split("-").map((x) => parseInt(x, 10))
   const [h, m] = timeHHMM.split(":").map((x) => parseInt(x, 10))
   return new Date(Y, M - 1, D, h, m, 0, 0)
 }
 
-/** Уже началось или прошло (по времени приложения) */
+/** UTC-полдень по календарной дате слота (подписи дня недели без сдвига TZ). */
+export function schoolCalendarAnchorUtc(dateKey: string): Date {
+  const [y, mo, d] = dateKey.split("-").map((x) => parseInt(x, 10))
+  if (![y, mo, d].every((n) => Number.isFinite(n))) return new Date(NaN)
+  return new Date(Date.UTC(y, mo - 1, d, 12, 0, 0))
+}
+
+/** Момент слота в локальном wall-clock (dateKey + timeHHMM), без пересчётов TZ. */
+export function lessonWallClockEpochMs(dateKey: string, timeHHMM: string): number {
+  return wallEpochMs(dateKey, timeHHMM)
+}
+
+/** «Сейчас» в локальном wall-clock устройства, без пересчётов TZ. */
+export function localWallClockNowEpochMs(): number {
+  const now = currentWallNow()
+  return wallEpochMs(now.dateKey, now.time)
+}
+
+export function formatSchoolCalendarWeekdayLongRu(dateKey: string): string {
+  return new Intl.DateTimeFormat("ru-RU", { weekday: "long", timeZone: "UTC" }).format(schoolCalendarAnchorUtc(dateKey))
+}
+
+/** Уже началось или прошло (по шкале школы). */
 export function isLessonPastOrStarted(dateKey: string, timeStr: string): boolean {
-  const start = parseLessonStart(dateKey, timeStr)
-  return getAppNow().getTime() >= start.getTime()
+  const start = lessonWallClockEpochMs(dateKey, timeStr)
+  return localWallClockNowEpochMs() >= start
 }
 
 /**
- * Перенос с карточки разрешён только для будущих занятий и если до начала строго больше 24 часов.
+ * Перенос с карточки разрешён только для будущих занятий и если до начала строго больше 24 часов (шкала школы).
  */
 export function canRescheduleLesson(dateKey: string, timeStr: string): boolean {
-  const start = parseLessonStart(dateKey, timeStr)
-  const now = getAppNow().getTime()
-  if (now >= start.getTime()) return false
-  return now < start.getTime() - MS_24H
-}
-
-/**
- * UTC-моменты слота и «сейчас» в одной шкале: настенные dateKey+time в SCHEDULE_WALL_CLOCK_TIMEZONE,
- * как у ответа API и wallClockFromSlotAt. Иначе parseLessonStart (локаль браузера) расходится с ключами слотов.
- */
-function scheduleNowUtcMs(): number {
-  const { dateKey, time } = wallClockFromDateInSchoolTz(getAppNow())
-  const t = normalizeScheduleSlotTime(time)
-  return new Date(wallClockSlotAtIso(dateKey, t, SCHEDULE_WALL_CLOCK_TIMEZONE)).getTime()
+  const start = wallEpochMs(dateKey, timeStr)
+  const nowWall = currentWallNow()
+  const now = wallEpochMs(nowWall.dateKey, nowWall.time)
+  if (now >= start) return false
+  return now < start - MS_24H
 }
 
 /**
  * Слот можно выбрать как новое время только если до начала строго больше 24 ч
  * и в пределах горизонта планирования.
  */
-export function isValidRescheduleTargetSlot(dateKey: string, timeStr: string): boolean {
-  const tz = SCHEDULE_WALL_CLOCK_TIMEZONE
-  const t = normalizeScheduleSlotTime(timeStr)
-  const slotMs = new Date(wallClockSlotAtIso(dateKey, t, tz)).getTime()
-  const nowMs = scheduleNowUtcMs()
+export function isValidRescheduleTargetSlot(dateKey: string, timeStr: string, nowWall?: WallNow): boolean {
+  const slotMs = wallEpochMs(dateKey, timeStr)
+  const nowRef = nowWall ?? currentWallNow()
+  const nowMs = wallEpochMs(nowRef.dateKey, nowRef.time)
   if (Number.isNaN(slotMs)) return false
   if (slotMs <= nowMs + MS_24H) return false
   if (slotMs > nowMs + MS_STUDENT_RESCHEDULE_MAX_HORIZON) return false
@@ -91,14 +128,13 @@ export function isValidRescheduleTargetSlot(dateKey: string, timeStr: string): b
 }
 
 /**
- * Новое бронирование / «Запланировать урок»: слот строго в будущем и в пределах горизонта.
- * Без правила «+24 ч» — оно только для переноса существующего занятия.
+ * Слот в общем списке «свободно у преподавателя» для демо/подсветки: строго в будущем, в пределах 7 суток (без отсечки +24 ч).
+ * Для бронирования учеником используйте {@link isValidRescheduleTargetSlot} (разово) и {@link isValidStudentWeeklyBookingAnchorSlot} (еженедельно).
  */
 export function isValidStudentBookingTargetSlot(dateKey: string, timeStr: string): boolean {
-  const tz = SCHEDULE_WALL_CLOCK_TIMEZONE
-  const t = normalizeScheduleSlotTime(timeStr)
-  const slotMs = new Date(wallClockSlotAtIso(dateKey, t, tz)).getTime()
-  const nowMs = scheduleNowUtcMs()
+  const slotMs = wallEpochMs(dateKey, timeStr)
+  const now = currentWallNow()
+  const nowMs = wallEpochMs(now.dateKey, now.time)
   if (Number.isNaN(slotMs)) return false
   if (slotMs <= nowMs) return false
   if (slotMs > nowMs + MS_STUDENT_RESCHEDULE_MAX_HORIZON) return false
@@ -106,23 +142,111 @@ export function isValidStudentBookingTargetSlot(dateKey: string, timeStr: string
 }
 
 /**
+ * Якорь еженедельного бронирования: та же отсечка +24 ч, что для разового переноса — первый урок
+ * совпадает с выбранной календарной датой (иначе «среда» вела бы на ближайшую среду без полных суток до урока, а фактический старт — через неделю).
+ */
+export function isValidStudentWeeklyBookingAnchorSlot(dateKey: string, timeStr: string, nowWall?: WallNow): boolean {
+  const slotMs = wallEpochMs(dateKey, timeStr)
+  const nowRef = nowWall ?? currentWallNow()
+  const nowMs = wallEpochMs(nowRef.dateKey, nowRef.time)
+  if (Number.isNaN(slotMs)) return false
+  if (slotMs <= nowMs + MS_24H) return false
+  if (slotMs > nowMs + MS_STUDENT_WEEKLY_BOOK_ANCHOR_MAX_HORIZON) return false
+  return true
+}
+
+/**
+ * Слот в сетке «свободно у преподавателя» для шага выбора времени регулярного переноса:
+ * календарная дата+время шаблона строго в будущем (без +24 ч — см. {@link isValidFollowingRescheduleTargetForLesson}).
+ */
+export function isValidFollowingRescheduleTemplateSlot(dateKey: string, timeStr: string): boolean {
+  const slotMs = wallEpochMs(dateKey, timeStr)
+  const now = currentWallNow()
+  const nowMs = wallEpochMs(now.dateKey, now.time)
+  if (Number.isNaN(slotMs)) return false
+  if (slotMs <= nowMs) return false
+  if (slotMs > nowMs + MS_STUDENT_FOLLOWING_RESCHEDULE_TARGET_HORIZON) return false
+  return true
+}
+
+/**
+ * Регулярный перенос: +24 ч от «сейчас» проверяем по **первому фактическому** слоту этой карточки
+ * после сдвига дня недели (чт→ср = +6 дней к дате урока), а не по выбранной на календаре дате шаблона.
+ */
+export function isValidFollowingRescheduleTargetForLesson(
+  lessonDateKey: string,
+  templatePickerDateKey: string,
+  toTime: string,
+  nowWall?: WallNow
+): boolean {
+  const firstDate = firstFollowingMoveDateKeyForLesson(lessonDateKey, templatePickerDateKey)
+  const slotMs = wallEpochMs(firstDate, toTime)
+  const nowRef = nowWall ?? currentWallNow()
+  const nowMs = wallEpochMs(nowRef.dateKey, nowRef.time)
+  if (Number.isNaN(slotMs)) return false
+  if (slotMs <= nowMs + MS_24H) return false
+  if (slotMs > nowMs + MS_STUDENT_FOLLOWING_RESCHEDULE_TARGET_HORIZON) return false
+  return true
+}
+
+/**
+ * Времена по дням недели для шага «выберите день недели» при регулярном переносе:
+ * только те часы, для которых есть календарная дата в `dateSlots` и проходит {@link isValidFollowingRescheduleTargetForLesson}.
+ */
+export function followingRescheduleSelectableTimesByWeekday(
+  dateSlots: Record<string, string[]>,
+  lessonDateKey: string,
+  minDateKey: string | null
+): Record<number, string[]> {
+  const map: Record<number, string[]> = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] }
+  for (const [dateKey, slots] of Object.entries(dateSlots)) {
+    if (minDateKey && dateKey < minDateKey) continue
+    const weekday = calendarWeekdayFromDateKey(dateKey)
+    for (const slot of slots) {
+      const t = normalizeScheduleSlotTime(slot)
+      if (!isValidFollowingRescheduleTargetForLesson(lessonDateKey, dateKey, t)) continue
+      if (!map[weekday].includes(slot)) map[weekday].push(slot)
+    }
+  }
+  for (const wd of Object.keys(map)) {
+    map[Number(wd)].sort()
+  }
+  return map
+}
+
+function wallComparableKey(dateKey: string, timeHHMM: string): string {
+  return `${dateKey}T${normalizeScheduleSlotTime(timeHHMM)}`
+}
+
+/**
  * Преподаватель: перенос будущего занятия без требования «до начала > 24 ч».
  */
-export function canTeacherRescheduleLesson(dateKey: string, timeStr: string): boolean {
-  const start = parseLessonStart(dateKey, timeStr)
-  return getAppNow().getTime() < start.getTime()
+export function canTeacherRescheduleLesson(
+  dateKey: string,
+  timeStr: string,
+  _timeZone: string = SCHEDULE_WALL_CLOCK_TIMEZONE,
+  nowWall?: WallNow
+): boolean {
+  const nowRef = nowWall ?? currentWallNow()
+  const nowDateKey = nowRef.dateKey
+  const nowTime = nowRef.time
+  return wallComparableKey(dateKey, timeStr) > wallComparableKey(nowDateKey, nowTime)
 }
 
 /**
  * Новый слот для переноса преподавателем: строго в будущем.
  * Верхнего ограничения по горизонту нет.
  */
-export function isValidTeacherRescheduleTargetSlot(dateKey: string, timeStr: string): boolean {
-  const t = normalizeScheduleSlotTime(timeStr)
-  const slotMs = new Date(wallClockSlotAtIso(dateKey, t, SCHEDULE_WALL_CLOCK_TIMEZONE)).getTime()
-  const nowMs = scheduleNowUtcMs()
-  if (Number.isNaN(slotMs) || Number.isNaN(nowMs)) return false
-  return slotMs > nowMs
+export function isValidTeacherRescheduleTargetSlot(
+  dateKey: string,
+  timeStr: string,
+  _timeZone: string = SCHEDULE_WALL_CLOCK_TIMEZONE,
+  nowWall?: WallNow
+): boolean {
+  const nowRef = nowWall ?? currentWallNow()
+  const nowDateKey = nowRef.dateKey
+  const nowTime = nowRef.time
+  return wallComparableKey(dateKey, timeStr) > wallComparableKey(nowDateKey, nowTime)
 }
 
 /** Пн и пт в 19:00 — стартовое расписание (апрель 2026) */

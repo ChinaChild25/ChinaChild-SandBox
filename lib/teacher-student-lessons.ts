@@ -1,8 +1,4 @@
-import {
-  parseLessonStart,
-  readStoredLessons,
-  type ScheduledLesson
-} from "@/lib/schedule-lessons"
+import { lessonWallClockEpochMs, readStoredLessons, type ScheduledLesson } from "@/lib/schedule-lessons"
 import { readTeacherMirrorLessons } from "@/lib/teacher-schedule-sync"
 import {
   getTeacherStudentById,
@@ -37,7 +33,7 @@ export function getAllTeacherCalendarEvents(): TeacherCalendarEvent[] {
       out.push({
         student: s,
         lesson: l,
-        start: parseLessonStart(l.dateKey, l.time)
+        start: new Date(lessonWallClockEpochMs(l.dateKey, l.time))
       })
     }
   }

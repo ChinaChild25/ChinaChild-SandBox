@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { getAppNow } from "@/lib/app-time"
+import { localWallClockNowEpochMs } from "@/lib/schedule-lessons"
 import { SCHEDULE_WALL_CLOCK_TIMEZONE, wallClockFromDateInTimeZone } from "@/lib/schedule-display-tz"
-import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
+import { normalizeScheduleSlotTime, timestamptzInstantKey, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
 import {
   emptyWeeklyTemplate,
   intervalsToHourlyStatuses,
@@ -79,7 +79,7 @@ export async function collectWeeklyBookingOccurrences(
   const weeklyForSynth = weeklyTemplateHasAnyFreeHour(weeklyFromDb) ? weeklyFromDb : DEFAULT_STUDENT_WEEKLY_IF_NO_TEMPLATE
   const teacherTz = (tmpl?.timezone ?? "").trim() || SCHEDULE_WALL_CLOCK_TIMEZONE
 
-  const nowMs = getAppNow().getTime()
+  const nowMs = localWallClockNowEpochMs()
   const out: WeeklyBookingOccurrence[] = []
   const slotAtList: string[] = []
 
@@ -88,7 +88,7 @@ export async function collectWeeklyBookingOccurrences(
     const slotAt = wallClockSlotAtIso(dateKey, timeNorm, SCHEDULE_WALL_CLOCK_TIMEZONE)
     const slotMs = new Date(slotAt).getTime()
     if (Number.isNaN(slotMs)) continue
-    if (slotMs <= nowMs) continue
+    if (slotMs <= nowMs + MS_24H) continue
     if (slotMs > nowMs + MS_10Y) break
 
     const { time: wallInTeacherTz } = wallClockFromDateInTimeZone(new Date(slotMs), teacherTz)
@@ -125,7 +125,10 @@ export async function collectWeeklyBookingOccurrences(
     if (error) throw new Error(error.message)
     for (const r of rows ?? []) {
       const row = r as { slot_at: string; status: string; booked_student_id: string | null }
-      statusBySlotAt.set(row.slot_at, { status: row.status, booked_student_id: row.booked_student_id })
+      statusBySlotAt.set(timestamptzInstantKey(row.slot_at), {
+        status: row.status,
+        booked_student_id: row.booked_student_id
+      })
     }
   }
 
@@ -133,12 +136,18 @@ export async function collectWeeklyBookingOccurrences(
   for (let i = 0; i < out.length; i++) {
     const occ = out[i]
     const slotAt = slotAtList[i]
-    const row = statusBySlotAt.get(slotAt)
+    const row = statusBySlotAt.get(timestamptzInstantKey(slotAt))
     if (!row) {
       eligible.push(occ)
       continue
     }
-    if (row.status === "busy") continue
+    // Совпадает с GET /api/schedule: час в шаблоне free, а в БД busy — считаем бронируемым;
+    // book_slot_atomic применяет ту же логику, что ensure_slot_for_student_reschedule.
+    if (row.status === "busy") {
+      if (row.booked_student_id != null) continue
+      eligible.push(occ)
+      continue
+    }
     if (row.status === "booked") {
       if (row.booked_student_id === studentId) eligible.push(occ)
       continue

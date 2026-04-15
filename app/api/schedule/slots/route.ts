@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import { calendarWeekdayFromDateKey } from "@/lib/schedule/calendar-ymd"
 import { wallClockFromSlotAt } from "@/lib/schedule-display-tz"
+import { normalizeScheduleSlotTime } from "@/lib/schedule/slot-time"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 type ProfileLite = {
@@ -176,12 +178,54 @@ export async function GET(req: NextRequest) {
     })
   }
 
+  const seriesLookbackDays = 56
+  const seriesLookaheadDays = 56
+  const seriesFrom = new Date(from)
+  seriesFrom.setDate(seriesFrom.getDate() - seriesLookbackDays)
+  const seriesTo = new Date(to)
+  seriesTo.setDate(seriesTo.getDate() + seriesLookaheadDays)
+
+  const { data: seriesSlots } = await supabase
+    .from("teacher_schedule_slots")
+    .select("slot_at, booked_student_id")
+    .eq("teacher_id", teacherId)
+    .eq("status", "booked")
+    .not("booked_student_id", "is", null)
+    .gte("slot_at", seriesFrom.toISOString())
+    .lt("slot_at", seriesTo.toISOString())
+
+  const dateKeysBySeriesKey = new Map<string, Set<string>>()
+  for (const row of seriesSlots ?? []) {
+    const sid = (row as { booked_student_id: string | null }).booked_student_id
+    if (!sid) continue
+    const { dateKey, time } = wallClockFromSlotAt((row as { slot_at: string }).slot_at)
+    const tNorm = normalizeScheduleSlotTime(time)
+    const wd = calendarWeekdayFromDateKey(dateKey)
+    const gk = `${sid}|${wd}|${tNorm}`
+    let set = dateKeysBySeriesKey.get(gk)
+    if (!set) {
+      set = new Set()
+      dateKeysBySeriesKey.set(gk, set)
+    }
+    set.add(dateKey)
+  }
+  const recurringSeriesKeys = new Set<string>()
+  for (const [gk, dates] of dateKeysBySeriesKey) {
+    if (dates.size >= 2) recurringSeriesKeys.add(gk)
+  }
+
+  const external_lessons = Array.from(externalByKey.values()).map((v) => {
+    const wd = calendarWeekdayFromDateKey(v.date_key)
+    const gk = `${v.student_id}|${wd}|${normalizeScheduleSlotTime(v.time)}`
+    return { ...v, is_recurring_series: recurringSeriesKeys.has(gk) }
+  })
+
   return NextResponse.json({
     slots: slots.map((s) => ({
       ...s,
       booked_student_name: s.booked_student_id ? bookedNameById.get(s.booked_student_id) ?? "Ученик" : null
     })),
-    external_lessons: Array.from(externalByKey.values())
+    external_lessons
   })
 }
 

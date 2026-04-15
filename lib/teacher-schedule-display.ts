@@ -1,4 +1,4 @@
-import { parseLessonStart, type ScheduledLesson } from "@/lib/schedule-lessons"
+import { lessonWallClockEpochMs, type ScheduledLesson } from "@/lib/schedule-lessons"
 import { getLessonsForTeacherView } from "@/lib/teacher-student-lessons"
 
 export type UpcomingLessonDisplay = {
@@ -48,8 +48,9 @@ export function getUpcomingLessonsDisplayFromLessons(lessons: ScheduledLesson[],
   const now = Date.now() - 60 * 60 * 1000
   const enriched = lessons
     .map((lesson) => {
-      const start = parseLessonStart(lesson.dateKey, lesson.time)
-      return { lesson, start, t: start.getTime() }
+      const t = lessonWallClockEpochMs(lesson.dateKey, lesson.time)
+      const start = new Date(t)
+      return { lesson, start, t }
     })
     .filter((x) => x.t >= now)
     .sort((a, b) => a.t - b.t)

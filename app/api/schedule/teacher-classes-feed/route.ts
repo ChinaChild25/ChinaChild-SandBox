@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { parseLessonStart } from "@/lib/schedule-lessons"
+import { lessonWallClockEpochMs } from "@/lib/schedule-lessons"
 import {
   mergeTeacherStudentLessonsFromDb,
   type TeacherStudentMergedLesson
@@ -86,8 +86,8 @@ export async function GET() {
   }
 
   entries.sort((a, b) => {
-    const ta = parseLessonStart(a.lesson.dateKey, a.lesson.time).getTime()
-    const tb = parseLessonStart(b.lesson.dateKey, b.lesson.time).getTime()
+    const ta = lessonWallClockEpochMs(a.lesson.dateKey, a.lesson.time)
+    const tb = lessonWallClockEpochMs(b.lesson.dateKey, b.lesson.time)
     return ta - tb
   })
 

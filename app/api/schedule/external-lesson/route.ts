@@ -3,10 +3,11 @@ import { addDaysToDateKey } from "@/lib/schedule/calendar-ymd"
 import {
   calendarWeekdayFromDateKey,
   matchesFollowingSeriesSlot,
-  minimalWeekdayShiftDays,
+  forwardWeekdayShiftDays,
   minDateKeyForFollowingRescheduleCluster,
   minDateKeyForFollowingSeries
 } from "@/lib/schedule/following-series"
+import { lessonWallKeysFromBody } from "@/lib/schedule/lesson-wall-keys"
 import { SCHEDULE_WALL_CLOCK_TIMEZONE, wallClockFromSlotAt } from "@/lib/schedule-display-tz"
 import { isValidTeacherRescheduleTargetSlot } from "@/lib/schedule-lessons"
 import { reconcileStudentScheduleFireAndForget } from "@/lib/schedule/reconcile-student-schedule"
@@ -25,25 +26,23 @@ type Body = {
   to_hour?: number
   scope?: "single" | "following"
   timezone?: string
+  now_date_key?: string
+  now_time?: string
 }
 
 type ProfileLite = { id: string; role: "teacher" | "curator" | "student" }
 
-function lessonWallKeys(lesson: NonNullable<Body["lesson"]>): { dateKey: string; time: string } {
-  // Canonical source of truth for schedule mutations is slot_at.
-  // Client date_key/time can drift in viewer timezone and break old/new slot matching.
-  if (lesson.slot_at?.trim()) {
-    const w = wallClockFromSlotAt(lesson.slot_at)
-    return { dateKey: w.dateKey, time: normalizeScheduleSlotTime(w.time) }
-  }
-  const dk = lesson.date_key?.trim()
-  const tt = lesson.time?.trim()
-  if (dk && tt) return { dateKey: dk, time: normalizeScheduleSlotTime(tt) }
-  return { dateKey: "1970-01-01", time: "00:00" }
-}
-
 function mapRpcError(message: string): { status: number; error: string } {
+  if (/statement timeout|canceling statement due to statement timeout/i.test(message)) {
+    return { status: 408, error: "Сервер не успел обработать длинную операцию. Попробуйте еще раз." }
+  }
+  if (/violates row-level security policy/i.test(message)) {
+    return { status: 403, error: "Недостаточно прав для изменения этого слота" }
+  }
   if (/forbidden|not authenticated/i.test(message)) return { status: 403, error: message }
+  if (/slot not available/i.test(message)) {
+    return { status: 409, error: "Этот слот недоступен для переноса (занят или вне шаблона)." }
+  }
   if (/slot is not available|new slot is not available|same slot/i.test(message)) {
     return { status: 409, error: "Выбранный слот недоступен" }
   }
@@ -165,8 +164,12 @@ export async function POST(req: Request) {
   }
 
   const scheduleTimeZone = SCHEDULE_WALL_CLOCK_TIMEZONE
+  const nowWall =
+    /^\d{4}-\d{2}-\d{2}$/.test(body?.now_date_key ?? "") && typeof body?.now_time === "string"
+      ? { dateKey: body.now_date_key as string, time: normalizeScheduleSlotTime(body.now_time) }
+      : undefined
 
-  const { dateKey: oldDateKey, time: oldTime } = lessonWallKeys(lesson)
+  const { dateKey: oldDateKey, time: oldTime } = lessonWallKeysFromBody(lesson)
   const seriesWeekday = calendarWeekdayFromDateKey(oldDateKey)
   const studentId = lesson.student_id
   let mutated = false
@@ -245,7 +248,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid reschedule target" }, { status: 400 })
     }
     const toTime = `${String(toHour).padStart(2, "0")}:00`
-    if (!isValidTeacherRescheduleTargetSlot(toDateKey, toTime)) {
+    if (!isValidTeacherRescheduleTargetSlot(toDateKey, toTime, scheduleTimeZone, nowWall)) {
       return NextResponse.json(
         { error: "Преподаватель может переносить только в будущий свободный слот" },
         { status: 400 }
@@ -333,7 +336,7 @@ export async function POST(req: Request) {
         if (!inCluster(rowWd)) continue
         if (normalizeScheduleSlotTime(wall.time) !== oldTime) continue
         seriesFromAnchor += 1
-        const rowDelta = minimalWeekdayShiftDays(rowWd, clusterTargetWeekday)
+        const rowDelta = forwardWeekdayShiftDays(rowWd, clusterTargetWeekday)
         const targetDateKey = addDaysToDateKey(wall.dateKey, rowDelta)
         const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
         if (!timestamptzInstantEqual(slotAt, targetSlotAt)) mismatchesFromAnchor += 1
@@ -351,7 +354,7 @@ export async function POST(req: Request) {
         const rowWd = calendarWeekdayFromDateKey(wall.dateKey)
         if (!inCluster(rowWd)) continue
         if (normalizeScheduleSlotTime(wall.time) !== oldTime) continue
-        const rowDelta = minimalWeekdayShiftDays(rowWd, clusterTargetWeekday)
+        const rowDelta = forwardWeekdayShiftDays(rowWd, clusterTargetWeekday)
         const targetDateKey = addDaysToDateKey(wall.dateKey, rowDelta)
         const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
         pushFollowingPair(slotAt, targetSlotAt)
@@ -377,7 +380,7 @@ export async function POST(req: Request) {
         const rowWd = calendarWeekdayFromDateKey(wall.dateKey)
         if (!inCluster(rowWd)) continue
         if (normalizeScheduleSlotTime(wall.time) !== oldTime) continue
-        const rowDelta = minimalWeekdayShiftDays(rowWd, clusterTargetWeekday)
+        const rowDelta = forwardWeekdayShiftDays(rowWd, clusterTargetWeekday)
         const targetDateKey = addDaysToDateKey(wall.dateKey, rowDelta)
         const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
         pushFollowingPair(slotAt, targetSlotAt)
@@ -428,7 +431,7 @@ export async function POST(req: Request) {
         const rowWd = calendarWeekdayFromDateKey(wall.dateKey)
         if (!inCluster(rowWd)) continue
         if (normalizeScheduleSlotTime(wall.time) !== oldTime) continue
-        const rowDelta = minimalWeekdayShiftDays(rowWd, clusterTargetWeekday)
+        const rowDelta = forwardWeekdayShiftDays(rowWd, clusterTargetWeekday)
         const targetDateKey = addDaysToDateKey(wall.dateKey, rowDelta)
         const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
         pushFollowingPair(slotAt, targetSlotAt)

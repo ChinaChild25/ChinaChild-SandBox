@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react"
 import { PlayCircle, UserRound } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { getAppNow } from "@/lib/app-time"
-import { parseLessonStart } from "@/lib/schedule-lessons"
+import { lessonWallClockEpochMs } from "@/lib/schedule-lessons"
 import { canJoinOnlineClassFromScheduleSlot, ONLINE_JOIN_UNAVAILABLE_TITLE } from "@/lib/classes-mock"
 import { resolveOnlineClassJoinUrl } from "@/lib/online-class-link"
 import { getLessonsForTeacherView } from "@/lib/teacher-student-lessons"
@@ -97,8 +97,8 @@ export default function TeacherClassesPage() {
     const list = rowsSource ?? []
     const enriched = list
       .map((r) => {
-        const start = parseLessonStart(r.lesson.dateKey, r.lesson.time)
-        return { ...r, start, t: start.getTime() }
+        const t = lessonWallClockEpochMs(r.lesson.dateKey, r.lesson.time)
+        return { ...r, start: new Date(t), t }
       })
       .filter((r) => Number.isFinite(r.t))
     const upcomingAll = enriched.filter((r) => r.t >= now).sort((a, b) => a.t - b.t)

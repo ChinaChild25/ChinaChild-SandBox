@@ -34,13 +34,13 @@ import {
   findLessonAt,
   isLessonPastOrStarted,
   isValidTeacherRescheduleTargetSlot,
-  parseLessonStart,
   SCHEDULE_DEFAULT_TEACHER,
   SCHEDULE_MONTH_APRIL,
   TEACHER_SCHEDULE_SLOT_TIMES,
   SCHEDULE_YEAR,
   type ScheduledLesson
 } from "@/lib/schedule-lessons"
+import { normalizeScheduleSlotTime } from "@/lib/schedule/slot-time"
 import { mirrorStudentLessonsForTeacher, pushTeacherFeedItem } from "@/lib/teacher-schedule-sync"
 import { getLessonsForTeacherView } from "@/lib/teacher-student-lessons"
 import { getTeacherStudentById, type TeacherStudentMock } from "@/lib/teacher-students-mock"
@@ -101,12 +101,19 @@ function isSameDay(a: Date, b: Date) {
 }
 
 function formatSlotLabel(dateKey: string, time: string) {
-  const d = parseLessonStart(dateKey, time)
-  return `${d.toLocaleDateString("ru-RU", {
+  const tNorm = normalizeScheduleSlotTime(time)
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey.trim())
+  if (!m) return `${dateKey}, ${tNorm}`
+  const y = Number(m[1])
+  const mo = Number(m[2])
+  const d = Number(m[3])
+  const dt = new Date(Date.UTC(y, mo - 1, d, 12, 0, 0))
+  return `${dt.toLocaleDateString("ru-RU", {
     day: "numeric",
     month: "long",
-    year: "numeric"
-  })}, ${time}`
+    year: "numeric",
+    timeZone: "UTC"
+  })}, ${tNorm}`
 }
 
 type PendingReschedule = {

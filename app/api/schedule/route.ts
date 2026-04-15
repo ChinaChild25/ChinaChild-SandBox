@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { SCHEDULE_WALL_CLOCK_TIMEZONE, wallClockFromSlotAt } from "@/lib/schedule-display-tz"
 import { addOneDayYmd } from "@/lib/schedule/date-ymd"
 import { resolveTeacherIdFromStudentSlots } from "@/lib/schedule/resolve-teacher-from-student-slots"
-import { wallClockSlotAtIso } from "@/lib/schedule/slot-time"
+import { timestamptzInstantKey, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
 import { intervalsToHourlyStatuses, type WeeklyTemplate } from "@/lib/teacher-availability-template"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
   for (const weekdayKey of weekdayOrder) {
     hourlyByWeekday.set(weekdayKey, intervalsToHourlyStatuses(weeklyTemplate?.[weekdayKey] ?? []))
   }
-  const rowBySlotAt = new Map(rows.map((row) => [row.slot_at, row] as const))
+  const rowBySlotAt = new Map(rows.map((row) => [timestamptzInstantKey(row.slot_at), row] as const))
   const fromMs = from.getTime()
   const toMs = to.getTime()
   const startDateKey = wallClockFromSlotAt(from.toISOString()).dateKey
@@ -129,8 +129,19 @@ export async function GET(req: NextRequest) {
       const slotAt = wallClockSlotAtIso(dateKey, time, SCHEDULE_WALL_CLOCK_TIMEZONE)
       const slotMs = new Date(slotAt).getTime()
       if (Number.isNaN(slotMs) || slotMs < fromMs || slotMs >= toMs) continue
-      const existing = rowBySlotAt.get(slotAt)
-      if (existing?.status === "booked" || existing?.status === "busy") continue
+      const existing = rowBySlotAt.get(timestamptzInstantKey(slotAt))
+      if (existing?.status === "booked") continue
+      // В шаблоне час «free», а в таблице осталась строка busy — показываем как доступный;
+      // ensure_slot_for_student_reschedule при бронировании/переносе переведёт busy → free.
+      if (existing?.status === "busy") {
+        result.push({
+          teacher_id: teacherId,
+          slot_at: slotAt,
+          status: "free",
+          booked_student_id: null
+        })
+        continue
+      }
       result.push(
         existing ?? {
           teacher_id: teacherId,

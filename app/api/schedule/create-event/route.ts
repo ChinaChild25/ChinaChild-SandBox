@@ -24,6 +24,9 @@ type CreateEventBody = {
   title?: string
   /** IANA, как в настройках календаря преподавателя — для корректного timestamptz в БД */
   timezone?: string
+  /** Локальное wall-clock время клиента для валидации "слот не в прошлом". */
+  now_date_key?: string
+  now_time?: string
 }
 
 export async function POST(req: Request) {
@@ -59,6 +62,9 @@ export async function POST(req: Request) {
   const weekMonday = mondayDateKeyOfWeekContaining(startYmd)
   const wallTime = normalizeScheduleSlotTime(`${String(hour).padStart(2, "0")}:00`)
   const timeZone = body?.timezone?.trim() || SCHEDULE_WALL_CLOCK_TIMEZONE
+  const nowDateKey = /^\d{4}-\d{2}-\d{2}$/.test(body?.now_date_key?.trim() ?? "") ? (body?.now_date_key as string).trim() : utcTodayYmd()
+  const nowTime = normalizeScheduleSlotTime(body?.now_time?.trim() || "00:00")
+  const nowWall = `${nowDateKey}T${nowTime}`
 
   const payload: Array<{ teacher_id: string; slot_at: string; status: "busy" | "booked"; booked_student_id: string | null }> = []
   const studentSchedulePayload: Array<{ student_id: string; date_key: string; time: string; title: string; type: "lesson"; teacher_name: string | null }> = []
@@ -67,7 +73,6 @@ export async function POST(req: Request) {
     [me.first_name?.trim() ?? "", me.last_name?.trim() ?? ""].filter(Boolean).join(" ").trim() ||
     "Преподаватель"
 
-  const nowMs = Date.now()
   let skippedPastCount = 0
 
   for (let week = 0; week < weeks; week++) {
@@ -76,7 +81,7 @@ export async function POST(req: Request) {
       const dateKey = addDaysToDateKey(weekMonday, week * 7 + mondayBasedIndex)
       if (dateKey < startYmd) continue
       const slotAt = wallClockSlotAtIso(dateKey, wallTime, timeZone)
-      if (new Date(slotAt).getTime() <= nowMs) {
+      if (`${dateKey}T${wallTime}` <= nowWall) {
         skippedPastCount++
         continue
       }
@@ -101,7 +106,7 @@ export async function POST(req: Request) {
 
   if (payload.length === 0) {
     if (skippedPastCount > 0) {
-      const suggested = nextEligibleStartDateKey(startYmd, weekdays, wallTime, timeZone, nowMs)
+      const suggested = nextEligibleStartDateKey(startYmd, weekdays, wallTime, nowDateKey, nowTime)
       return NextResponse.json(
         {
           error:

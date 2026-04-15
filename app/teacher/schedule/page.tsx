@@ -16,17 +16,18 @@ import {
   Loader2,
   Menu,
   Plus,
+  Repeat,
   Search,
   Settings,
   Trash2,
   X
 } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
-import { getAppNow } from "@/lib/app-time"
 import { wallClockFromSlotAt } from "@/lib/schedule-display-tz"
-import { firstRecurringSlotDateKey } from "@/lib/schedule/calendar-ymd"
+import { calendarWeekdayFromDateKey, firstRecurringSlotDateKey } from "@/lib/schedule/calendar-ymd"
 import { isFirstScheduledSlotInPast, nextEligibleStartDateKey } from "@/lib/schedule/recurring-slot-eligibility"
 import { isValidTeacherRescheduleTargetSlot } from "@/lib/schedule-lessons"
+import { normalizeScheduleSlotTime } from "@/lib/schedule/slot-time"
 import { addDays, buildHourlyIsoSlots, startOfWeekMonday } from "@/lib/teacher-schedule"
 import {
   type AvailabilityInterval,
@@ -61,6 +62,8 @@ type ExternalLesson = {
   student_avatar_url?: string
   student_id?: string
   type?: "lesson" | "completed" | "charged_absence" | string
+  /** Считается на сервере по окну ±56 дней; без этого в одной неделе не видно пару серии. */
+  is_recurring_series?: boolean
 }
 
 /** Подсветка занятия на сетке после выбора из поиска */
@@ -146,6 +149,44 @@ const TIMEZONE_OPTIONS = [
   "Pacific/Auckland"
 ]
 
+function wallPartsForSeriesDetection(lesson: ExternalLesson, timeZone: string): { dateKey: string; timeNorm: string } {
+  const src =
+    lesson.date_key && lesson.time
+      ? { dateKey: lesson.date_key, hour: lesson.time.slice(0, 2) }
+      : getDateTimePartsInTimeZone(new Date(lesson.slot_at), timeZone)
+  const h = Number.parseInt(src.hour, 10)
+  return { dateKey: src.dateKey, timeNorm: `${String(Number.isFinite(h) ? h : 0).padStart(2, "0")}:00` }
+}
+
+function dayDiffCalendarYmd(aDateKey: string, bDateKey: string): number {
+  const a = new Date(`${aDateKey}T12:00:00Z`).getTime()
+  const b = new Date(`${bDateKey}T12:00:00Z`).getTime()
+  if (Number.isNaN(a) || Number.isNaN(b)) return 0
+  return Math.round((a - b) / (24 * 60 * 60 * 1000))
+}
+
+/** Та же логика, что у ученика: серия = тот же ученик, день недели и час, другая дата на кратность 7 суток. */
+function isExternalLessonInWeeklySeries(lesson: ExternalLesson, all: ExternalLesson[], timeZone: string): boolean {
+  const src = wallPartsForSeriesDetection(lesson, timeZone)
+  const calWd = calendarWeekdayFromDateKey(src.dateKey)
+  const sid = lesson.student_id ?? ""
+  for (const candidate of all) {
+    if (candidate.slot_at === lesson.slot_at) continue
+    if ((candidate.student_id ?? "") !== sid) continue
+    const c = wallPartsForSeriesDetection(candidate, timeZone)
+    if (c.timeNorm !== src.timeNorm) continue
+    if (calendarWeekdayFromDateKey(c.dateKey) !== calWd) continue
+    const diff = Math.abs(dayDiffCalendarYmd(c.dateKey, src.dateKey))
+    if (diff >= 7 && diff % 7 === 0) return true
+  }
+  return false
+}
+
+function lessonShowsAsWeeklySeries(lesson: ExternalLesson, all: ExternalLesson[], timeZone: string): boolean {
+  if (typeof lesson.is_recurring_series === "boolean") return lesson.is_recurring_series
+  return isExternalLessonInWeeklySeries(lesson, all, timeZone)
+}
+
 export default function TeacherSchedulePage() {
   const { user } = useAuth()
   const [anchorDate, setAnchorDate] = useState(new Date())
@@ -155,10 +196,13 @@ export default function TeacherSchedulePage() {
   const [slotMap, setSlotMap] = useState<Record<string, SlotMeta>>({})
   const [externalLessons, setExternalLessons] = useState<ExternalLesson[]>([])
   const [students, setStudents] = useState<StudentOption[]>([])
-  const [timezone, setTimezone] = useState("Europe/Moscow")
+  const [timezone, setTimezone] = useState(() =>
+    typeof window !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "Europe/Moscow"
+  )
   const [drag, setDrag] = useState<DragState | null>(null)
   const [popover, setPopover] = useState<{ x: number; y: number; dayIdx: number; fromHour: number; toHour: number } | null>(null)
-  const [nowTs, setNowTs] = useState(() => getAppNow().getTime())
+  /** 0 до первого тика на клиенте — не рисуем «сейчас» до гидрации, чтобы не расходиться с часами ОС. */
+  const [nowTs, setNowTs] = useState(0)
   const [saving, setSaving] = useState(false)
   const [ready, setReady] = useState(false)
   const [calendarRangeLoading, setCalendarRangeLoading] = useState(false)
@@ -217,6 +261,7 @@ export default function TeacherSchedulePage() {
   const [rescheduleContext, setRescheduleContext] = useState<{ lesson: ExternalLesson; scope: "single" | "following" } | null>(null)
   const [actionToast, setActionToast] = useState<string | null>(null)
   const [actionSubmitting, setActionSubmitting] = useState(false)
+  const [decisionSubmittingScope, setDecisionSubmittingScope] = useState<"single" | "following" | null>(null)
   const [actionResultPopup, setActionResultPopup] = useState<{
     tone: "success" | "cancel"
     title: string
@@ -238,13 +283,21 @@ export default function TeacherSchedulePage() {
   }, [anchorDate, showWeekends, viewMode, weekStart])
 
   useEffect(() => {
-    setNowTs(getAppNow().getTime())
-    const timer = window.setInterval(() => setNowTs(getAppNow().getTime()), 60_000)
-    return () => window.clearInterval(timer)
+    const tick = () => setNowTs(Date.now())
+    tick()
+    const timer = window.setInterval(tick, 30_000)
+    const onVis = () => {
+      if (document.visibilityState === "visible") tick()
+    }
+    document.addEventListener("visibilitychange", onVis)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener("visibilitychange", onVis)
+    }
   }, [])
 
   useEffect(() => {
-    if (createOpen) setNowTs(getAppNow().getTime())
+    if (createOpen) setNowTs(Date.now())
   }, [createOpen])
 
   useEffect(() => {
@@ -261,8 +314,8 @@ export default function TeacherSchedulePage() {
 
   useEffect(() => {
     if (!lessonActions) return
-    const slotMs = new Date(lessonActions.lesson.slot_at).getTime()
-    if (!Number.isFinite(slotMs) || slotMs > nowTs) return
+    const wall = lessonWallParts(lessonActions.lesson)
+    if (!isLocalWallPastOrStarted(wall.dateKey, wall.time, nowTs || Date.now())) return
     setLessonActions(null)
   }, [lessonActions, nowTs])
 
@@ -431,14 +484,7 @@ export default function TeacherSchedulePage() {
       const hour = Number.parseInt(opt.slice(0, 2), 10)
       const slot = slotMapByTimezone[`${selectedDateKey}-${String(hour).padStart(2, "0")}`]
       if (slot?.status === "booked") blocked.add(opt)
-    }
-    const now = new Date(nowTs)
-    const todayKey = localDateKey(now)
-    if (selectedDateKey === todayKey) {
-      const currentHour = now.getHours()
-      for (const opt of HOUR_OPTIONS) {
-        if (Number.parseInt(opt.slice(0, 2), 10) <= currentHour) blocked.add(opt)
-      }
+      if (!isValidTeacherRescheduleTargetSlot(selectedDateKey, opt, timezone)) blocked.add(opt)
     }
     return blocked
   }, [nowTs, rescheduleSlot.date, slotMapByTimezone])
@@ -533,7 +579,9 @@ export default function TeacherSchedulePage() {
   }, [slotMapByTimezone, timezone, visibleDays])
 
   const externalBlocks = useMemo(() => {
-    const byDay = visibleDays.map(() => [] as Array<{ top: number; label: string; time: string; lesson: ExternalLesson; hour: number; isPast: boolean }>)
+    const byDay = visibleDays.map(
+      () => [] as Array<{ top: number; label: string; time: string; lesson: ExternalLesson; hour: number; isPast: boolean; isRecurring: boolean }>
+    )
     const visibleDateKeys = visibleDays.map((d) => getDateKeyInTimeZone(d, timezone))
     for (const lesson of externalLessons) {
       const dateKey = lesson.date_key ?? getDateTimePartsInTimeZone(new Date(lesson.slot_at), timezone).dateKey
@@ -541,17 +589,14 @@ export default function TeacherSchedulePage() {
       const hour = Number(time.slice(0, 2))
       const dayIdx = visibleDateKeys.findIndex((key) => key === dateKey)
       if (dayIdx < 0) continue
-      const fromSlotAt = new Date(lesson.slot_at).getTime()
-      const startMs = Number.isFinite(fromSlotAt)
-        ? fromSlotAt
-        : new Date(`${dateKey}T${String(hour).padStart(2, "0")}:00`).getTime()
       byDay[dayIdx].push({
         top: hour * ROW_HEIGHT,
         label: lesson.student_name || lesson.title || "Занятие",
         time,
         lesson,
         hour,
-        isPast: Number.isFinite(startMs) && startMs <= nowTs
+        isPast: isLocalWallPastOrStarted(dateKey, time, nowTs || Date.now()),
+        isRecurring: lessonShowsAsWeeklySeries(lesson, externalLessons, timezone)
       })
     }
     return byDay
@@ -592,13 +637,15 @@ export default function TeacherSchedulePage() {
   }, [bookedBlocks, externalLessons, searchText, timezone, visibleDays])
 
   const nowLine = useMemo(() => {
+    if (!nowTs) return null
     const now = new Date(nowTs)
-    const nowParts = getDateTimePartsInTimeZone(now, timezone)
-    const dayIdx = visibleDays.findIndex((d) => getDateKeyInTimeZone(d, timezone) === nowParts.dateKey)
+    const todayKey = localDateKey(now)
+    const dayIdx = visibleDays.findIndex((d) => localDateKey(d) === todayKey)
     if (dayIdx < 0) return null
-    const top = ((Number(nowParts.hour) * 60 + Number(nowParts.minute)) / 60) * ROW_HEIGHT
-    return { dayIdx, top }
-  }, [nowTs, timezone, visibleDays])
+    const top = ((now.getHours() * 60 + now.getMinutes()) / 60) * ROW_HEIGHT
+    const label = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
+    return { top, dayIdx, label }
+  }, [nowTs, visibleDays])
 
   const miniCalendarDays = useMemo(() => {
     const monthStart = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1)
@@ -613,7 +660,16 @@ export default function TeacherSchedulePage() {
     [createScheduleKind, createStartDateKey, createWeekdays]
   )
   const createEffectiveWeeks = createScheduleKind === "single" ? 1 : createWeeks
-  const createNowParts = useMemo(() => getDateTimePartsInTimeZone(new Date(nowTs), timezone), [nowTs, timezone])
+  const createNowParts = useMemo(() => {
+    const d = new Date(nowTs || Date.now())
+    return {
+      dateKey: localDateKey(d),
+      hour: String(d.getHours()).padStart(2, "0"),
+      minute: String(d.getMinutes()).padStart(2, "0"),
+      day: d.getDate(),
+      month: d.getMonth() + 1
+    }
+  }, [nowTs])
   const createDisabledTimes = useMemo(() => {
     if (createStartDateKey !== createNowParts.dateKey) return new Set<string>()
     const nowHour = Number.parseInt(createNowParts.hour, 10)
@@ -634,12 +690,18 @@ export default function TeacherSchedulePage() {
       createEffectiveWeekdays,
       createEffectiveWeeks,
       createHour,
-      timezone,
-      nowTs
+      createNowParts.dateKey,
+      `${createNowParts.hour}:${createNowParts.minute}`
     )
     const wallTime = `${String(createHour).padStart(2, "0")}:00`
     const suggestedStart = firstInPast
-      ? nextEligibleStartDateKey(createStartDateKey, createEffectiveWeekdays, wallTime, timezone, nowTs)
+      ? nextEligibleStartDateKey(
+          createStartDateKey,
+          createEffectiveWeekdays,
+          wallTime,
+          createNowParts.dateKey,
+          `${createNowParts.hour}:${createNowParts.minute}`
+        )
       : null
     return { firstInPast, suggestedStart }
   }, [
@@ -647,8 +709,9 @@ export default function TeacherSchedulePage() {
     createEffectiveWeekdays,
     createEffectiveWeeks,
     createHour,
-    timezone,
-    nowTs
+    createNowParts.dateKey,
+    createNowParts.hour,
+    createNowParts.minute
   ])
 
   useEffect(() => {
@@ -674,7 +737,9 @@ export default function TeacherSchedulePage() {
           status: createMode,
           student_id: createMode === "booked" ? createStudentId : null,
           title: createTitle,
-          timezone
+          timezone,
+          now_date_key: createNowParts.dateKey,
+          now_time: `${createNowParts.hour}:${createNowParts.minute}`
         })
       })
       const payload = (await res.json().catch(() => ({}))) as {
@@ -729,9 +794,13 @@ export default function TeacherSchedulePage() {
     }
   }
 
-  const cancelExternalLesson = async (lesson: ExternalLesson) => {
-    setLessonDecision({ action: "cancel", lesson })
+  const cancelExternalLesson = (lesson: ExternalLesson) => {
     setLessonActions(null)
+    if (!lessonShowsAsWeeklySeries(lesson, externalLessons, timezone)) {
+      void confirmCancelExternalLesson("single", lesson)
+      return
+    }
+    setLessonDecision({ action: "cancel", lesson })
   }
 
   const postJson = useCallback(async (url: string, payload: unknown) => {
@@ -746,34 +815,14 @@ export default function TeacherSchedulePage() {
   }, [])
 
   const isRecurringLesson = useCallback(
-    (lesson: ExternalLesson) => {
-      const src = lesson.date_key && lesson.time
-        ? { dateKey: lesson.date_key, hour: lesson.time.slice(0, 2) }
-        : getDateTimePartsInTimeZone(new Date(lesson.slot_at), timezone)
-      const srcWeekday = weekdayFromDateKey(src.dateKey)
-      const srcTime = `${String(Number.parseInt(src.hour, 10)).padStart(2, "0")}:00`
-      const srcDate = new Date(`${src.dateKey}T00:00:00`)
-      return externalLessons.some((candidate) => {
-        if (candidate === lesson) return false
-        if ((candidate.student_id ?? "") !== (lesson.student_id ?? "")) return false
-        const c = candidate.date_key && candidate.time
-          ? { dateKey: candidate.date_key, hour: candidate.time.slice(0, 2) }
-          : getDateTimePartsInTimeZone(new Date(candidate.slot_at), timezone)
-        const cWeekday = weekdayFromDateKey(c.dateKey)
-        const cTime = `${String(Number.parseInt(c.hour, 10)).padStart(2, "0")}:00`
-        if (cWeekday !== srcWeekday || cTime !== srcTime) return false
-        const cDate = new Date(`${c.dateKey}T00:00:00`)
-        return cDate.getTime() > srcDate.getTime()
-      })
-    },
+    (lesson: ExternalLesson) => lessonShowsAsWeeklySeries(lesson, externalLessons, timezone),
     [externalLessons, timezone]
   )
 
   const openRescheduleModal = useCallback((lesson: ExternalLesson, scope: "single" | "following") => {
-    const d = new Date(lesson.slot_at)
-    const date = lesson.date_key ?? localDateKey(d)
-    const hour = lesson.time ? Number(lesson.time.slice(0, 2)) : d.getHours()
-    setRescheduleSlot({ date, hour: String(hour) })
+    const wall = wallClockFromSlotAt(lesson.slot_at)
+    const hourNum = Number.parseInt(wall.time.slice(0, 2), 10)
+    setRescheduleSlot({ date: wall.dateKey, hour: String(Number.isFinite(hourNum) ? hourNum : 0) })
     setRescheduleContext({ lesson, scope })
     setRescheduleOpen(true)
     setLessonActions(null)
@@ -791,20 +840,24 @@ export default function TeacherSchedulePage() {
         : null
     if (!source) return
     const toTime = `${String(source.toHour).padStart(2, "0")}:00`
-    if (!isValidTeacherRescheduleTargetSlot(source.toDateKey, toTime)) {
+    if (!isValidTeacherRescheduleTargetSlot(source.toDateKey, toTime, timezone)) {
       setActionToast("Преподаватель может переносить только в будущий свободный слот")
       window.setTimeout(() => setActionToast(null), 3500)
       return
     }
+    setDecisionSubmittingScope(scope)
     setActionSubmitting(true)
     try {
+      const now = new Date()
       await postJson("/api/schedule/external-lesson", {
         action: "reschedule",
         lesson: source.lesson,
         to_date_key: source.toDateKey,
         to_hour: source.toHour,
         scope,
-        timezone
+        timezone,
+        now_date_key: localDateKey(now),
+        now_time: `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
       })
       setRescheduleOpen(false)
       setRescheduleContext(null)
@@ -841,29 +894,35 @@ export default function TeacherSchedulePage() {
       setActionToast(error instanceof Error ? error.message : "Не удалось перенести занятие")
       window.setTimeout(() => setActionToast(null), 3500)
     } finally {
+      setDecisionSubmittingScope(null)
       setActionSubmitting(false)
     }
   }
 
-  const confirmCancelExternalLesson = async (scope: "single" | "following") => {
-    if (!lessonDecision || lessonDecision.action !== "cancel") return
+  const confirmCancelExternalLesson = async (scope: "single" | "following", lessonParam?: ExternalLesson) => {
+    const L = lessonParam ?? (lessonDecision?.action === "cancel" ? lessonDecision.lesson : null)
+    if (!L) return
+    setDecisionSubmittingScope(scope)
     setActionSubmitting(true)
     try {
+      const now = new Date()
       await postJson("/api/schedule/external-lesson", {
         action: "cancel",
-        lesson: lessonDecision.lesson,
+        lesson: L,
         scope,
-        timezone
+        timezone,
+        now_date_key: localDateKey(now),
+        now_time: `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
       })
-      const cancelWall = lessonWallParts(lessonDecision.lesson)
+      const cancelWall = lessonWallParts(L)
       const cancelWeekday = new Date(`${cancelWall.dateKey}T00:00:00`).getDay()
       const cancelRecurringLine = `по ${WEEKDAY_RU_DATIVE_PLURAL[cancelWeekday] ?? "выбранным дням"} в ${cancelWall.time}`
       pushScheduleNotification({
         audience: "student",
-        audienceId: lessonDecision.lesson.student_id,
+        audienceId: L.student_id,
         title: "Преподаватель отменил занятие",
         message: scope === "following" ? "Отменены все последующие занятия." : "Отменено одно занятие.",
-        fromLabel: scope === "following" ? cancelRecurringLine : formatLessonWallLabel(lessonDecision.lesson)
+        fromLabel: scope === "following" ? cancelRecurringLine : formatLessonWallLabel(L)
       })
       setLessonDecision(null)
       setActionToast(scope === "following" ? "Отменены все последующие занятия" : "Занятие отменено")
@@ -871,15 +930,16 @@ export default function TeacherSchedulePage() {
       setActionResultPopup({
         tone: "cancel",
         title: scope === "following" ? "Отменили все последующие" : "Занятие отменено",
-        message: scope === "following" ? `Отменили занятия ${cancelRecurringLine}` : formatLessonWallLabel(lessonDecision.lesson),
-        studentName: lessonDecision.lesson.student_name?.trim() || "Ученик",
-        studentAvatarUrl: lessonDecision.lesson.student_avatar_url || "/students/yana.png"
+        message: scope === "following" ? `Отменили занятия ${cancelRecurringLine}` : formatLessonWallLabel(L),
+        studentName: L.student_name?.trim() || "Ученик",
+        studentAvatarUrl: L.student_avatar_url || "/students/yana.png"
       })
       await refreshCalendarData()
     } catch (error) {
       setActionToast(error instanceof Error ? error.message : "Не удалось отменить занятие")
       window.setTimeout(() => setActionToast(null), 3500)
     } finally {
+      setDecisionSubmittingScope(null)
       setActionSubmitting(false)
     }
   }
@@ -1143,8 +1203,8 @@ export default function TeacherSchedulePage() {
                 <div className="m-1 rounded-lg bg-transparent dark:bg-transparent" />
                 {visibleDays.map((day) => (
                   <div key={day.toISOString()} className="m-1 rounded-lg border border-black/10 bg-transparent py-2 text-center dark:border-white/10 dark:bg-transparent">
-                    <div className="text-[11px] uppercase text-[#5f6368] dark:text-[#b0b6c0]">{getWeekdayLabelInTimeZone(day, timezone)}</div>
-                    <div className="text-[20px] text-[#3c4043] dark:text-white sm:text-[24px]">{getDayOfMonthInTimeZone(day, timezone)}</div>
+                    <div className="text-[11px] uppercase text-[#5f6368] dark:text-[#b0b6c0]">{WEEKDAY_SHORT[day.getDay()]}</div>
+                    <div className="text-[20px] text-[#3c4043] dark:text-white sm:text-[24px]">{day.getDate()}</div>
                   </div>
                 ))}
               </div>
@@ -1236,12 +1296,22 @@ export default function TeacherSchedulePage() {
                             if (!draggedLesson) return
                             e.preventDefault()
                             const targetDay = visibleDays[dayIdx]
-                            setLessonDecision({
-                              action: "reschedule",
-                              lesson: draggedLesson,
-                              toDateKey: getDateKeyInTimeZone(targetDay, timezone),
-                              toHour: hour
-                            })
+                            const toDateKey = getDateKeyInTimeZone(targetDay, timezone)
+                            const dragged = draggedLesson
+                            if (lessonShowsAsWeeklySeries(dragged, externalLessons, timezone)) {
+                              setLessonDecision({
+                                action: "reschedule",
+                                lesson: dragged,
+                                toDateKey,
+                                toHour: hour
+                              })
+                            } else {
+                              void rescheduleExternalLesson("single", {
+                                lesson: dragged,
+                                toDateKey,
+                                toHour: hour
+                              })
+                            }
                             setDraggedLesson(null)
                             setDragTarget(null)
                           }}
@@ -1258,7 +1328,7 @@ export default function TeacherSchedulePage() {
                         const activeClass =
                           lesson.type === "charged_absence"
                             ? "pointer-events-auto absolute left-[2px] right-[2px] rounded-[6px] p-1.5 pl-7 text-left text-[11px] transition hover:ring-2 bg-[#f6c7c3] text-[#7f1d1d] hover:bg-[#f0b4ae] hover:ring-[#b3261e]/20 dark:bg-[#4a2528] dark:text-[#fecaca] dark:hover:bg-[#5c2e32] dark:hover:ring-[#f87171]/25"
-                            : "pointer-events-auto absolute left-[2px] right-[2px] rounded-[6px] p-1.5 pl-7 text-left text-[11px] transition hover:ring-2 bg-[#81c995]/70 text-[#0d652d] hover:bg-[#81c995] hover:ring-[#0d652d]/20 dark:bg-[#1e3d2e]/95 dark:text-[#b9f6ca] dark:hover:bg-[#255238] dark:hover:ring-[#81c995]/30"
+                            : "pointer-events-auto absolute left-[2px] right-[2px] rounded-[6px] p-1.5 pl-7 pr-7 text-left text-[11px] transition hover:ring-2 bg-[#81c995]/70 text-[#0d652d] hover:bg-[#81c995] hover:ring-[#0d652d]/20 dark:bg-[#1e3d2e]/95 dark:text-[#b9f6ca] dark:hover:bg-[#255238] dark:hover:ring-[#81c995]/30"
                         const pastClass = `pointer-events-none absolute left-[2px] right-[2px] rounded-[6px] border border-black/10 bg-ds-neutral-row p-1.5 pl-7 text-left text-[11px] text-ds-text-muted opacity-70 dark:border-white/10 ${externalPulse ? "schedule-lesson-search-pulse" : ""}`
                         const cardClass = b.isPast ? pastClass : `${activeClass} ${externalPulse ? "schedule-lesson-search-pulse" : ""}`
                         const cardInner = (
@@ -1275,6 +1345,14 @@ export default function TeacherSchedulePage() {
                                 size={12}
                                 className={`absolute right-1 top-1 ${b.isPast ? "text-ds-text-muted" : "text-[#0d652d] dark:text-[#b9f6ca]"}`}
                               />
+                            ) : null}
+                            {b.isRecurring && lesson.type !== "completed" && lesson.type !== "charged_absence" && !b.isPast ? (
+                              <span
+                                className="absolute right-1 top-1 text-[#4f4b5f] dark:text-[#c4bdd6]"
+                                title="Еженедельное занятие"
+                              >
+                                <Repeat size={12} strokeWidth={2.4} aria-hidden />
+                              </span>
                             ) : null}
                             {lesson.type === "charged_absence" && !b.isPast ? (
                               <span className="absolute right-1 top-1 rounded bg-[#b3261e] px-1 text-[9px] text-white">late</span>
@@ -1322,10 +1400,17 @@ export default function TeacherSchedulePage() {
                   <div className="pointer-events-none absolute inset-x-0 z-30" style={{ top: nowLine.top }}>
                     <div className="grid" style={{ gridTemplateColumns: `64px repeat(${dayColumnCount}, minmax(132px, 1fr))` }}>
                       <div className="relative">
-                        <div className="absolute right-[-4px] top-[-4px] h-2 w-2 rounded-full bg-[#d93025]" />
+                        <span className="absolute right-1 top-[-10px] rounded-md bg-[#d93025] px-1.5 py-[1px] text-[11px] font-semibold leading-none text-white">
+                          {nowLine.label}
+                        </span>
                       </div>
-                      {visibleDays.map((_, idx) => (
-                        <div key={`line-${idx}`} className={`${idx === nowLine.dayIdx ? "border-t-2 border-[#d93025]" : ""}`} />
+                      {visibleDays.map((day, idx) => (
+                        <div key={`now-${localDateKey(day)}`} className="relative h-0">
+                          <div className={`absolute inset-x-0 ${idx === nowLine.dayIdx ? "border-t-2 border-[#d93025]" : "border-t-2 border-[#d93025]/35"}`} />
+                          {idx === nowLine.dayIdx ? (
+                            <div className="absolute left-0 top-[-4px] h-2 w-2 -translate-x-1/2 rounded-full bg-[#d93025]" />
+                          ) : null}
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -1393,10 +1478,8 @@ export default function TeacherSchedulePage() {
       {lessonActions ? (
         <div className="fixed z-[70] w-52 rounded-xl border border-black/10 bg-white p-2 shadow-xl dark:border-white/10 dark:bg-[#23272d]" style={{ left: lessonActions.x + 8, top: lessonActions.y + 8 }}>
           {(() => {
-            const lessonDate = lessonActions.lesson.date_key
-              ? new Date(`${lessonActions.lesson.date_key}T${lessonActions.lesson.time ?? "00:00"}:00`)
-              : new Date(lessonActions.lesson.slot_at)
-            const canMarkStatus = lessonDate.getTime() <= Date.now()
+            const wall = lessonWallParts(lessonActions.lesson)
+            const canMarkStatus = isLocalWallPastOrStarted(wall.dateKey, wall.time, Date.now())
             return (
               <>
           <div className="mb-1 flex justify-end">
@@ -1457,7 +1540,11 @@ export default function TeacherSchedulePage() {
               {lessonDecision.action === "cancel" ? "Отмена занятия" : "Перенос занятия"}
             </h4>
             <p className="mt-2 text-sm text-[#5f6368] dark:text-[#b0b6c0]">
-              Это регулярное занятие. Применить действие только к этому занятию или ко всем последующим?
+              {lessonDecision.action === "cancel"
+                ? "Это регулярная серия. Отменить только это занятие или все последующие в цепочке?"
+                : lessonDecision.toDateKey !== undefined && lessonDecision.toHour !== undefined
+                  ? `Перенос на ${formatYmdLabel(lessonDecision.toDateKey)} в ${String(lessonDecision.toHour).padStart(2, "0")}:00 — только этот слот или всю регулярную цепочку?`
+                  : "Перенести только это занятие или все последующие в регулярной серии?"}
             </p>
             <div className="mt-4 flex flex-wrap justify-end gap-2">
               <button
@@ -1480,7 +1567,11 @@ export default function TeacherSchedulePage() {
                       : openRescheduleModal(lessonDecision.lesson, "single")
                 }
               >
-                {actionSubmitting ? <Loader2 className="mx-auto size-4 animate-spin" aria-hidden /> : "Только это"}
+                {actionSubmitting && decisionSubmittingScope === "single" ? (
+                  <Loader2 className="mx-auto size-4 animate-spin" aria-hidden />
+                ) : (
+                  "Только это"
+                )}
               </button>
               <button
                 type="button"
@@ -1494,7 +1585,11 @@ export default function TeacherSchedulePage() {
                       : openRescheduleModal(lessonDecision.lesson, "following")
                 }
               >
-                {actionSubmitting ? <Loader2 className="mx-auto size-4 animate-spin" aria-hidden /> : "Все последующие"}
+                {actionSubmitting && decisionSubmittingScope === "following" ? (
+                  <Loader2 className="mx-auto size-4 animate-spin" aria-hidden />
+                ) : (
+                  "Все последующие"
+                )}
               </button>
             </div>
           </div>
@@ -1516,7 +1611,7 @@ export default function TeacherSchedulePage() {
                 <DateMiniSelect
                   value={rescheduleSlot.date}
                   onChange={(next) => setRescheduleSlot((prev) => ({ ...prev, date: next }))}
-                  minDateKey={localDateKey(getAppNow())}
+                  minDateKey={createNowParts.dateKey}
                 />
               </div>
             </div>
@@ -1571,7 +1666,14 @@ export default function TeacherSchedulePage() {
               </TooltipIconButton>
             </div>
             <div className="mb-3 text-sm text-[#5f6368] dark:text-[#b0b6c0]">
-              {statusLesson.student_name} · {formatYmdLabel(localDateKey(new Date(statusLesson.slot_at)))} {String(new Date(statusLesson.slot_at).getHours()).padStart(2, "0")}:00
+              {(() => {
+                const w = wallClockFromSlotAt(statusLesson.slot_at)
+                return (
+                  <>
+                    {statusLesson.student_name} · {formatYmdLabel(w.dateKey)} {w.time}
+                  </>
+                )
+              })()}
             </div>
             <div className="space-y-2">
               <button
@@ -2422,15 +2524,6 @@ function weekdayFromDateKey(dateKey: string): WeekdayKey {
   return weekdayFromDate(d)
 }
 
-function getDayOfMonthInTimeZone(date: Date, timeZone: string): number {
-  return getDateTimePartsInTimeZone(date, timeZone).day
-}
-
-function getWeekdayLabelInTimeZone(date: Date, timeZone: string): string {
-  const label = new Intl.DateTimeFormat("ru-RU", { timeZone, weekday: "short" }).format(date)
-  return label.replace(".", "").slice(0, 2).toUpperCase()
-}
-
 function formatTimeZoneOption(tz: string): string {
   const city = tz.includes("/") ? tz.split("/").at(-1)?.replace(/_/g, " ") ?? tz : tz
   const offset = getUtcOffsetLabel(tz)
@@ -2701,6 +2794,14 @@ function lessonWallParts(lesson: ExternalLesson): { dateKey: string; time: strin
 function formatLessonWallLabel(lesson: ExternalLesson): string {
   const wall = lessonWallParts(lesson)
   return `${wall.dateKey} ${wall.time}`
+}
+
+function isLocalWallPastOrStarted(dateKey: string, time: string, nowTs: number = Date.now()): boolean {
+  const now = new Date(nowTs)
+  const nowDateKey = localDateKey(now)
+  const nowTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`
+  const t = normalizeScheduleSlotTime(time)
+  return `${dateKey}T${t}` <= `${nowDateKey}T${nowTime}`
 }
 
 function localDateKey(date: Date): string {

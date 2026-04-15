@@ -1,16 +1,21 @@
 import { NextResponse } from "next/server"
-import { getAppNow } from "@/lib/app-time"
 import { addDaysToDateKey } from "@/lib/schedule/calendar-ymd"
 import {
   matchesFollowingSeriesSlot,
-  minimalWeekdayShiftDays,
+  forwardWeekdayShiftDays,
   minDateKeyForFollowingRescheduleCluster,
   minDateKeyForFollowingSeries,
   calendarWeekdayFromDateKey
 } from "@/lib/schedule/following-series"
-import { wallClockFromDateInSchoolTz, wallClockFromSlotAt } from "@/lib/schedule-display-tz"
+import { wallClockFromSlotAt } from "@/lib/schedule-display-tz"
 import { SCHEDULE_WALL_CLOCK_TIMEZONE } from "@/lib/schedule-display-tz"
 import { reconcileStudentScheduleFireAndForget } from "@/lib/schedule/reconcile-student-schedule"
+import {
+  isValidFollowingRescheduleTargetForLesson,
+  isValidRescheduleTargetSlot,
+  isValidStudentWeeklyBookingAnchorSlot
+} from "@/lib/schedule-lessons"
+import { lessonWallKeysFromBody } from "@/lib/schedule/lesson-wall-keys"
 import { collectWeeklyBookingOccurrences, STUDENT_WEEKLY_BOOKING_MAX_WEEKS } from "@/lib/schedule/weekly-student-booking"
 import { normalizeScheduleSlotTime, timestamptzInstantEqual, timestamptzInstantKey, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
@@ -23,6 +28,8 @@ type Body = {
   to_hour?: number
   scope?: "single" | "following"
   timezone?: string
+  now_date_key?: string
+  now_time?: string
 }
 
 type Me = { id: string; role: "student" | "teacher" | "curator"; assigned_teacher_id: string | null }
@@ -35,6 +42,12 @@ function mapRpcError(message: string): { status: number; error: string } {
     return { status: 403, error: "Недостаточно прав для изменения этого слота" }
   }
   if (/forbidden|not authenticated/i.test(message)) return { status: 403, error: message }
+  if (/slot not available/i.test(message)) {
+    return {
+      status: 409,
+      error: "Этот слот у преподавателя недоступен для переноса (занят или не входит в доступные часы)."
+    }
+  }
   if (/slot is not available|new slot is not available|same slot/i.test(message)) {
     return { status: 409, error: message }
   }
@@ -140,6 +153,10 @@ export async function POST(req: Request) {
 
   const scope = body.scope === "following" ? "following" : "single"
   const timeZone = SCHEDULE_WALL_CLOCK_TIMEZONE
+  const nowWall =
+    /^\d{4}-\d{2}-\d{2}$/.test(body.now_date_key ?? "") && typeof body.now_time === "string"
+      ? { dateKey: body.now_date_key as string, time: normalizeScheduleSlotTime(body.now_time) }
+      : undefined
   let mutated = false
   try {
     if (body.action === "book") {
@@ -149,9 +166,19 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Invalid booking target" }, { status: 400 })
       }
       const toTime = `${String(toHour).padStart(2, "0")}:00`
-      if (!isWithinStudentBookingWindow(toDateKeyValue, toTime)) {
+      if (scope === "single") {
+        if (!isValidRescheduleTargetSlot(toDateKeyValue, toTime, nowWall)) {
+          return NextResponse.json(
+            { error: "Можно выбрать только слот не раньше чем через 24 часа и в пределах 7 дней" },
+            { status: 400 }
+          )
+        }
+      } else if (!isValidStudentWeeklyBookingAnchorSlot(toDateKeyValue, toTime, nowWall)) {
         return NextResponse.json(
-          { error: "Можно выбрать только свободный слот в будущем в пределах 7 дней" },
+          {
+            error:
+              "Для еженедельного бронирования выберите дату и время в пределах 14 дней; до начала первого урока должно оставаться больше 24 часов."
+          },
           { status: 400 }
         )
       }
@@ -178,10 +205,12 @@ export async function POST(req: Request) {
         STUDENT_WEEKLY_BOOKING_MAX_WEEKS
       )
       if (occurrences.length === 0) return NextResponse.json({ error: "Нет доступных слотов для еженедельного бронирования" }, { status: 409 })
+      const requestedSlots = occurrences.length
       const slotAts = occurrences.map((occ) => wallClockSlotAtIso(occ.dateKey, occ.time, timeZone))
       let totalBooked = 0
-      // Keep each DB call small to avoid PostgreSQL statement timeout.
-      for (const slotBatch of chunkArray(slotAts, 24)) {
+      // Один RPC с увеличенным statement_timeout в БД; при необходимости режем на части.
+      const FOLLOWING_RPC_CHUNK = 52
+      for (const slotBatch of chunkArray(slotAts, FOLLOWING_RPC_CHUNK)) {
         const { data: bookedCount, error } = await supabase.rpc("book_following_slots_atomic", {
           p_teacher_id: teacherId,
           p_student_id: me.id,
@@ -190,7 +219,19 @@ export async function POST(req: Request) {
         })
         if (error && !isMissingRpcFunction(error.message || "")) {
           const mapped = mapRpcError(error.message || "RPC failed")
-          return NextResponse.json({ error: mapped.error }, { status: mapped.status })
+          if (totalBooked > 0) {
+            mutated = true
+            void reconcileStudentScheduleFireAndForget(supabase, me.id)
+          }
+          return NextResponse.json(
+            {
+              error: mapped.error,
+              booked: totalBooked,
+              requested: requestedSlots,
+              partial: totalBooked > 0
+            },
+            { status: mapped.status }
+          )
         }
         if (error && isMissingRpcFunction(error.message || "")) {
           for (const slotAt of slotBatch) {
@@ -204,7 +245,19 @@ export async function POST(req: Request) {
               const msg = fallbackErr.message || ""
               if (/slot is not available/i.test(msg)) continue
               const mapped = mapRpcError(msg || "RPC failed")
-              return NextResponse.json({ error: mapped.error }, { status: mapped.status })
+              if (totalBooked > 0) {
+                mutated = true
+                void reconcileStudentScheduleFireAndForget(supabase, me.id)
+              }
+              return NextResponse.json(
+                {
+                  error: mapped.error,
+                  booked: totalBooked,
+                  requested: requestedSlots,
+                  partial: totalBooked > 0
+                },
+                { status: mapped.status }
+              )
             }
             totalBooked += 1
           }
@@ -216,18 +269,15 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Нет доступных слотов для еженедельного бронирования" }, { status: 409 })
       }
       mutated = true
-      return NextResponse.json({ ok: true, booked: totalBooked })
+      const partial = totalBooked < requestedSlots
+      return NextResponse.json({ ok: true, booked: totalBooked, requested: requestedSlots, partial })
     }
 
-    if (!body.lesson?.slot_at) {
+    if (!body.lesson?.slot_at?.trim()) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 })
     }
 
-    const oldDate = new Date(body.lesson.slot_at)
-    const oldDateKey = body.lesson.date_key?.trim() || toDateKey(oldDate)
-    const oldTime = normalizeScheduleSlotTime(
-      body.lesson.time?.trim() || `${String(oldDate.getHours()).padStart(2, "0")}:00`
-    )
+    const { dateKey: oldDateKey, time: oldTime } = lessonWallKeysFromBody(body.lesson)
 
     if (body.action === "cancel") {
       const oldSlotAt = wallClockSlotAtIso(oldDateKey, oldTime, SCHEDULE_WALL_CLOCK_TIMEZONE)
@@ -308,14 +358,14 @@ export async function POST(req: Request) {
     const toTime = `${String(toHour).padStart(2, "0")}:00`
     const canUseTarget =
       scope === "following"
-        ? isWithinStudentBookingWindow(toDateKeyValue, toTime)
-        : isWithinStudentRescheduleWindow(toDateKeyValue, toTime)
+        ? isValidFollowingRescheduleTargetForLesson(oldDateKey, toDateKeyValue, toTime, nowWall)
+        : isValidRescheduleTargetSlot(toDateKeyValue, toTime, nowWall)
     if (!canUseTarget) {
       return NextResponse.json(
         {
           error:
             scope === "following"
-              ? "Для регулярного переноса можно выбрать только свободный слот в будущем в пределах 7 дней"
+              ? "Первое занятие после переноса должно начаться не раньше чем через 24 часа (с учётом сдвига на новый день недели) и в пределах примерно шести недель"
               : "Можно переносить только в окно от 24 часов до 7 дней вперёд"
         },
         { status: 400 }
@@ -378,7 +428,7 @@ export async function POST(req: Request) {
         if (!inCluster(rowWd)) continue
         if (normalizeScheduleSlotTime(wall.time) !== oldTime) continue
         seriesFromAnchor += 1
-        const rowDelta = minimalWeekdayShiftDays(rowWd, clusterTargetWeekday)
+        const rowDelta = forwardWeekdayShiftDays(rowWd, clusterTargetWeekday)
         const targetDateKey = addDaysToDateKey(wall.dateKey, rowDelta)
         const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, timeZone)
         if (!timestamptzInstantEqual(slotAt, targetSlotAt)) mismatchesFromAnchor += 1
@@ -397,7 +447,7 @@ export async function POST(req: Request) {
         const rowWd = calendarWeekdayFromDateKey(wall.dateKey)
         if (!inCluster(rowWd)) continue
         if (normalizeScheduleSlotTime(wall.time) !== oldTime) continue
-        const rowDelta = minimalWeekdayShiftDays(rowWd, clusterTargetWeekday)
+        const rowDelta = forwardWeekdayShiftDays(rowWd, clusterTargetWeekday)
         const targetDateKey = addDaysToDateKey(wall.dateKey, rowDelta)
         const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, timeZone)
         if (!timestamptzInstantEqual(slotAt, targetSlotAt)) {
@@ -481,43 +531,3 @@ export async function POST(req: Request) {
     if (mutated) void reconcileStudentScheduleFireAndForget(supabase, me.id)
   }
 }
-
-function isWithinStudentRescheduleWindow(dateKey: string, time: string): boolean {
-  const timeNorm = normalizeScheduleSlotTime(time)
-  const slotMs = new Date(wallClockSlotAtIso(dateKey, timeNorm, SCHEDULE_WALL_CLOCK_TIMEZONE)).getTime()
-  if (Number.isNaN(slotMs)) return false
-
-  const nowWallClock = wallClockFromDateInSchoolTz(getAppNow())
-  const nowMs = new Date(
-    wallClockSlotAtIso(nowWallClock.dateKey, normalizeScheduleSlotTime(nowWallClock.time), SCHEDULE_WALL_CLOCK_TIMEZONE)
-  ).getTime()
-  if (Number.isNaN(nowMs)) return false
-
-  const minAheadMs = 24 * 60 * 60 * 1000
-  const maxAheadMs = 7 * 24 * 60 * 60 * 1000
-  return slotMs > nowMs + minAheadMs && slotMs <= nowMs + maxAheadMs
-}
-
-/** Новое бронирование: только будущее, без +24 ч; верхняя граница — 7 дней. */
-function isWithinStudentBookingWindow(dateKey: string, time: string): boolean {
-  const timeNorm = normalizeScheduleSlotTime(time)
-  const slotMs = new Date(wallClockSlotAtIso(dateKey, timeNorm, SCHEDULE_WALL_CLOCK_TIMEZONE)).getTime()
-  if (Number.isNaN(slotMs)) return false
-
-  const nowWallClock = wallClockFromDateInSchoolTz(getAppNow())
-  const nowMs = new Date(
-    wallClockSlotAtIso(nowWallClock.dateKey, normalizeScheduleSlotTime(nowWallClock.time), SCHEDULE_WALL_CLOCK_TIMEZONE)
-  ).getTime()
-  if (Number.isNaN(nowMs)) return false
-
-  const maxAheadMs = 7 * 24 * 60 * 60 * 1000
-  return slotMs > nowMs && slotMs <= nowMs + maxAheadMs
-}
-
-function toDateKey(d: Date) {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, "0")
-  const day = String(d.getDate()).padStart(2, "0")
-  return `${y}-${m}-${day}`
-}
-

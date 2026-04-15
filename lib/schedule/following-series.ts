@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { wallClockFromSlotAt } from "@/lib/schedule-display-tz"
-import { calendarWeekdayFromDateKey } from "@/lib/schedule/calendar-ymd"
+import { addDaysToDateKey, calendarWeekdayFromDateKey, mondayDateKeyOfWeekContaining } from "@/lib/schedule/calendar-ymd"
 import { normalizeScheduleSlotTime } from "@/lib/schedule/slot-time"
 
 /** Weekday (0=вс … 6=сб) по календарной дате YYYY-MM-DD в UTC, без локали сервера. */
@@ -81,4 +81,35 @@ export function minimalWeekdayShiftDays(fromWeekday: number, toWeekday: number):
   let d = (toWeekday - fromWeekday + 7) % 7
   if (d > 3) d -= 7
   return d
+}
+
+/**
+ * Сдвиг вперёд по календарю до ближайшего целевого дня недели (0…6 суток).
+ * Для регулярного переноса кластера: чт→вт = +5 дней (следующий вторник), а не −2 (вторник той же недели до урока).
+ */
+export function forwardWeekdayShiftDays(fromWeekday: number, toWeekday: number): number {
+  return (toWeekday - fromWeekday + 7) % 7
+}
+
+/**
+ * Календарная дата первого переноса занятия `lessonDateKey` при смене дня недели серии
+ * на weekday даты `templateTargetDateKey` (та же формула сдвига, что в reschedule_following_slots_atomic).
+ */
+export function firstFollowingMoveDateKeyForLesson(lessonDateKey: string, templateTargetDateKey: string): string {
+  const lw = calendarWeekdayFromDateKey(lessonDateKey)
+  const tw = calendarWeekdayFromDateKey(templateTargetDateKey)
+  return addDaysToDateKey(lessonDateKey, forwardWeekdayShiftDays(lw, tw))
+}
+
+/**
+ * Нижняя граница даты при выборе первого календарного дня целевого дня недели (to_date_key) для регулярного переноса.
+ * Сдвиг шаблона ровно на −1 день (чт→ср в той же неделе) — с понедельника недели урока; иначе не раньше даты урока,
+ * чтобы чт→вт не выбирал вторник до четверга (14.04), когда нужен первый вторник после урока (21.04).
+ */
+export function minDateKeyForFollowingRescheduleWeekdayPicker(lessonDateKey: string, targetWeekday: number): string {
+  const lessonWd = calendarWeekdayFromDateKey(lessonDateKey)
+  const weekStart = mondayDateKeyOfWeekContaining(lessonDateKey)
+  const shift = minimalWeekdayShiftDays(lessonWd, targetWeekday)
+  if (shift === -1) return weekStart
+  return lessonDateKey
 }
