@@ -62,8 +62,14 @@ export async function POST(req: Request) {
   const weekMonday = mondayDateKeyOfWeekContaining(startYmd)
   const wallTime = normalizeScheduleSlotTime(`${String(hour).padStart(2, "0")}:00`)
   const timeZone = body?.timezone?.trim() || SCHEDULE_WALL_CLOCK_TIMEZONE
-  const nowDateKey = /^\d{4}-\d{2}-\d{2}$/.test(body?.now_date_key?.trim() ?? "") ? (body?.now_date_key as string).trim() : utcTodayYmd()
-  const nowTime = normalizeScheduleSlotTime(body?.now_time?.trim() || "00:00")
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(body?.now_date_key?.trim() ?? "") || typeof body?.now_time !== "string") {
+    return NextResponse.json(
+      { error: "now_date_key and now_time are required in client wall-clock format" },
+      { status: 400 }
+    )
+  }
+  const nowDateKey = (body.now_date_key as string).trim()
+  const nowTime = normalizeScheduleSlotTime(body.now_time)
   const nowWall = `${nowDateKey}T${nowTime}`
 
   const payload: Array<{ teacher_id: string; slot_at: string; status: "busy" | "booked"; booked_student_id: string | null }> = []

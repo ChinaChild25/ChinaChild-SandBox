@@ -60,6 +60,12 @@ function isSlotNotFoundError(message: string): boolean {
   return /slot not found|old slot not found|new slot not found/i.test(message)
 }
 
+function parseRequiredNowWall(body: Body): { dateKey: string; time: string } | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(body.now_date_key ?? "")) return null
+  if (typeof body.now_time !== "string") return null
+  return { dateKey: body.now_date_key as string, time: normalizeScheduleSlotTime(body.now_time) }
+}
+
 async function dedupeFollowingTeacherMoves(
   supabase: ReturnType<typeof createServerSupabaseClient> extends Promise<infer T> ? T : never,
   teacherId: string,
@@ -164,10 +170,13 @@ export async function POST(req: Request) {
   }
 
   const scheduleTimeZone = SCHEDULE_WALL_CLOCK_TIMEZONE
-  const nowWall =
-    /^\d{4}-\d{2}-\d{2}$/.test(body?.now_date_key ?? "") && typeof body?.now_time === "string"
-      ? { dateKey: body.now_date_key as string, time: normalizeScheduleSlotTime(body.now_time) }
-      : undefined
+  const nowWall = parseRequiredNowWall(body)
+  if (!nowWall) {
+    return NextResponse.json(
+      { error: "now_date_key and now_time are required in client wall-clock format" },
+      { status: 400 }
+    )
+  }
 
   const { dateKey: oldDateKey, time: oldTime } = lessonWallKeysFromBody(lesson)
   const seriesWeekday = calendarWeekdayFromDateKey(oldDateKey)

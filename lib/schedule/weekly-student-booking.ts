@@ -1,39 +1,20 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { localWallClockNowEpochMs } from "@/lib/schedule-lessons"
-import { SCHEDULE_WALL_CLOCK_TIMEZONE, wallClockFromDateInTimeZone } from "@/lib/schedule-display-tz"
+import { lessonWallClockEpochMs, localWallClockNowEpochMs } from "@/lib/schedule-lessons"
+import { SCHEDULE_POLICY } from "@/lib/schedule/policy"
+import { SCHEDULE_WALL_CLOCK_TIMEZONE } from "@/lib/schedule-display-tz"
 import { normalizeScheduleSlotTime, timestamptzInstantKey, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
 import {
   emptyWeeklyTemplate,
   intervalsToHourlyStatuses,
-  type AvailabilityInterval,
   type WeekdayKey,
-  type WeeklyTemplate,
-  WEEKDAY_KEYS
+  type WeeklyTemplate
 } from "@/lib/teacher-availability-template"
 
 /** Ограниченный горизонт, чтобы массовое weekly-бронирование не упиралось в statement timeout. */
 export const STUDENT_WEEKLY_BOOKING_MAX_WEEKS = 26
 
-const MS_24H = 24 * 60 * 60 * 1000
+const MS_24H = SCHEDULE_POLICY.studentMinLeadMs
 const MS_10Y = 10 * 365 * MS_24H
-
-const DEFAULT_STUDENT_OPEN_HOURS: AvailabilityInterval[] = [{ start: "09:00", end: "21:00" }]
-const DEFAULT_STUDENT_WEEKLY_IF_NO_TEMPLATE: WeeklyTemplate = {
-  sunday: DEFAULT_STUDENT_OPEN_HOURS,
-  monday: DEFAULT_STUDENT_OPEN_HOURS,
-  tuesday: DEFAULT_STUDENT_OPEN_HOURS,
-  wednesday: DEFAULT_STUDENT_OPEN_HOURS,
-  thursday: DEFAULT_STUDENT_OPEN_HOURS,
-  friday: DEFAULT_STUDENT_OPEN_HOURS,
-  saturday: DEFAULT_STUDENT_OPEN_HOURS
-}
-
-function weeklyTemplateHasAnyFreeHour(weekly: WeeklyTemplate): boolean {
-  for (const k of WEEKDAY_KEYS) {
-    if (intervalsToHourlyStatuses(weekly[k] ?? []).some((s) => s === "free")) return true
-  }
-  return false
-}
 
 function addDaysToDateKey(dateKey: string, deltaDays: number): string {
   const [y, m, d] = dateKey.split("-").map((x) => parseInt(x, 10))
@@ -51,7 +32,18 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
   return out
 }
 
+const WEEKDAY_KEYS_ORDER: WeekdayKey[] = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday"
+]
+
 export type WeeklyBookingOccurrence = { dateKey: string; time: string }
+type WallNow = { dateKey: string; time: string }
 
 /**
  * Список дат для еженедельного бронирования: шаблон доступности + существующие строки teacher_schedule_slots
@@ -63,7 +55,8 @@ export async function collectWeeklyBookingOccurrences(
   studentId: string,
   firstDateKey: string,
   wallTime: string,
-  maxWeeks: number
+  maxWeeks: number,
+  nowWall?: WallNow
 ): Promise<WeeklyBookingOccurrence[]> {
   const timeNorm = normalizeScheduleSlotTime(wallTime)
   const hour = Number.parseInt(timeNorm.slice(0, 2), 10)
@@ -71,40 +64,29 @@ export async function collectWeeklyBookingOccurrences(
 
   const { data: tmpl } = await supabase
     .from("teacher_schedule_templates")
-    .select("weekly_template, timezone")
+    .select("weekly_template")
     .eq("teacher_id", teacherId)
-    .maybeSingle<{ weekly_template: WeeklyTemplate | null; timezone: string | null }>()
+    .maybeSingle<{ weekly_template: WeeklyTemplate | null }>()
 
-  const weeklyFromDb = (tmpl?.weekly_template as WeeklyTemplate | null) ?? emptyWeeklyTemplate()
-  const weeklyForSynth = weeklyTemplateHasAnyFreeHour(weeklyFromDb) ? weeklyFromDb : DEFAULT_STUDENT_WEEKLY_IF_NO_TEMPLATE
-  const teacherTz = (tmpl?.timezone ?? "").trim() || SCHEDULE_WALL_CLOCK_TIMEZONE
+  const weeklyForSynth = (tmpl?.weekly_template as WeeklyTemplate | null) ?? emptyWeeklyTemplate()
 
-  const nowMs = localWallClockNowEpochMs()
+  const nowMs = nowWall ? lessonWallClockEpochMs(nowWall.dateKey, nowWall.time) : localWallClockNowEpochMs()
   const out: WeeklyBookingOccurrence[] = []
   const slotAtList: string[] = []
 
   for (let i = 0; i < maxWeeks; i++) {
     const dateKey = addDaysToDateKey(firstDateKey, i * 7)
     const slotAt = wallClockSlotAtIso(dateKey, timeNorm, SCHEDULE_WALL_CLOCK_TIMEZONE)
+    const slotWallMs = lessonWallClockEpochMs(dateKey, timeNorm)
     const slotMs = new Date(slotAt).getTime()
-    if (Number.isNaN(slotMs)) continue
-    if (slotMs <= nowMs + MS_24H) continue
-    if (slotMs > nowMs + MS_10Y) break
+    if (Number.isNaN(slotWallMs) || Number.isNaN(slotMs)) continue
+    if (slotWallMs <= nowMs + MS_24H) continue
+    if (slotWallMs > nowMs + MS_10Y) break
 
-    const { time: wallInTeacherTz } = wallClockFromDateInTimeZone(new Date(slotMs), teacherTz)
-    const wallHour = Number.parseInt(wallInTeacherTz.slice(0, 2), 10)
+    const wallHour = Number.parseInt(timeNorm.slice(0, 2), 10)
     if (!Number.isFinite(wallHour) || wallHour < 0 || wallHour > 23) continue
-    const dow = new Date(slotMs).toLocaleDateString("en-US", { weekday: "short", timeZone: teacherTz })
-    const dowMap: Record<string, WeekdayKey> = {
-      Sun: "sunday",
-      Mon: "monday",
-      Tue: "tuesday",
-      Wed: "wednesday",
-      Thu: "thursday",
-      Fri: "friday",
-      Sat: "saturday"
-    }
-    const wk = dowMap[dow]
+    const weekdayIndex = new Date(`${dateKey}T12:00:00Z`).getUTCDay()
+    const wk = WEEKDAY_KEYS_ORDER[weekdayIndex]
     if (!wk) continue
     const hourly = intervalsToHourlyStatuses(weeklyForSynth[wk] ?? [])
     if (hourly[wallHour] !== "free") continue

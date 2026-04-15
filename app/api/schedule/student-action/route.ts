@@ -67,6 +67,12 @@ function chunkArray<T>(items: T[], size: number): T[][] {
   return out
 }
 
+function parseRequiredNowWall(body: Body): { dateKey: string; time: string } | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(body.now_date_key ?? "")) return null
+  if (typeof body.now_time !== "string") return null
+  return { dateKey: body.now_date_key as string, time: normalizeScheduleSlotTime(body.now_time) }
+}
+
 async function ensureStudentTargetSlotExists(
   supabase: ReturnType<typeof createServerSupabaseClient> extends Promise<infer T> ? T : never,
   teacherId: string,
@@ -153,10 +159,13 @@ export async function POST(req: Request) {
 
   const scope = body.scope === "following" ? "following" : "single"
   const timeZone = SCHEDULE_WALL_CLOCK_TIMEZONE
-  const nowWall =
-    /^\d{4}-\d{2}-\d{2}$/.test(body.now_date_key ?? "") && typeof body.now_time === "string"
-      ? { dateKey: body.now_date_key as string, time: normalizeScheduleSlotTime(body.now_time) }
-      : undefined
+  const nowWall = parseRequiredNowWall(body)
+  if (!nowWall) {
+    return NextResponse.json(
+      { error: "now_date_key and now_time are required in client wall-clock format" },
+      { status: 400 }
+    )
+  }
   let mutated = false
   try {
     if (body.action === "book") {
@@ -187,6 +196,8 @@ export async function POST(req: Request) {
           p_teacher_id: teacherId,
           p_slot_at: wallClockSlotAtIso(toDateKeyValue, toTime, SCHEDULE_WALL_CLOCK_TIMEZONE),
           p_student_id: me.id,
+          p_now_date_key: nowWall.dateKey,
+          p_now_time: nowWall.time,
           p_timezone: timeZone
         })
         if (error) {
@@ -202,7 +213,8 @@ export async function POST(req: Request) {
         me.id,
         toDateKeyValue,
         toTime,
-        STUDENT_WEEKLY_BOOKING_MAX_WEEKS
+        STUDENT_WEEKLY_BOOKING_MAX_WEEKS,
+        nowWall
       )
       if (occurrences.length === 0) return NextResponse.json({ error: "Нет доступных слотов для еженедельного бронирования" }, { status: 409 })
       const requestedSlots = occurrences.length
@@ -215,6 +227,8 @@ export async function POST(req: Request) {
           p_teacher_id: teacherId,
           p_student_id: me.id,
           p_slot_ats: slotBatch,
+          p_now_date_key: nowWall.dateKey,
+          p_now_time: nowWall.time,
           p_timezone: timeZone
         })
         if (error && !isMissingRpcFunction(error.message || "")) {
@@ -239,6 +253,8 @@ export async function POST(req: Request) {
               p_teacher_id: teacherId,
               p_slot_at: slotAt,
               p_student_id: me.id,
+              p_now_date_key: nowWall.dateKey,
+              p_now_time: nowWall.time,
               p_timezone: timeZone
             })
             if (fallbackErr) {

@@ -1,6 +1,7 @@
 /** Модель переносимых занятий в расписании (демо + localStorage). Дата слота — dateKey YYYY-MM-DD. */
 
 import { getAppNow } from "@/lib/app-time"
+import { SCHEDULE_POLICY } from "@/lib/schedule/policy"
 import { calendarWeekdayFromDateKey } from "@/lib/schedule/calendar-ymd"
 import { firstFollowingMoveDateKeyForLesson } from "@/lib/schedule/following-series"
 import { SCHEDULE_WALL_CLOCK_TIMEZONE, wallClockFromDateInSchoolTz } from "@/lib/schedule-display-tz"
@@ -33,16 +34,16 @@ export type ScheduledLesson = {
 
 const STORAGE_KEY = "chinachild-schedule-lessons-v2"
 
-export const MS_24H = 24 * 60 * 60 * 1000
+export const MS_24H = SCHEDULE_POLICY.studentMinLeadMs
 export const MS_7D = 7 * MS_24H
 /** Окно выбора нового слота учеником — не более 7 суток вперёд. */
-export const MS_STUDENT_RESCHEDULE_MAX_HORIZON = 7 * MS_24H
+export const MS_STUDENT_RESCHEDULE_MAX_HORIZON = SCHEDULE_POLICY.studentSingleBookingHorizonDays * MS_24H
 
 /** Горизонт выбора якоря еженедельного бронирования: до +14 суток от «сейчас» (школа). */
-export const MS_STUDENT_WEEKLY_BOOK_ANCHOR_MAX_HORIZON = 14 * MS_24H
+export const MS_STUDENT_WEEKLY_BOOK_ANCHOR_MAX_HORIZON = SCHEDULE_POLICY.studentWeeklyAnchorHorizonDays * MS_24H
 
 /** Регулярный перенос: горизонт шаблона / первого фактического слота — до ~6 недель от «сейчас». */
-export const MS_STUDENT_FOLLOWING_RESCHEDULE_TARGET_HORIZON = 42 * MS_24H
+export const MS_STUDENT_FOLLOWING_RESCHEDULE_TARGET_HORIZON = SCHEDULE_POLICY.studentFollowingRescheduleHorizonDays * MS_24H
 type WallNow = { dateKey: string; time: string }
 
 export function dateKeyFromDate(d: Date): string {
