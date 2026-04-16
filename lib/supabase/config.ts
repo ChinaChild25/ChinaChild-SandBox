@@ -13,3 +13,7 @@ export function getSupabaseAnonKey(): string | undefined {
 export function isSupabaseConfigured(): boolean {
   return Boolean(getSupabaseUrl() && getSupabaseAnonKey())
 }
+
+export function getChatMediaBucket(): string {
+  return process.env.NEXT_PUBLIC_CHAT_MEDIA_BUCKET?.trim() || "chat-media"
+}

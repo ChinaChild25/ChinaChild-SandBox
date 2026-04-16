@@ -1,15 +1,9 @@
 "use client"
 
 import { useParams } from "next/navigation"
-import { CourseDetailContent } from "@/components/courses/course-detail-content"
+import { TeacherCourseBuilderContent } from "@/components/courses/teacher-course-builder-content"
 
 export default function TeacherCourseDetailsPage() {
   const params = useParams<{ courseId: string }>()
-  return (
-    <CourseDetailContent
-      courseId={params.courseId}
-      coursesListHref="/teacher/courses"
-      progressHref="/teacher/progress"
-    />
-  )
+  return <TeacherCourseBuilderContent courseId={params.courseId} />
 }

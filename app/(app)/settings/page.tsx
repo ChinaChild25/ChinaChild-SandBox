@@ -214,8 +214,12 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!mounted) return
+    if (user?.uiAccent === "sage" || user?.uiAccent === "pink" || user?.uiAccent === "blue" || user?.uiAccent === "orange") {
+      setAccentKey(user.uiAccent)
+      return
+    }
     setAccentKey(accentKeyFromStorage())
-  }, [mounted, resolvedTheme])
+  }, [mounted, resolvedTheme, user?.uiAccent])
 
   const lastLoginIso =
     typeof window !== "undefined" ? window.localStorage.getItem(LAST_LOGIN_STORAGE_KEY) : null
@@ -313,6 +317,10 @@ export default function SettingsPage() {
     const dark = resolvedTheme === "dark" || isDocumentDark()
     if (!dark) {
       applyUiAccentToDocument(ua)
+    }
+    if (usesSupabase && user) {
+      const supabase = createBrowserSupabaseClient()
+      void updateProfileFields(supabase, user.id, { ui_accent: k })
     }
   }
 

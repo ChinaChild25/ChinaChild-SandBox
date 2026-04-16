@@ -91,6 +91,41 @@ const END_HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => `${String(h + 1).p
 const WEEKDAY_SHORT = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"]
 const WEEKDAY_RU = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"]
 
+function positionFixedMenuInViewport(params: {
+  anchorX: number
+  anchorY: number
+  menuWidth: number
+  menuHeight: number
+  gap?: number
+  viewportWidth: number
+  viewportHeight: number
+}): { left: number; top: number } {
+  const { anchorX, anchorY, menuWidth, menuHeight, viewportWidth, viewportHeight } = params
+  const gap = params.gap ?? 8
+  const preferredLeft = anchorX + gap
+  const preferredTop = anchorY + gap
+  const flippedLeft = anchorX - menuWidth - gap
+  const flippedTop = anchorY - menuHeight - gap
+
+  const maxLeft = Math.max(gap, viewportWidth - menuWidth - gap)
+  const maxTop = Math.max(gap, viewportHeight - menuHeight - gap)
+
+  let left = preferredLeft
+  let top = preferredTop
+
+  if (preferredLeft + menuWidth > viewportWidth - gap && flippedLeft >= gap) {
+    left = flippedLeft
+  }
+  if (preferredTop + menuHeight > viewportHeight - gap && flippedTop >= gap) {
+    top = flippedTop
+  }
+
+  return {
+    left: Math.min(Math.max(gap, left), maxLeft),
+    top: Math.min(Math.max(gap, top), maxTop)
+  }
+}
+
 /** Дательный падеж мн.ч. для «по понедельникам, …» */
 const WEEKDAY_RU_DATIVE_PLURAL = [
   "воскресеньям",
@@ -272,6 +307,10 @@ export default function TeacherSchedulePage() {
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [scheduleNotifications, setScheduleNotifications] = useState<ScheduleNotificationItem[]>([])
   const [notificationDetails, setNotificationDetails] = useState<ScheduleNotificationItem | null>(null)
+  const popoverMenuRef = useRef<HTMLDivElement | null>(null)
+  const lessonActionsMenuRef = useRef<HTMLDivElement | null>(null)
+  const [popoverMenuPos, setPopoverMenuPos] = useState<{ left: number; top: number }>({ left: 8, top: 8 })
+  const [lessonActionsMenuPos, setLessonActionsMenuPos] = useState<{ left: number; top: number }>({ left: 8, top: 8 })
   const headerScrollRef = useRef<HTMLDivElement | null>(null)
   const bodyScrollRef = useRef<HTMLDivElement | null>(null)
 
@@ -299,6 +338,54 @@ export default function TeacherSchedulePage() {
   useEffect(() => {
     if (createOpen) setNowTs(Date.now())
   }, [createOpen])
+
+  useLayoutEffect(() => {
+    if (!popover) return
+    const update = () => {
+      const rect = popoverMenuRef.current?.getBoundingClientRect()
+      const next = positionFixedMenuInViewport({
+        anchorX: popover.x,
+        anchorY: popover.y,
+        menuWidth: rect?.width ?? 208,
+        menuHeight: rect?.height ?? 168,
+        gap: 8,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight
+      })
+      setPopoverMenuPos(next)
+    }
+    update()
+    window.addEventListener("resize", update)
+    window.addEventListener("scroll", update, true)
+    return () => {
+      window.removeEventListener("resize", update)
+      window.removeEventListener("scroll", update, true)
+    }
+  }, [popover])
+
+  useLayoutEffect(() => {
+    if (!lessonActions) return
+    const update = () => {
+      const rect = lessonActionsMenuRef.current?.getBoundingClientRect()
+      const next = positionFixedMenuInViewport({
+        anchorX: lessonActions.x,
+        anchorY: lessonActions.y,
+        menuWidth: rect?.width ?? 208,
+        menuHeight: rect?.height ?? 196,
+        gap: 8,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight
+      })
+      setLessonActionsMenuPos(next)
+    }
+    update()
+    window.addEventListener("resize", update)
+    window.addEventListener("scroll", update, true)
+    return () => {
+      window.removeEventListener("resize", update)
+      window.removeEventListener("scroll", update, true)
+    }
+  }, [lessonActions])
 
   useEffect(() => {
     if (!user || (user.role !== "teacher" && user.role !== "curator")) return
@@ -411,6 +498,12 @@ export default function TeacherSchedulePage() {
             }
             applySlotsPayload(payload)
           }
+        }
+      } catch (error) {
+        if (ac.signal.aborted) return
+        if (error instanceof DOMException && error.name === "AbortError") return
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[teacher/schedule] calendar load failed:", error)
         }
       } finally {
         if (gen === calendarFetchGen.current) {
@@ -1347,12 +1440,12 @@ export default function TeacherSchedulePage() {
                               />
                             ) : null}
                             {b.isRecurring && lesson.type !== "completed" && lesson.type !== "charged_absence" && !b.isPast ? (
-                              <span
+                              <TooltipHint
+                                text="Еженедельное занятие"
                                 className="absolute right-1 top-1 text-[#4f4b5f] dark:text-[#c4bdd6]"
-                                title="Еженедельное занятие"
                               >
                                 <Repeat size={12} strokeWidth={2.4} aria-hidden />
-                              </span>
+                              </TooltipHint>
                             ) : null}
                             {lesson.type === "charged_absence" && !b.isPast ? (
                               <span className="absolute right-1 top-1 rounded bg-[#b3261e] px-1 text-[9px] text-white">late</span>
@@ -1438,7 +1531,11 @@ export default function TeacherSchedulePage() {
       ) : null}
 
       {popover ? (
-        <div className="fixed z-50 w-52 rounded-lg border border-black/10 bg-white p-2 shadow-xl dark:border-white/10 dark:bg-[#23272d]" style={{ left: popover.x + 8, top: popover.y + 8 }}>
+        <div
+          ref={popoverMenuRef}
+          className="fixed z-50 w-52 rounded-lg border border-black/10 bg-white p-2 shadow-xl dark:border-white/10 dark:bg-[#23272d]"
+          style={{ left: popoverMenuPos.left, top: popoverMenuPos.top }}
+        >
           <div className="mb-1 flex justify-end">
             <button
               type="button"
@@ -1476,7 +1573,11 @@ export default function TeacherSchedulePage() {
       ) : null}
 
       {lessonActions ? (
-        <div className="fixed z-[70] w-52 rounded-xl border border-black/10 bg-white p-2 shadow-xl dark:border-white/10 dark:bg-[#23272d]" style={{ left: lessonActions.x + 8, top: lessonActions.y + 8 }}>
+        <div
+          ref={lessonActionsMenuRef}
+          className="fixed z-[70] w-52 rounded-xl border border-black/10 bg-white p-2 shadow-xl dark:border-white/10 dark:bg-[#23272d]"
+          style={{ left: lessonActionsMenuPos.left, top: lessonActionsMenuPos.top }}
+        >
           {(() => {
             const wall = lessonWallParts(lessonActions.lesson)
             const canMarkStatus = isLocalWallPastOrStarted(wall.dateKey, wall.time, Date.now())
@@ -2333,6 +2434,71 @@ function TooltipIconButton({
           style={{ left: position.left, top: position.top }}
         >
           {tooltip}
+        </span>
+      ) : null}
+    </>
+  )
+}
+
+function TooltipHint({
+  text,
+  children,
+  className
+}: {
+  text: string
+  children: ReactNode
+  className?: string
+}) {
+  const hostRef = useRef<HTMLSpanElement | null>(null)
+  const tipRef = useRef<HTMLSpanElement | null>(null)
+  const [open, setOpen] = useState(false)
+  const [position, setPosition] = useState<{ left: number; top: number }>({ left: 0, top: 0 })
+
+  useEffect(() => {
+    if (!open) return
+    const update = () => {
+      const host = hostRef.current
+      const tip = tipRef.current
+      if (!host || !tip) return
+      const rect = host.getBoundingClientRect()
+      const tipRect = tip.getBoundingClientRect()
+      const pad = 8
+      const center = rect.left + rect.width / 2
+      const minCenter = pad + tipRect.width / 2
+      const maxCenter = window.innerWidth - pad - tipRect.width / 2
+      const left = Math.max(minCenter, Math.min(maxCenter, center))
+      const topCandidate = rect.top - tipRect.height - 6
+      const top = topCandidate >= pad ? topCandidate : rect.bottom + 6
+      setPosition({ left, top })
+    }
+    update()
+    window.addEventListener("resize", update)
+    window.addEventListener("scroll", update, true)
+    return () => {
+      window.removeEventListener("resize", update)
+      window.removeEventListener("scroll", update, true)
+    }
+  }, [open])
+
+  return (
+    <>
+      <span
+        ref={hostRef}
+        className={className ?? "inline-flex"}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+      >
+        {children}
+      </span>
+      {open ? (
+        <span
+          ref={tipRef}
+          className="pointer-events-none fixed z-[140] max-w-[220px] -translate-x-1/2 rounded-[6px] bg-zinc-900 px-2 py-1 text-center text-[11px] leading-snug text-white shadow-md dark:bg-zinc-100 dark:text-zinc-900"
+          style={{ left: position.left, top: position.top }}
+        >
+          {text}
         </span>
       ) : null}
     </>

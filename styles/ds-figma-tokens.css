@@ -184,6 +184,19 @@
   --text-2xl: var(--ds-text-2xl);
 }
 
+@keyframes typingDot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
 .dark {
   /* Совпадает с областью контента — без «чёрной рамки» вокруг приложения */
   --background: #0a0a0a;
@@ -658,13 +671,22 @@ html.dark[data-ui-accent="orange"] {
     transition:
       background-color 0.15s ease,
       border-color 0.15s ease,
-      color 0.15s ease;
+      color 0.15s ease,
+      transform 0.15s ease,
+      box-shadow 0.15s ease;
   }
 
   .ds-mobile-top-chrome__menu-btn:hover {
     border-color: #000000;
     background-color: #000000;
     color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgb(0 0 0 / 0.2);
+  }
+
+  .ds-mobile-top-chrome__menu-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.18);
   }
 
   .dark .ds-mobile-top-chrome__menu-btn {
@@ -677,6 +699,7 @@ html.dark[data-ui-accent="orange"] {
     border-color: #000000;
     background-color: #000000;
     color: #ffffff;
+    box-shadow: 0 8px 20px rgb(0 0 0 / 0.45);
   }
 
   /** Резервируем место под fixed-бар, чтобы контент не уезжал под него */
@@ -707,12 +730,16 @@ html.dark[data-ui-accent="orange"] {
   .ds-figma-shell-page-pad:has(.ds-messages-page) {
     padding-left: 0.5rem;
     padding-right: 0.5rem;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
   }
 
   @media (min-width: 640px) {
     .ds-figma-shell-page-pad:has(.ds-messages-page) {
       padding-left: 1rem;
       padding-right: 1rem;
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
     }
   }
 
@@ -2730,6 +2757,10 @@ html.dark[data-ui-accent="orange"] {
 
   /** Мобильный чат: занимаем оставшуюся высоту вьюпорта под плавающим баром */
   @media (max-width: 1023px) {
+    .ds-figma-shell-main-scroll:has(.ds-messages-page) {
+      overflow-y: hidden;
+    }
+
     .ds-messages-page {
       flex: 1 1 auto;
       width: 100%;
@@ -2737,6 +2768,7 @@ html.dark[data-ui-accent="orange"] {
       min-width: 0;
       overflow-x: hidden;
       min-height: calc(var(--visual-viewport-height, 100dvh) - var(--ds-mobile-messages-offset, 7.5rem));
+      height: calc(var(--visual-viewport-height, 100dvh) - var(--ds-mobile-messages-offset, 7.5rem));
     }
 
     .ds-messages-page__frame {
@@ -2747,6 +2779,12 @@ html.dark[data-ui-accent="orange"] {
       flex-direction: column;
       max-width: 100%;
       overflow-x: hidden;
+      height: 100%;
+    }
+
+    .ds-messages-shell {
+      height: 100%;
+      min-height: 0;
     }
 
     .ds-messages-sidebar {
@@ -2763,6 +2801,7 @@ html.dark[data-ui-accent="orange"] {
       width: 100%;
       max-width: 100%;
       overflow-x: hidden;
+      height: 100%;
     }
   }
 
@@ -2785,6 +2824,13 @@ html.dark[data-ui-accent="orange"] {
 
     .ds-messages-page {
       min-height: 0;
+      height: auto;
+    }
+
+    .ds-messages-page__frame {
+      min-height: 0;
+      height: auto;
+      max-height: none;
     }
   }
 

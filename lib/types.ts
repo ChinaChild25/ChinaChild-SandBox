@@ -25,6 +25,8 @@ export interface User {
   /** Цель HSK 1–5; ученик и преподаватель */
   hskGoal?: number | null
   avatar?: string
+  /** UI-акцент пользователя (профиль), если задан */
+  uiAccent?: "sage" | "pink" | "blue" | "orange" | null
   dashboardStats?: {
     attendedLessons: number
     lessonGoal: number
@@ -94,4 +96,51 @@ export interface LearningResource {
   type: "PDF" | "Audio" | "Video" | "Flashcards"
   category: string
   downloadUrl: string
+}
+
+export const LESSON_BLOCK_TYPES = [
+  "text",
+  "matching",
+  "fill_gaps",
+  "quiz_single",
+  "audio",
+  "image",
+  "video"
+] as const
+
+export type LessonBlockType = (typeof LESSON_BLOCK_TYPES)[number]
+
+export function isLessonBlockType(value: string): value is LessonBlockType {
+  return (LESSON_BLOCK_TYPES as readonly string[]).includes(value)
+}
+
+export interface TeacherCustomCourse {
+  id: string
+  title: string
+  description: string | null
+  level: string | null
+  is_custom: boolean
+  is_platform_course?: boolean
+  cover_color?: string | null
+  cover_style?: string | null
+  teacher_name?: string | null
+  teacher_avatar_url?: string | null
+  created_at: string
+}
+
+export interface TeacherLesson {
+  id: string
+  course_id: string
+  title: string
+  order: number
+  task_badge_color?: string | null
+  created_at: string
+}
+
+export interface TeacherLessonBlock {
+  id: string
+  lesson_id: string
+  type: LessonBlockType
+  order: number
+  data: Record<string, unknown>
 }

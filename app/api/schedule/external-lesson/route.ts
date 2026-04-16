@@ -149,6 +149,47 @@ async function ensureTeacherSlotReservable(
   if (error) throw new Error(error.message || "Не удалось подготовить целевой слот для переноса")
 }
 
+async function ensureTeacherSlotsReservableBatch(
+  supabase: ReturnType<typeof createServerSupabaseClient> extends Promise<infer T> ? T : never,
+  teacherId: string,
+  slotAts: string[]
+) {
+  const uniqueSlotAts = [...new Set(slotAts.filter(Boolean))]
+  if (uniqueSlotAts.length === 0) return
+
+  const { data: existingRows, error: existingErr } = await supabase
+    .from("teacher_schedule_slots")
+    .select("slot_at")
+    .eq("teacher_id", teacherId)
+    .in("slot_at", uniqueSlotAts)
+  if (existingErr) throw new Error(existingErr.message || "Не удалось проверить существующие слоты")
+
+  const existing = new Set((existingRows ?? []).map((r) => (r as { slot_at: string }).slot_at))
+  const toInsert = uniqueSlotAts
+    .filter((slotAt) => !existing.has(slotAt))
+    .map((slotAt) => ({
+      teacher_id: teacherId,
+      slot_at: slotAt,
+      status: "free" as const,
+      booked_student_id: null as string | null
+    }))
+  if (toInsert.length > 0) {
+    const { error: insertErr } = await supabase.from("teacher_schedule_slots").insert(toInsert)
+    if (insertErr && insertErr.code !== "23505") {
+      throw new Error(insertErr.message || "Не удалось создать отсутствующие слоты")
+    }
+  }
+
+  const { error: updateErr } = await supabase
+    .from("teacher_schedule_slots")
+    .update({ status: "free" })
+    .eq("teacher_id", teacherId)
+    .in("slot_at", uniqueSlotAts)
+    .eq("status", "busy")
+    .is("booked_student_id", null)
+  if (updateErr) throw new Error(updateErr.message || "Не удалось подготовить целевые слоты для переноса")
+}
+
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as Body | null
   const action = body?.action
@@ -337,6 +378,7 @@ export async function POST(req: Request) {
       }
       let seriesFromAnchor = 0
       let mismatchesFromAnchor = 0
+      const candidateTargetSlotAts: string[] = []
       for (const row of bookedRows ?? []) {
         const slotAt = (row as { slot_at: string }).slot_at
         const wall = wallClockFromSlotAt(slotAt)
@@ -349,6 +391,7 @@ export async function POST(req: Request) {
         const targetDateKey = addDaysToDateKey(wall.dateKey, rowDelta)
         const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
         if (!timestamptzInstantEqual(slotAt, targetSlotAt)) mismatchesFromAnchor += 1
+        candidateTargetSlotAts.push(targetSlotAt)
       }
       if (seriesFromAnchor > 0 && mismatchesFromAnchor === 0) {
         return NextResponse.json(
@@ -367,8 +410,8 @@ export async function POST(req: Request) {
         const targetDateKey = addDaysToDateKey(wall.dateKey, rowDelta)
         const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
         pushFollowingPair(slotAt, targetSlotAt)
-        await ensureTeacherSlotReservable(supabase, me.id, targetSlotAt)
       }
+      await ensureTeacherSlotsReservableBatch(supabase, me.id, candidateTargetSlotAts)
     }
     let { data: movedCount, error } = await tryRescheduleFollowing()
     if (error && isMissingRpcFunction(error.message || "")) {
@@ -382,6 +425,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: bookedErr.message }, { status: 400 })
       }
       let fallbackMoved = 0
+      const fallbackTargetSlotAts: string[] = []
       for (const row of bookedRows ?? []) {
         const slotAt = (row as { slot_at: string }).slot_at
         const wall = wallClockFromSlotAt(slotAt)
@@ -393,10 +437,13 @@ export async function POST(req: Request) {
         const targetDateKey = addDaysToDateKey(wall.dateKey, rowDelta)
         const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
         pushFollowingPair(slotAt, targetSlotAt)
-        await ensureTeacherSlotReservable(supabase, me.id, targetSlotAt)
+        fallbackTargetSlotAts.push(targetSlotAt)
+      }
+      await ensureTeacherSlotsReservableBatch(supabase, me.id, fallbackTargetSlotAts)
+      for (const pair of followingCandidates) {
         const { error: fallbackErr } = await supabase.rpc("reschedule_slot_atomic", {
-          p_old_slot_at: slotAt,
-          p_new_slot_at: targetSlotAt,
+          p_old_slot_at: pair.sourceSlotAt,
+          p_new_slot_at: pair.targetSlotAt,
           p_teacher_id: me.id,
           p_student_id: lesson.student_id,
           p_timezone: scheduleTimeZone
@@ -433,6 +480,7 @@ export async function POST(req: Request) {
       if (bookedErr) {
         return NextResponse.json({ error: bookedErr.message }, { status: 400 })
       }
+      const retryTargetSlotAts: string[] = []
       for (const row of bookedRows ?? []) {
         const slotAt = (row as { slot_at: string }).slot_at
         const wall = wallClockFromSlotAt(slotAt)
@@ -444,8 +492,9 @@ export async function POST(req: Request) {
         const targetDateKey = addDaysToDateKey(wall.dateKey, rowDelta)
         const targetSlotAt = wallClockSlotAtIso(targetDateKey, toTime, scheduleTimeZone)
         pushFollowingPair(slotAt, targetSlotAt)
-        await ensureTeacherSlotReservable(supabase, me.id, targetSlotAt)
+        retryTargetSlotAts.push(targetSlotAt)
       }
+      await ensureTeacherSlotsReservableBatch(supabase, me.id, retryTargetSlotAts)
       const retry = await tryRescheduleFollowing()
       movedCount = retry.data
       error = retry.error

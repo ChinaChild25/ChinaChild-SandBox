@@ -11,6 +11,7 @@ export type ProfileRow = {
   full_name: string | null
   phone: string | null
   avatar_url: string | null
+  ui_accent?: "sage" | "pink" | "blue" | "orange" | null
   online_meeting_url: string | null
   /** 0–5, только для role = student */
   hsk_level?: number | null
@@ -68,6 +69,7 @@ export function mapProfileRowToAppUser(profile: ProfileRow, email: string | null
     name,
     role,
     avatar,
+    uiAccent: profile.ui_accent ?? null,
     phone: profile.phone?.trim() || undefined,
     firstName: profile.first_name?.trim() || undefined,
     lastName: profile.last_name?.trim() || undefined,
@@ -88,7 +90,7 @@ export async function fetchProfileForAuthUser(
   supabase: SupabaseClient,
   authUser: SupabaseAuthUser
 ): Promise<ProfileFetchResult> {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("profiles")
     .select(PROFILE_SELECT)
     .eq("id", authUser.id)
@@ -104,10 +106,59 @@ export async function fetchProfileForAuthUser(
   }
 
   if (!data) {
+    const rpcHeal = await supabase.rpc("ensure_profile_for_current_user")
+    if (!rpcHeal.error) {
+      const refetch = await supabase
+        .from("profiles")
+        .select(PROFILE_SELECT)
+        .eq("id", authUser.id)
+        .maybeSingle()
+      if (!refetch.error && refetch.data) {
+        data = refetch.data
+        error = null
+      } else {
+        error = refetch.error
+      }
+    }
+  }
+
+  if (!data) {
+    const fullNameFromMeta =
+      typeof authUser.user_metadata?.full_name === "string" ? authUser.user_metadata.full_name.trim() : ""
+    const fallbackName = authUser.email?.split("@")[0] ?? "Пользователь"
+    const seedName = fullNameFromMeta || fallbackName
+    const parts = seedName.split(/\s+/).filter(Boolean)
+    const firstName = parts[0] ?? null
+    const lastName = parts.length > 1 ? parts.slice(1).join(" ") : null
+
+    const insertAttempt = await supabase.from("profiles").insert({
+      id: authUser.id,
+      role: "student",
+      full_name: seedName,
+      first_name: firstName,
+      last_name: lastName
+    })
+
+    if (!insertAttempt.error) {
+      const refetch = await supabase
+        .from("profiles")
+        .select(PROFILE_SELECT)
+        .eq("id", authUser.id)
+        .maybeSingle()
+      if (!refetch.error && refetch.data) {
+        data = refetch.data
+        error = null
+      } else {
+        error = refetch.error
+      }
+    }
+  }
+
+  if (!data) {
+    const hint = error?.message ?? "для вашего аккаунта нет строки в public.profiles и auto-provision не сработал."
     return {
       ok: false,
-      message:
-        "Профиль не найден: для вашего аккаунта нет строки в public.profiles. Обычно она создаётся триггером при регистрации — обратитесь к администратору."
+      message: `Профиль не найден: ${hint}`
     }
   }
 
@@ -128,6 +179,7 @@ export type ProfileWritableFields = {
   full_name?: string | null
   phone?: string | null
   avatar_url?: string | null
+  ui_accent?: "sage" | "pink" | "blue" | "orange" | null
   /** Только для преподавателя; пустая строка → null */
   online_meeting_url?: string | null
   /** Только ученик — своя цель HSK 1–5 */
@@ -145,6 +197,7 @@ export async function updateProfileFields(
   if (fields.full_name !== undefined) payload.full_name = fields.full_name
   if (fields.phone !== undefined) payload.phone = fields.phone
   if (fields.avatar_url !== undefined) payload.avatar_url = fields.avatar_url
+  if (fields.ui_accent !== undefined) payload.ui_accent = fields.ui_accent
   if (fields.online_meeting_url !== undefined) payload.online_meeting_url = fields.online_meeting_url
   if (fields.hsk_goal !== undefined) payload.hsk_goal = fields.hsk_goal
 

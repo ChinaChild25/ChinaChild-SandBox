@@ -1,0 +1,94 @@
+import type { LessonBlockType } from "@/lib/types"
+
+export const blockTypeAccentClass: Record<LessonBlockType, string> = {
+  text: "border-[#bfdcff] bg-[#e8f3ff] text-[#2e4d73] hover:bg-[#d9ebff] dark:border-[#35567b] dark:bg-[#1b2a3c] dark:text-[#d2e6ff] dark:hover:bg-[#22364d]",
+  matching:
+    "border-[#cdecc8] bg-[#eefbe9] text-[#2e5e37] hover:bg-[#e1f6da] dark:border-[#3c7046] dark:bg-[#1f3224] dark:text-[#d4f0d8] dark:hover:bg-[#28412f]",
+  fill_gaps:
+    "border-[#f8dfbe] bg-[#fff3e2] text-[#7a5632] hover:bg-[#ffe9cf] dark:border-[#7a5a34] dark:bg-[#372a1f] dark:text-[#ffe5c4] dark:hover:bg-[#463424]",
+  quiz_single:
+    "border-[#ead3ff] bg-[#f7edff] text-[#5f3a87] hover:bg-[#f0e0ff] dark:border-[#6a4a91] dark:bg-[#2f2142] dark:text-[#ecd8ff] dark:hover:bg-[#3a2952]",
+  image:
+    "border-[#c4e8f0] bg-[#e8f7fc] text-[#2a5560] hover:bg-[#d6f0f8] dark:border-[#356a78] dark:bg-[#1a2e34] dark:text-[#c8ecf5] dark:hover:bg-[#243d45]",
+  video:
+    "border-[#ffd4c4] bg-[#fff0ea] text-[#6d3d2e] hover:bg-[#ffe4d8] dark:border-[#8a5c4a] dark:bg-[#34221c] dark:text-[#ffdccd] dark:hover:bg-[#452f26]",
+  audio:
+    "border-[#ffd2dd] bg-[#ffeaf0] text-[#7f3c4f] hover:bg-[#ffdbe6] dark:border-[#8a4b5e] dark:bg-[#3a2430] dark:text-[#ffd9e4] dark:hover:bg-[#472c3a]"
+}
+
+export const blockTypeStudentTheme: Record<
+  LessonBlockType,
+  {
+    panel: string
+    soft: string
+    active: string
+    hover: string
+    ring: string
+    text: string
+    accent: string
+  }
+> = {
+  text: {
+    panel: "border-[#bfdcff]/80 bg-[#e8f3ff]/70 dark:border-[#35567b]/80 dark:bg-[#1b2a3c]/60",
+    soft: "border-[#bfdcff] bg-[#f4f9ff] text-[#2e4d73] dark:border-[#35567b] dark:bg-[#1b2a3c]/70 dark:text-[#d2e6ff]",
+    active: "border-[#bfdcff] bg-[#e8f3ff] text-[#2e4d73] dark:border-[#35567b] dark:bg-[#1b2a3c] dark:text-[#d2e6ff]",
+    hover: "hover:bg-[#d9ebff] dark:hover:bg-[#22364d]",
+    ring: "ring-[#7fb2ea]/50 dark:ring-[#5f8fbe]/45",
+    text: "text-[#2e4d73] dark:text-[#d2e6ff]",
+    accent: "accent-[#2e4d73] dark:accent-[#d2e6ff]"
+  },
+  matching: {
+    panel: "border-[#cdecc8]/80 bg-[#eefbe9]/70 dark:border-[#3c7046]/80 dark:bg-[#1f3224]/60",
+    soft: "border-[#cdecc8] bg-[#f6fdf3] text-[#2e5e37] dark:border-[#3c7046] dark:bg-[#1f3224]/70 dark:text-[#d4f0d8]",
+    active: "border-[#cdecc8] bg-[#eefbe9] text-[#2e5e37] dark:border-[#3c7046] dark:bg-[#1f3224] dark:text-[#d4f0d8]",
+    hover: "hover:bg-[#e1f6da] dark:hover:bg-[#28412f]",
+    ring: "ring-[#95cd8b]/50 dark:ring-[#5f9b67]/45",
+    text: "text-[#2e5e37] dark:text-[#d4f0d8]",
+    accent: "accent-[#2e5e37] dark:accent-[#d4f0d8]"
+  },
+  fill_gaps: {
+    panel: "border-[#f8dfbe]/80 bg-[#fff3e2]/75 dark:border-[#7a5a34]/80 dark:bg-[#372a1f]/60",
+    soft: "border-[#f8dfbe] bg-[#fff8ef] text-[#7a5632] dark:border-[#7a5a34] dark:bg-[#372a1f]/70 dark:text-[#ffe5c4]",
+    active: "border-[#f8dfbe] bg-[#fff3e2] text-[#7a5632] dark:border-[#7a5a34] dark:bg-[#372a1f] dark:text-[#ffe5c4]",
+    hover: "hover:bg-[#ffe9cf] dark:hover:bg-[#463424]",
+    ring: "ring-[#e7b97a]/55 dark:ring-[#a67745]/45",
+    text: "text-[#7a5632] dark:text-[#ffe5c4]",
+    accent: "accent-[#7a5632] dark:accent-[#ffe5c4]"
+  },
+  quiz_single: {
+    panel: "border-[#ead3ff]/80 bg-[#f7edff]/75 dark:border-[#6a4a91]/80 dark:bg-[#2f2142]/60",
+    soft: "border-[#ead3ff] bg-[#fbf6ff] text-[#5f3a87] dark:border-[#6a4a91] dark:bg-[#2f2142]/70 dark:text-[#ecd8ff]",
+    active: "border-[#ead3ff] bg-[#f7edff] text-[#5f3a87] dark:border-[#6a4a91] dark:bg-[#2f2142] dark:text-[#ecd8ff]",
+    hover: "hover:bg-[#f0e0ff] dark:hover:bg-[#3a2952]",
+    ring: "ring-[#c99df0]/55 dark:ring-[#8f69bf]/45",
+    text: "text-[#5f3a87] dark:text-[#ecd8ff]",
+    accent: "accent-[#5f3a87] dark:accent-[#ecd8ff]"
+  },
+  image: {
+    panel: "border-[#c4e8f0]/80 bg-[#e8f7fc]/70 dark:border-[#356a78]/80 dark:bg-[#1a2e34]/60",
+    soft: "border-[#c4e8f0] bg-[#f4fcfe] text-[#2a5560] dark:border-[#356a78] dark:bg-[#1a2e34]/70 dark:text-[#c8ecf5]",
+    active: "border-[#c4e8f0] bg-[#e8f7fc] text-[#2a5560] dark:border-[#356a78] dark:bg-[#1a2e34] dark:text-[#c8ecf5]",
+    hover: "hover:bg-[#d6f0f8] dark:hover:bg-[#243d45]",
+    ring: "ring-[#7dc6d6]/50 dark:ring-[#4d8894]/45",
+    text: "text-[#2a5560] dark:text-[#c8ecf5]",
+    accent: "accent-[#2a5560] dark:accent-[#c8ecf5]"
+  },
+  video: {
+    panel: "border-[#ffd4c4]/80 bg-[#fff0ea]/70 dark:border-[#8a5c4a]/80 dark:bg-[#34221c]/60",
+    soft: "border-[#ffd4c4] bg-[#fff8f5] text-[#6d3d2e] dark:border-[#8a5c4a] dark:bg-[#34221c]/70 dark:text-[#ffdccd]",
+    active: "border-[#ffd4c4] bg-[#fff0ea] text-[#6d3d2e] dark:border-[#8a5c4a] dark:bg-[#34221c] dark:text-[#ffdccd]",
+    hover: "hover:bg-[#ffe4d8] dark:hover:bg-[#452f26]",
+    ring: "ring-[#f0ab8f]/50 dark:ring-[#ab765e]/45",
+    text: "text-[#6d3d2e] dark:text-[#ffdccd]",
+    accent: "accent-[#6d3d2e] dark:accent-[#ffdccd]"
+  },
+  audio: {
+    panel: "border-border/40 bg-[#ffeaf0]/70 dark:border-border/40 dark:bg-[#3a2430]/60",
+    soft: "border-[#ffd2dd] bg-[#fff6f8] text-[#7f3c4f] dark:border-[#8a4b5e] dark:bg-[#3a2430]/70 dark:text-[#ffd9e4]",
+    active: "border-[#ffd2dd] bg-[#ffeaf0] text-[#7f3c4f] dark:border-[#8a4b5e] dark:bg-[#3a2430] dark:text-[#ffd9e4]",
+    hover: "hover:bg-[#ffdbe6] dark:hover:bg-[#472c3a]",
+    ring: "ring-[#eb9ab0]/50 dark:ring-[#a76579]/45",
+    text: "text-[#7f3c4f] dark:text-[#ffd9e4]",
+    accent: "accent-[#7f3c4f] dark:accent-[#ffd9e4]"
+  }
+}
