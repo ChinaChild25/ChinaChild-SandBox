@@ -493,6 +493,49 @@ html.dark[data-ui-accent="orange"] {
   --ds-group-card-bg-dark: color-mix(in srgb, var(--ds-sage) 48%, #1e1e1e);
 }
 
+/**
+ * Редактор урока: нейтральные «шейпы» и hover, без тона data-ui-accent.
+ * В :root --muted/--accent привязаны к --ds-sidebar (sage → зеленоватый фон при hover:bg-muted и т.п.).
+ */
+.ds-lesson-editor-page {
+  --ds-surface-muted: #f8f8f8;
+  --ds-panel-muted: #ebebeb;
+  /* Сильнее, чем в :root: карточки блоков на --input-background (#f3f3f5), иначе ghost-hover почти не виден */
+  --ds-surface-hover: #dedee2;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --accent: #e4e4e7;
+  --accent-foreground: #18181b;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+}
+
+.dark .ds-lesson-editor-page {
+  --ds-surface-muted: #1e1e1e;
+  --ds-panel-muted: #1a1a1a;
+  --ds-surface-hover: #3a3a3a;
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+}
+
+/* Перекрываем глобальный .ds-input-field: в редакторе урока — фон как у страницы, без рамки (Tailwind border-0 иначе проигрывает по специфичности). */
+.ds-lesson-editor-page .ds-input-field {
+  background-color: var(--background);
+  border: none;
+  border-image: none;
+  box-shadow: none;
+}
+
+.ds-lesson-editor-page .ds-input-field:focus-visible {
+  border: none;
+  border-image: none;
+  box-shadow: none;
+}
+
 @layer components {
   /* —— App после логина: на весь экран, без рамки и без «карточки» с отступами от края viewport —— */
   .ds-figma-shell-outer {
@@ -504,6 +547,13 @@ html.dark[data-ui-accent="orange"] {
     min-height: 100dvh;
     /* Поверх dvh: реальная высота после клавиатуры iOS (задаётся VisualViewportSync) */
     min-height: var(--visual-viewport-height, 100dvh);
+    /**
+     * Без фиксированной высоты outer растягивался по контенту → main.scrollHeight === clientHeight,
+     * скролл уезжал на document, ResizeObserver на main давал лавину перерисовок.
+     */
+    height: var(--visual-viewport-height, 100dvh);
+    max-height: var(--visual-viewport-height, 100dvh);
+    overflow: hidden;
     flex-direction: column;
     margin: 0;
     padding: 0;
@@ -610,9 +660,16 @@ html.dark[data-ui-accent="orange"] {
     min-height: 0;
     flex: 1;
     flex-direction: column;
-    overflow-x: hidden;
+    /* clip: гориз. обрезка без поломки sticky внутри скроллящегося main */
+    overflow-x: clip;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+  }
+
+  @supports not (overflow: clip) {
+    .ds-figma-shell-main-scroll {
+      overflow-x: hidden;
+    }
   }
 
   /**
@@ -706,6 +763,20 @@ html.dark[data-ui-accent="orange"] {
   .ds-mobile-top-chrome-spacer {
     flex-shrink: 0;
     height: calc(max(0.5rem, env(safe-area-inset-top)) + 3.75rem + 0.5rem);
+  }
+
+  /**
+   * Редактор урока (компактный тулбар): убираем дублирующий site-chrome с бургером,
+   * остаётся одна стеклянная полоса с инструментами урока.
+   */
+  @media (max-width: 1023px) {
+    main.ds-figma-shell-main-scroll.ds-lesson-editor-toolbar-docked .ds-mobile-top-chrome {
+      display: none;
+    }
+
+    main.ds-figma-shell-main-scroll.ds-lesson-editor-toolbar-docked .ds-mobile-top-chrome-spacer {
+      display: none;
+    }
   }
 
   /** Как в превью v0: p-4 md:p-10 */

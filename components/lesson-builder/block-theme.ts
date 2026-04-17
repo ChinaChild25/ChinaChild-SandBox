@@ -16,6 +16,17 @@ export const blockTypeAccentClass: Record<LessonBlockType, string> = {
     "border-[#ffd2dd] bg-[#ffeaf0] text-[#7f3c4f] hover:bg-[#ffdbe6] dark:border-[#8a4b5e] dark:bg-[#3a2430] dark:text-[#ffd9e4] dark:hover:bg-[#472c3a]"
 }
 
+/** Same palette as `blockTypeAccentClass` without border utilities (for compact icon buttons). */
+export const blockTypeAccentFillClass: Record<LessonBlockType, string> = {
+  text: "bg-[#e8f3ff] text-[#2e4d73] hover:bg-[#d9ebff] dark:bg-[#1b2a3c] dark:text-[#d2e6ff] dark:hover:bg-[#22364d]",
+  matching: "bg-[#eefbe9] text-[#2e5e37] hover:bg-[#e1f6da] dark:bg-[#1f3224] dark:text-[#d4f0d8] dark:hover:bg-[#28412f]",
+  fill_gaps: "bg-[#fff3e2] text-[#7a5632] hover:bg-[#ffe9cf] dark:bg-[#372a1f] dark:text-[#ffe5c4] dark:hover:bg-[#463424]",
+  quiz_single: "bg-[#f7edff] text-[#5f3a87] hover:bg-[#f0e0ff] dark:bg-[#2f2142] dark:text-[#ecd8ff] dark:hover:bg-[#3a2952]",
+  image: "bg-[#e8f7fc] text-[#2a5560] hover:bg-[#d6f0f8] dark:bg-[#1a2e34] dark:text-[#c8ecf5] dark:hover:bg-[#243d45]",
+  video: "bg-[#fff0ea] text-[#6d3d2e] hover:bg-[#ffe4d8] dark:bg-[#34221c] dark:text-[#ffdccd] dark:hover:bg-[#452f26]",
+  audio: "bg-[#ffeaf0] text-[#7f3c4f] hover:bg-[#ffdbe6] dark:bg-[#3a2430] dark:text-[#ffd9e4] dark:hover:bg-[#472c3a]"
+}
+
 export const blockTypeStudentTheme: Record<
   LessonBlockType,
   {
@@ -83,9 +94,9 @@ export const blockTypeStudentTheme: Record<
     accent: "accent-[#6d3d2e] dark:accent-[#ffdccd]"
   },
   audio: {
-    panel: "border-border/40 bg-[#ffeaf0]/70 dark:border-border/40 dark:bg-[#3a2430]/60",
+    panel: "border-0 bg-[var(--ds-pink)] dark:border-0 dark:bg-[#3a2430]/60",
     soft: "border-[#ffd2dd] bg-[#fff6f8] text-[#7f3c4f] dark:border-[#8a4b5e] dark:bg-[#3a2430]/70 dark:text-[#ffd9e4]",
-    active: "border-[#ffd2dd] bg-[#ffeaf0] text-[#7f3c4f] dark:border-[#8a4b5e] dark:bg-[#3a2430] dark:text-[#ffd9e4]",
+    active: "border-0 bg-[var(--background)] text-[#7e3c4f] dark:border-0 dark:bg-[#3a2430] dark:text-[#ffd9e4]",
     hover: "hover:bg-[#ffdbe6] dark:hover:bg-[#472c3a]",
     ring: "ring-[#eb9ab0]/50 dark:ring-[#a76579]/45",
     text: "text-[#7f3c4f] dark:text-[#ffd9e4]",

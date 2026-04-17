@@ -106,7 +106,7 @@ export function TeacherCourseBuilderContent({ courseId }: { courseId: string }) 
           Назад к курсам
         </Link>
 
-        <header className="rounded-[var(--ds-radius-xl)] bg-ds-surface-muted p-6">
+        <header className="rounded-[var(--ds-radius-xl)] bg-[var(--input-background)] p-6">
           <h1 className="text-[32px] font-semibold text-ds-ink">{course.title}</h1>
           <p className="mt-1 text-base text-ds-text-secondary">{course.description || "Описание не добавлено"}</p>
         </header>
@@ -131,7 +131,7 @@ export function TeacherCourseBuilderContent({ courseId }: { courseId: string }) 
             </EmptyContent>
           </Empty>
         ) : (
-          <Card className="border-0 bg-ds-surface-muted">
+          <Card className="border-0 bg-[var(--input-background)]">
             <CardHeader className="flex-row items-center justify-between">
               <CardTitle className="text-[26px]">Уроки курса</CardTitle>
               <Button onClick={createLesson}>

@@ -6,13 +6,14 @@ import type { LessonBlockType, TeacherLessonBlock } from "@/lib/types"
 import { computeWaveformPeaksFromBlob } from "@/lib/audio-waveform"
 import { InlineLessonVideo } from "@/components/lesson-builder/inline-lesson-video"
 import { LessonAudioPlayerRow } from "@/components/lesson-builder/lesson-audio-waveform"
-import { blockTypeStudentTheme } from "@/components/lesson-builder/block-theme"
+import { blockTypeAccentFillClass, blockTypeStudentTheme } from "@/components/lesson-builder/block-theme"
+import { TrueFalseInlineSelect } from "@/components/lesson-builder/true-false-inline-select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
 
 type MatchingPair = { left: string; right: string }
 type TrueFalseQuestion = { prompt: string; answer: boolean }
@@ -27,14 +28,15 @@ const BLOCK_TITLES: Record<LessonBlockType, string> = {
   audio: "Аудио"
 }
 
-const ACTION_BUTTON_CLASS =
-  "bg-black text-white hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/80"
-/** Кнопки «+»: заметный тёмный плюс на ghost-подложке */
-const ICON_ADD_BUTTON_CLASS =
-  "shrink-0 text-zinc-800 hover:bg-black/[0.07] hover:text-zinc-950 dark:text-zinc-100 dark:hover:bg-white/12 dark:hover:text-white"
+/** Кнопки «+» в блоке: заливка по типу блока без обводки (как в превью). */
+function accentAddIconButtonClass(type: LessonBlockType) {
+  return cn("h-9 w-9 shrink-0 rounded-xl border-0 shadow-none", blockTypeAccentFillClass[type])
+}
 /** Однострочные поля — высота как у полей в сетках блоков (48px). */
-const INPUT_SURFACE_CLASS = "h-12 min-h-12 bg-background/90 border-border/70 dark:bg-input/45"
-const TEXTAREA_SURFACE_CLASS = "bg-background/90 border-border/70 dark:bg-input/45"
+const INPUT_SURFACE_CLASS =
+  "h-12 min-h-12 border-0 bg-background text-card-foreground shadow-none focus-visible:border-0 focus-visible:shadow-none"
+const TEXTAREA_SURFACE_CLASS =
+  "border-0 bg-background/90 shadow-none focus-visible:border-0 focus-visible:shadow-none focus-visible:ring-0 dark:bg-input/45"
 const TEACHER_HELP: Record<LessonBlockType, string[]> = {
   text: [
     "Добавьте теорию или пример, который ученик должен прочитать.",
@@ -82,7 +84,12 @@ function EditorTooltip({
   return (
     <Tooltip>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent side={side} sideOffset={6} className="max-w-[16rem] px-2.5 py-1.5 text-left text-xs font-normal">
+      <TooltipContent
+        variant="inverse"
+        side={side}
+        sideOffset={6}
+        className="max-w-[16rem] px-2.5 py-1.5 text-left text-xs font-normal leading-snug"
+      >
         <p className="leading-snug">{title}</p>
       </TooltipContent>
     </Tooltip>
@@ -200,9 +207,12 @@ export function BlockEditors({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="w-full min-w-0 space-y-3">
       {blocks.map((block, index) => (
-        <div key={block.id} className="rounded-lg border border-border bg-transparent p-4">
+        <div
+          key={block.id}
+          className="w-full min-w-0 rounded-[28px] border-0 bg-[var(--input-background)] p-4 sm:p-5"
+        >
           <div className="mb-3 flex items-center justify-between gap-2">
             <p className="text-sm font-semibold">{blockTitle(block.type)}</p>
             <div className="flex items-center gap-1">
@@ -254,7 +264,7 @@ function BlockEditorByType({
           placeholder="Введите текст для блока"
           className={`min-h-28 ${TEXTAREA_SURFACE_CLASS}`}
         />
-        <div className="space-y-2 rounded-lg border border-border/70 bg-background/40 p-3">
+        <div className="space-y-2">
           <div>
             <p className="text-sm font-medium">Вопросы правда / ложь</p>
             <p className="text-xs text-muted-foreground">Необязательно. Добавьте вопросы, если хотите проверить понимание текста.</p>
@@ -274,29 +284,17 @@ function BlockEditorByType({
                       onChange(block.id, { ...block.data, questions: next })
                     }}
                   />
-                  <Select
-                    value={question.answer ? "true" : "false"}
-                    onValueChange={(value) => {
-                      const next = [...questions]
-                      next[idx] = { ...next[idx], answer: value === "true" }
-                      onChange(block.id, { ...block.data, questions: next })
-                    }}
-                  >
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <SelectTrigger className={`${INPUT_SURFACE_CLASS} w-full`}>
-                          <SelectValue placeholder="Выберите ответ" />
-                        </SelectTrigger>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" sideOffset={6} className="max-w-[14rem] px-2.5 py-1.5 text-left text-xs leading-snug">
-                        <p>Верный ответ при проверке.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                    <SelectContent>
-                      <SelectItem value="true">Правда</SelectItem>
-                      <SelectItem value="false">Ложь</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <EditorTooltip side="top" title="Верный ответ при проверке.">
+                    <TrueFalseInlineSelect
+                      value={question.answer}
+                      onChange={(answer) => {
+                        if (answer === null) return
+                        const next = [...questions]
+                        next[idx] = { ...next[idx], answer }
+                        onChange(block.id, { ...block.data, questions: next })
+                      }}
+                    />
+                  </EditorTooltip>
                   <EditorTooltip side="left" title="Удалить вопрос">
                     <Button
                       type="button"
@@ -320,9 +318,9 @@ function BlockEditorByType({
             <EditorTooltip side="top" title="Ещё вопрос правда/ложь">
               <Button
                 type="button"
-                variant="ghost"
-                size="icon-lg"
-                className={ICON_ADD_BUTTON_CLASS}
+                variant="outline"
+                size="icon"
+                className={accentAddIconButtonClass("text")}
                 aria-label="Добавить вопрос правда или ложь"
                 onClick={() =>
                   onChange(block.id, {
@@ -331,7 +329,7 @@ function BlockEditorByType({
                   })
                 }
               >
-                <Plus className="size-6 stroke-[2.25]" />
+                <Plus className="h-4 w-4" strokeWidth={2.25} />
               </Button>
             </EditorTooltip>
           </div>
@@ -393,13 +391,13 @@ function BlockEditorByType({
           <EditorTooltip side="top" title="Новая пара">
             <Button
               type="button"
-              variant="ghost"
-              size="icon-lg"
-              className={ICON_ADD_BUTTON_CLASS}
+              variant="outline"
+              size="icon"
+              className={accentAddIconButtonClass("matching")}
               aria-label="Добавить пару сопоставления"
               onClick={() => onChange(block.id, { ...block.data, pairs: [...rows, { left: "", right: "" }] })}
             >
-              <Plus className="size-6 stroke-[2.25]" />
+              <Plus className="h-4 w-4" strokeWidth={2.25} />
             </Button>
           </EditorTooltip>
         </div>
@@ -424,7 +422,7 @@ function BlockEditorByType({
           placeholder="Напишите текст. Пропуски помечайте как [слово], например: I like [walking] in the park."
           className={TEXTAREA_SURFACE_CLASS}
         />
-        <div className="rounded-lg border border-border/70 bg-background/40 p-3 text-xs text-muted-foreground">
+        <div className="rounded-lg border border-black/[0.07] bg-background/40 p-3 text-xs text-[rgba(113,113,122,1)]">
           <p>1. Напишите текст целиком и выделяйте пропуски квадратными скобками: <code>[слово]</code>.</p>
           <p>2. При показе ученику слова из скобок автоматически попадут в банк и перемешаются.</p>
           <p>3. Правильным считается ответ, если слово поставлено в тот же пропуск, где вы его указали в тексте.</p>
@@ -454,7 +452,6 @@ function BlockEditorByType({
     const options = asStringArray(block.data.options)
     const correct = Number.isInteger(block.data.correct) ? Number(block.data.correct) : 0
     const optionRows = options.length > 0 ? options : ["", "", ""]
-    const correctMarkTheme = blockTypeStudentTheme.matching
     return (
       <div className="space-y-2">
         <Input
@@ -471,14 +468,20 @@ function BlockEditorByType({
                 aria-label={`Отметить вариант ${idx + 1} как правильный`}
                 aria-pressed={correct === idx}
                 onClick={() => onChange(block.id, { ...block.data, options: optionRows, correct: idx })}
-                className={[
-                  "inline-flex size-5 shrink-0 items-center justify-center rounded-full border transition-colors",
+                className={cn(
+                  "inline-flex size-9 shrink-0 items-center justify-center rounded-full border-0 transition-colors",
                   correct === idx
-                    ? [correctMarkTheme.active, correctMarkTheme.hover, "shadow-sm"].join(" ")
-                    : "border-zinc-200/90 bg-zinc-50 text-zinc-400 hover:border-zinc-300 hover:bg-zinc-100 hover:text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/55 dark:text-zinc-500 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-400"
-                ].join(" ")}
+                    ? cn(
+                        blockTypeAccentFillClass.quiz_single,
+                        "shadow-sm hover:bg-[#f7edff] dark:hover:bg-[#2f2142]"
+                      )
+                    : cn(
+                        "bg-[var(--ds-panel-muted)] text-muted-foreground shadow-none",
+                        "hover:bg-[var(--ds-surface-hover)] hover:text-foreground"
+                      )
+                )}
               >
-                <Check className="size-2.5 stroke-[2.5] text-current" aria-hidden />
+                <Check className="size-3.5 stroke-[2.25] text-current" aria-hidden />
               </button>
             </EditorTooltip>
             <Input
@@ -521,13 +524,13 @@ function BlockEditorByType({
           <EditorTooltip side="top" title="Ещё вариант ответа">
             <Button
               type="button"
-              variant="ghost"
-              size="icon-lg"
-              className={ICON_ADD_BUTTON_CLASS}
+              variant="outline"
+              size="icon"
+              className={accentAddIconButtonClass("quiz_single")}
               aria-label="Добавить вариант ответа"
               onClick={() => onChange(block.id, { ...block.data, options: [...optionRows, ""] })}
             >
-              <Plus className="size-6 stroke-[2.25]" />
+              <Plus className="h-4 w-4" strokeWidth={2.25} />
             </Button>
           </EditorTooltip>
         </div>
@@ -736,20 +739,35 @@ function AudioBlockEditor({
           Это временная локальная ссылка. Перезапишите голосовое или вставьте постоянную ссылку, иначе у ученика аудио может не открыться.
         </p>
       ) : null}
-      <div className="flex flex-wrap gap-2">
-        <EditorTooltip title="Запись с микрофона">
-          <Button type="button" variant="outline" className={ACTION_BUTTON_CLASS} onClick={() => void startRecording()} disabled={isRecording}>
-            <Mic className="mr-1 h-4 w-4" />
-            Записать голосовое
+      <div className="flex flex-wrap items-center gap-1">
+        <EditorTooltip title="Записать голосовое">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="text-ds-text-tertiary hover:text-foreground"
+            aria-label="Записать голосовое"
+            onClick={() => void startRecording()}
+            disabled={isRecording}
+          >
+            <Mic className="h-5 w-5 shrink-0" aria-hidden />
           </Button>
         </EditorTooltip>
-        <EditorTooltip title="Завершить запись">
-          <span className="inline-flex">
-            <Button type="button" variant="outline" className={ACTION_BUTTON_CLASS} onClick={stopRecording} disabled={!isRecording}>
-              <Square className="mr-1 h-4 w-4" />
-              Остановить
-            </Button>
-          </span>
+        <EditorTooltip title="Остановить запись">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "text-ds-text-tertiary hover:text-foreground",
+              isRecording && "text-foreground"
+            )}
+            aria-label="Остановить запись"
+            onClick={stopRecording}
+            disabled={!isRecording}
+          >
+            <Square className="h-5 w-5 shrink-0" aria-hidden />
+          </Button>
         </EditorTooltip>
         {url ? (
           <EditorTooltip title="Удалить аудио">
@@ -775,7 +793,7 @@ function AudioBlockEditor({
           barCount={LIVE_WAVE_BAR_COUNT}
           onDecodedPeaks={applyDecodedPeaks}
           containerClassName={audioTheme.panel}
-          buttonClassName={`border shadow-sm ${audioTheme.active} ${audioTheme.hover}`}
+          buttonClassName={`${audioTheme.active} ${audioTheme.hover}`}
           playedBarClassName="bg-[#7f3c4f] dark:bg-[#ffd9e4]"
           idleBarClassName="bg-muted-foreground/25 dark:bg-muted-foreground/30"
           liveActiveBarClassName="bg-[#7f3c4f]/90 dark:bg-[#ffd9e4]/90"

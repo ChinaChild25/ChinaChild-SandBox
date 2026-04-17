@@ -33,7 +33,7 @@ export function TeacherCourseCard({ course }: { course: TeacherCustomCourse }) {
             <img
               src={avatarUrl}
               alt={course.teacher_name ?? "Teacher"}
-              className="h-10 w-10 rounded-full border border-white/40 object-cover"
+              className="h-10 w-10 rounded-full object-cover"
               onError={() => setAvatarFailed(true)}
             />
           ) : (
@@ -41,7 +41,7 @@ export function TeacherCourseCard({ course }: { course: TeacherCustomCourse }) {
               {initials}
             </div>
           )}
-          <p className="text-sm leading-none text-white/90">{course.teacher_name ?? "Teacher"}</p>
+          <p className="text-base leading-none text-white/90">{course.teacher_name ?? "Teacher"}</p>
         </div>
       </div>
     </Link>

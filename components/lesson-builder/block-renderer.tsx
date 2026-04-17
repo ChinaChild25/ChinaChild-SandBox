@@ -5,6 +5,7 @@ import type { TeacherLessonBlock } from "@/lib/types"
 import { blockTypeStudentTheme } from "@/components/lesson-builder/block-theme"
 import { InlineLessonVideo } from "@/components/lesson-builder/inline-lesson-video"
 import { LessonAudioPlayerRow } from "@/components/lesson-builder/lesson-audio-waveform"
+import { TrueFalseInlineSelect } from "@/components/lesson-builder/true-false-inline-select"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CardTitle } from "@/components/ui/card"
 
@@ -240,9 +241,11 @@ export function BlockRenderer({ blocks, taskBadgeColor = "blue" }: { blocks: Tea
           <div key={block.id} className="flex items-start gap-3">
             <div className="pt-1">
               <div
-                className="flex h-9 w-9 items-center justify-center rounded-[14px] shadow-sm backdrop-blur-md"
+                className="flex h-9 w-9 items-center justify-center rounded-[14px] backdrop-blur-md"
                 style={{
-                  backgroundColor: `rgb(${badge.rgb} / 0.22)`
+                  backgroundColor: `rgb(${badge.rgb} / 0.22)`,
+                  boxShadow:
+                    "0px 0px 0px 0px rgba(0, 0, 0, 0), 0px 0px 0px 0px rgba(0, 0, 0, 0), 0px 0px 0px 0px rgba(0, 0, 0, 0), 0px 1px 3px 0px rgba(0, 0, 0, 0.1), 0px 1px 2px -1px rgba(0, 0, 0, 0.1)"
                 }}
                 aria-label={`Задание ${index + 1}`}
                 title={`Задание ${index + 1} • ${badge.label}`}
@@ -269,38 +272,24 @@ export function BlockRenderer({ blocks, taskBadgeColor = "blue" }: { blocks: Tea
                         const answerKey = `${block.id}-text-tf-${questionIndex}`
                         const selectedValue = answers[answerKey] ?? ""
                         return (
-                          <div key={answerKey} className="grid gap-2 rounded-lg border border-border/70 bg-background/50 p-3 md:grid-cols-[minmax(0,1fr)_12rem]">
+                          <div key={answerKey} className="grid gap-2 rounded-lg border border-border/70 bg-background/50 p-3 md:grid-cols-[minmax(0,1fr)_11rem]">
                             <p className="text-sm">{question.prompt}</p>
-                            <div
-                              className={joinClasses(
-                                "rounded-md border px-3 py-2 transition-colors",
-                                selectedValue ? theme.soft : "border-border bg-background"
-                              )}
-                            >
-                              <Select
-                                value={selectedValue}
-                                onValueChange={(value) =>
+                            <div className="min-w-0 w-full">
+                              <TrueFalseInlineSelect
+                                allowEmpty
+                                value={
+                                  selectedValue === "true" ? true : selectedValue === "false" ? false : null
+                                }
+                                onChange={(next) =>
                                   setAnswers((prev) => ({
                                     ...prev,
-                                    [answerKey]: value === "__empty__" ? "" : value
+                                    [answerKey]: next === null ? "" : next ? "true" : "false"
                                   }))
                                 }
-                              >
-                                <SelectTrigger
-                                  className={joinClasses(
-                                    "h-auto w-full border-0 bg-transparent px-0 py-0 text-left text-sm shadow-none focus-visible:ring-0 dark:bg-transparent dark:hover:bg-transparent",
-                                    selectedValue ? theme.text : "text-muted-foreground"
-                                  )}
-                                  aria-label={`Ответ на вопрос: ${question.prompt}`}
-                                >
-                                  <SelectValue placeholder="Выберите ответ" />
-                                </SelectTrigger>
-                                <SelectContent className="border-border bg-popover">
-                                  <SelectItem value="__empty__">Выберите ответ</SelectItem>
-                                  <SelectItem value="true">Правда</SelectItem>
-                                  <SelectItem value="false">Ложь</SelectItem>
-                                </SelectContent>
-                              </Select>
+                                triggerAriaLabel={`Ответ на вопрос: ${question.prompt}`}
+                                listboxAriaLabel={`Ответ на вопрос: ${question.prompt}`}
+                                triggerClassName={selectedValue ? theme.text : "text-muted-foreground"}
+                              />
                             </div>
                           </div>
                         )
@@ -408,7 +397,7 @@ export function BlockRenderer({ blocks, taskBadgeColor = "blue" }: { blocks: Tea
                     </p>
                   ) : (
                     <>
-                      <div className="rounded-lg border border-border bg-background/40 p-3 leading-7">
+                      <div className="rounded-lg border border-border bg-background/40 p-3 leading-7 text-[var(--cc-color-on-surface)] dark:text-foreground">
                         {fillParse.parts.map((part, partIndex) => {
                           const gapIndex = partIndex
                           const hasGapAfter = gapIndex < fillParse.gaps
@@ -625,7 +614,7 @@ export function BlockRenderer({ blocks, taskBadgeColor = "blue" }: { blocks: Tea
                       src={audioUrl}
                       peaks={audioPeaks.length > 0 ? audioPeaks : null}
                       containerClassName={theme.panel}
-                      buttonClassName={joinClasses(theme.active, theme.hover, "border shadow-sm")}
+                      buttonClassName={joinClasses(theme.active, theme.hover)}
                       playedBarClassName="bg-[#7f3c4f] dark:bg-[#ffd9e4]"
                       idleBarClassName="bg-muted-foreground/25 dark:bg-muted-foreground/30"
                       liveActiveBarClassName="bg-[#7f3c4f]/90 dark:bg-[#ffd9e4]/90"

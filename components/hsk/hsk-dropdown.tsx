@@ -18,14 +18,14 @@ export const dsHskSelectTriggerClass = cn(
 )
 
 export const dsHskSelectContentClass = cn(
-  "rounded-[var(--ds-radius-md)] border border-black/10 bg-white p-1 text-[13px] text-ds-ink shadow-lg",
+  "rounded-[var(--ds-radius-md)] border border-black/10 bg-white p-1 text-[13px] text-ds-ink shadow-sm",
   "dark:border-white/15 dark:bg-[#1a1a1a]"
 )
 
 export const dsHskSelectItemClass = cn(
   "rounded-[calc(var(--ds-radius-md)-2px)] py-2 pr-8 pl-2 text-[13px] outline-none",
-  "focus:bg-ds-surface-hover data-[highlighted]:bg-ds-surface-hover",
-  "dark:focus:bg-white/10 dark:data-[highlighted]:bg-white/10"
+  "focus:bg-[var(--ds-neutral-row-hover)] data-[highlighted]:bg-[var(--ds-neutral-row-hover)]",
+  "dark:focus:bg-[var(--ds-neutral-row-hover)] dark:data-[highlighted]:bg-[var(--ds-neutral-row-hover)]"
 )
 
 type Item = { value: string; label: string }
@@ -73,7 +73,7 @@ export function HskDropdown({
       <SelectTrigger id={id} aria-label={ariaLabel} className={cn(dsHskSelectTriggerClass, className)}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent className={dsHskSelectContentClass} position="popper">
+      <SelectContent className={dsHskSelectContentClass}>
         <SelectItem value="unset" className={dsHskSelectItemClass}>
           {unsetLabel}
         </SelectItem>
