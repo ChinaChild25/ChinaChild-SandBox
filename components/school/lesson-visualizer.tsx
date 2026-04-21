@@ -189,7 +189,7 @@ export function LessonVisualizer({ modes }: Props) {
                 ))}
               </div>
             </div>
-            <div className="rounded-[var(--cc-radius-lg)] bg-white p-5 shadow-[var(--cc-shadow-card)]">
+            <div className="rounded-[var(--cc-radius-lg)] bg-[var(--cc-hsk-card)] p-5 shadow-[var(--cc-shadow-card)]">
               <p className="cc-lesson-subtitle">Результат</p>
               <p className="mt-2 text-[clamp(1.75rem,5vw,2.5rem)] font-bold tracking-tight">{t}</p>
               <p className="cc-lesson-note mt-2">

@@ -190,11 +190,11 @@ export function MessagesView({
                   {!wide ? (
                     <button
                       type="button"
-                      className="mt-0.5 grid h-10 w-10 shrink-0 place-content-center rounded-full border border-black/10 bg-ds-surface text-ds-ink sm:mt-0 dark:border-white/15"
+                      className="mt-0.5 grid h-11 w-11 shrink-0 select-none place-content-center rounded-[10px] border-0 bg-ds-surface text-ds-ink transition-colors duration-150 hover:bg-black/[0.04] active:bg-black/[0.08] sm:mt-0 dark:hover:bg-white/[0.08] dark:active:bg-white/[0.14]"
                       onClick={() => setMobilePanel("list")}
                       aria-label="Назад к списку"
                     >
-                      <ArrowLeft className="h-5 w-5" />
+                      <ArrowLeft className="h-5 w-5" strokeWidth={2} aria-hidden />
                     </button>
                   ) : null}
                   <div className="relative mt-0.5 h-10 w-10 shrink-0 overflow-hidden rounded-full bg-ds-sidebar sm:mt-0">

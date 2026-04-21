@@ -54,22 +54,41 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ lesson
   const guard = await assertOwnCustomLesson(supabase, me.id, lessonId)
   if ("error" in guard) return guard.error
 
-  const body = (await req.json().catch(() => null)) as { title?: string; taskBadgeColor?: string } | null
+  const body = (await req.json().catch(() => null)) as {
+    title?: string
+    taskBadgeColor?: string
+    moduleId?: string | null
+    order?: number
+  } | null
   const title = body?.title?.trim()
   const taskBadgeColor = body?.taskBadgeColor?.trim()
-  if (!title && !taskBadgeColor) {
+  const moduleId = body?.moduleId
+  const order = body?.order
+  if (title === undefined && !taskBadgeColor && moduleId === undefined && order === undefined) {
     return NextResponse.json({ error: "No updates provided" }, { status: 400 })
+  }
+
+  if (moduleId !== undefined && moduleId !== null) {
+    const { data: mod } = await supabase
+      .from("course_modules")
+      .select("id")
+      .eq("id", moduleId)
+      .eq("course_id", guard.lesson.course_id)
+      .maybeSingle<{ id: string }>()
+    if (!mod) return NextResponse.json({ error: "Invalid module" }, { status: 400 })
   }
 
   const updates: Record<string, unknown> = {}
   if (title) updates.title = title
   if (taskBadgeColor) updates.task_badge_color = taskBadgeColor
+  if (moduleId !== undefined) updates.module_id = moduleId
+  if (order !== undefined && Number.isFinite(order)) updates.order = order
 
   const { data, error } = await supabase
     .from("lessons")
     .update(updates)
     .eq("id", lessonId)
-    .select("id, course_id, title, order, task_badge_color")
+    .select("id, course_id, title, order, module_id, task_badge_color")
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   return NextResponse.json({ lesson: data })
@@ -86,9 +105,16 @@ export async function GET(_: Request, { params }: { params: Promise<{ lessonId: 
 
   const { data, error } = await supabase
     .from("lessons")
-    .select("id, course_id, title, order, task_badge_color")
+    .select("id, course_id, title, order, module_id, task_badge_color")
     .eq("id", lessonId)
-    .maybeSingle<{ id: string; course_id: string; title: string; order: number; task_badge_color: string | null }>()
+    .maybeSingle<{
+      id: string
+      course_id: string
+      title: string
+      order: number
+      module_id: string | null
+      task_badge_color: string | null
+    }>()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
   if (!data) return NextResponse.json({ error: "Lesson not found" }, { status: 404 })

@@ -125,6 +125,21 @@ function blockGoalAndInstruction(type: TeacherLessonBlock["type"]): { goal: stri
         goal: "Прослушать аудио и понять смысл",
         instruction: "Прослушайте запись. При необходимости ориентируйтесь на подпись/транскрипт."
       }
+    case "note":
+      return {
+        goal: "Прочитать заметку",
+        instruction: "Ознакомьтесь с заметкой преподавателя перед выполнением следующих шагов."
+      }
+    case "link":
+      return {
+        goal: "Открыть внешний материал",
+        instruction: "Перейдите по ссылке и вернитесь в урок после изучения материала."
+      }
+    case "divider":
+      return {
+        goal: "Перейти к следующему разделу",
+        instruction: "Разделитель помогает структурировать урок по этапам."
+      }
     default: {
       const _never: never = type
       return _never
@@ -206,7 +221,12 @@ export function BlockRenderer({ blocks, taskBadgeColor = "blue" }: { blocks: Tea
     <div className="space-y-6">
       {ordered.map((block, index) => {
         const data = block.data ?? {}
-        const meta = blockGoalAndInstruction(block.type)
+        const baseMeta = blockGoalAndInstruction(block.type)
+        const customGoal = asString((data as Record<string, unknown>)?.exercise_variant_label).trim()
+        const meta = {
+          goal: customGoal || baseMeta.goal,
+          instruction: baseMeta.instruction
+        }
         const audioUrl = block.type === "audio" ? asString(data.url) : ""
         const audioPeaks = block.type === "audio" ? asNumberArray(data.waveform_peaks) : []
         const textQuestions = block.type === "text" ? asTrueFalseQuestions(data.questions) : []
@@ -236,6 +256,12 @@ export function BlockRenderer({ blocks, taskBadgeColor = "blue" }: { blocks: Tea
         const imageCaption = block.type === "image" ? asString(data.caption) : ""
         const videoUrl = block.type === "video" ? asString(data.url).trim() : ""
         const videoCaption = block.type === "video" ? asString(data.caption) : ""
+        const noteTitle = block.type === "note" ? asString(data.title).trim() : ""
+        const noteContent = block.type === "note" ? asString(data.content).trim() : ""
+        const linkLabel = block.type === "link" ? asString(data.label).trim() : ""
+        const linkUrl = block.type === "link" ? asString(data.url).trim() : ""
+        const linkHint = block.type === "link" ? asString(data.hint).trim() : ""
+        const dividerLabel = block.type === "divider" ? asString(data.label).trim() : ""
         const theme = blockTypeStudentTheme[block.type]
         return (
           <div key={block.id} className="flex items-start gap-3">
@@ -627,6 +653,43 @@ export function BlockRenderer({ blocks, taskBadgeColor = "blue" }: { blocks: Tea
                     <p className="text-muted-foreground">Аудио не добавлено.</p>
                   )}
                   {asString(data.transcript) ? <p className="text-muted-foreground">{asString(data.transcript)}</p> : null}
+                </div>
+              )}
+
+              {block.type === "note" && (
+                <div className={joinClasses("rounded-xl border p-4", theme.panel)}>
+                  {noteTitle ? <p className={joinClasses("text-sm font-semibold", theme.text)}>{noteTitle}</p> : null}
+                  <p className="mt-1">{noteContent || "Заметка пока не заполнена."}</p>
+                </div>
+              )}
+
+              {block.type === "link" && (
+                <div className={joinClasses("space-y-2 rounded-xl border p-4", theme.panel)}>
+                  {linkHint ? <p className={joinClasses("text-xs", theme.text)}>{linkHint}</p> : null}
+                  {linkUrl ? (
+                    <a
+                      href={linkUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-black/85 dark:bg-white dark:text-black dark:hover:bg-white/90"
+                    >
+                      {linkLabel || "Открыть материал"}
+                    </a>
+                  ) : (
+                    <p className="text-muted-foreground">Ссылка пока не добавлена.</p>
+                  )}
+                </div>
+              )}
+
+              {block.type === "divider" && (
+                <div className={joinClasses("rounded-xl border p-4", theme.panel)}>
+                  <div className="flex items-center gap-3">
+                    <div className="h-px flex-1 bg-black/10 dark:bg-white/15" />
+                    <span className={joinClasses("text-xs font-semibold uppercase tracking-wide", theme.text)}>
+                      {dividerLabel || "Следующий этап"}
+                    </span>
+                    <div className="h-px flex-1 bg-black/10 dark:bg-white/15" />
+                  </div>
                 </div>
               )}
 

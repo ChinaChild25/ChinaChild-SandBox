@@ -1,22 +1,21 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import type { TeacherCustomCourse } from "@/lib/types"
+import { CourseCoverImageDialog } from "@/components/courses/course-cover-image-dialog"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-
-const hskLevels = ["HSK1", "HSK2", "HSK3", "HSK4", "HSK5", "HSK6"] as const
-const coverPalette = [
-  "linear-gradient(120deg, #3b82f6, #8b5cf6)",
-  "linear-gradient(120deg, #0ea5e9, #14b8a6)",
-  "linear-gradient(120deg, #f97316, #ef4444)",
-  "linear-gradient(120deg, #22c55e, #16a34a)",
-  "linear-gradient(120deg, #ec4899, #8b5cf6)",
-  "linear-gradient(120deg, #64748b, #334155)"
-]
+import {
+  courseCoverFromCourse,
+  coverStyleForCourseSave,
+  normalizeCoverImagePosition,
+  TEACHER_COURSE_COVER_PALETTE,
+  TEACHER_COURSE_HSK_LEVELS
+} from "@/lib/teacher-custom-course-form"
+import { CourseCoverColorPicker } from "@/components/courses/course-cover-color-picker"
 
 export function CreateCourseModal({
   open,
@@ -32,8 +31,17 @@ export function CreateCourseModal({
   const [description, setDescription] = useState("")
   const [level, setLevel] = useState<string>("HSK1")
   const [levelCustom, setLevelCustom] = useState("")
-  const [coverColor, setCoverColor] = useState(coverPalette[0]!)
+  const [coverColor, setCoverColor] = useState<string>(TEACHER_COURSE_COVER_PALETTE[0]!)
+  const [coverImageUrl, setCoverImageUrl] = useState("")
+  const [coverImagePosition, setCoverImagePosition] = useState("50% 50%")
+  const [coverImageOpen, setCoverImageOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    setCoverImageUrl("")
+    setCoverImagePosition("50% 50%")
+  }, [open])
 
   const submitEnabled = useMemo(() => {
     if (!title.trim()) return false
@@ -49,7 +57,16 @@ export function CreateCourseModal({
     const res = await fetch("/api/teacher/courses", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, description, level, levelCustom, coverColor, coverStyle: "gradient" })
+      body: JSON.stringify({
+        title,
+        description,
+        level,
+        levelCustom,
+        coverColor,
+        coverImageUrl: coverImageUrl.trim() || null,
+        coverImagePosition: normalizeCoverImagePosition(coverImagePosition),
+        coverStyle: coverStyleForCourseSave({ hasPhoto: Boolean(coverImageUrl.trim()), coverColor })
+      })
     })
     const json = (await res.json().catch(() => null)) as { course?: TeacherCustomCourse; error?: string } | null
     if (!res.ok || !json?.course) {
@@ -63,6 +80,7 @@ export function CreateCourseModal({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
@@ -88,11 +106,11 @@ export function CreateCourseModal({
           <div className="space-y-2">
             <p className="text-sm font-medium">Уровень</p>
             <Select value={level} onValueChange={setLevel}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger dsField>
                 <SelectValue placeholder="Выберите уровень" />
               </SelectTrigger>
               <SelectContent>
-                {hskLevels.map((item) => (
+                {TEACHER_COURSE_HSK_LEVELS.map((item) => (
                   <SelectItem key={item} value={item}>
                     {item}
                   </SelectItem>
@@ -106,18 +124,26 @@ export function CreateCourseModal({
           </div>
           <div className="space-y-2">
             <p className="text-sm font-medium">Цвет обложки</p>
-            <div className="flex flex-wrap gap-2">
-              {coverPalette.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  onClick={() => setCoverColor(color)}
-                  className={`h-8 w-8 rounded-full border ${coverColor === color ? "border-white ring-2 ring-white/60" : "border-border"}`}
-                  style={{ background: color }}
-                  aria-label="Выбрать цвет обложки"
-                />
-              ))}
+            <CourseCoverColorPicker value={coverColor} onChange={setCoverColor} />
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Фото на обложке</p>
+            <p className="text-xs text-muted-foreground">
+              Ссылка HTTPS или файл до 5 МБ. На карточке поверх фото — тёмный градиент для читаемости текста.
+            </p>
+            <div
+              className="relative aspect-[2/1] max-h-28 w-full max-w-md overflow-hidden rounded-[var(--ds-radius-md)] border border-black/[0.08] dark:border-white/10"
+              style={courseCoverFromCourse({
+                cover_color: coverColor,
+                cover_image_url: coverImageUrl.trim() || null,
+                cover_image_position: coverImagePosition
+              })}
+            >
+              <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] dark:bg-black/35" />
             </div>
+            <Button type="button" variant="outline" size="sm" onClick={() => setCoverImageOpen(true)}>
+              Загрузить фотографию
+            </Button>
           </div>
         </div>
         <DialogFooter>
@@ -130,5 +156,17 @@ export function CreateCourseModal({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <CourseCoverImageDialog
+      open={coverImageOpen}
+      onOpenChange={setCoverImageOpen}
+      courseId={null}
+      initial={{ url: coverImageUrl.trim() || null, position: coverImagePosition }}
+      onApply={(next) => {
+        setCoverImageUrl(next.url?.trim() ?? "")
+        setCoverImagePosition(normalizeCoverImagePosition(next.position))
+      }}
+    />
+    </>
   )
 }

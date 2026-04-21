@@ -7,6 +7,10 @@ export type CourseCatalog = {
   id: "hsk1" | "hsk2"
   name: "HSK1" | "HSK2"
   description: string
+  /** Целевой охват лексики по программе HSK */
+  newWordsCount: number
+  /** Количество аудиофрагментов в JSON-уроках курса (data.audioTracks) */
+  audioCount: number
   lessons: CourseLesson[]
 }
 
@@ -15,6 +19,8 @@ export const courseCatalog: CourseCatalog[] = [
     id: "hsk1",
     name: "HSK1",
     description: "Базовый уровень: фонетика, базовая грамматика и повседневные темы.",
+    newWordsCount: 150,
+    audioCount: 5,
     lessons: [
       { title: "Тема №1 — Пиньинь, базовые штрихи", slug: "hsk1-tema1" },
       { title: "Тема №2 — Пиньинь, числа", slug: "hsk1-tema2" },
@@ -41,6 +47,8 @@ export const courseCatalog: CourseCatalog[] = [
     id: "hsk2",
     name: "HSK2",
     description: "Расширение словаря и практика речевых ситуаций среднего базового уровня.",
+    newWordsCount: 300,
+    audioCount: 0,
     lessons: [
       { title: "Тема №1 — Страны и языки (国家、语言)", slug: "hsk2-tema1" },
       { title: "Тема №2 — Учебные предметы (科目)", slug: "hsk2-tema2" },

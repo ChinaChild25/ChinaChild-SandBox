@@ -26,7 +26,7 @@ function TabsList({
     <TabsPrimitive.List
       data-slot="tabs-list"
       className={cn(
-        'bg-ds-sidebar text-ds-text-secondary inline-flex h-10 w-fit items-center justify-center rounded-2xl p-1',
+        'inline-flex h-11 w-fit items-center justify-center rounded-[10px] bg-ds-neutral-chrome p-1 text-ds-text-secondary',
         className,
       )}
       {...props}
@@ -42,7 +42,7 @@ function TabsTrigger({
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        "data-[state=active]:bg-ds-surface data-[state=active]:text-ds-ink data-[state=active]:shadow-sm text-ds-ink inline-flex h-[calc(100%-2px)] flex-1 items-center justify-center gap-1.5 rounded-xl border border-transparent px-3 py-1.5 text-ds-body-sm font-medium whitespace-nowrap transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:ring-[rgb(26_26_26/0.2)] focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "inline-flex h-[calc(100%-2px)] flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-transparent px-3 py-1.5 text-ds-body-sm font-medium whitespace-nowrap text-ds-ink transition-colors focus-visible:ring-[3px] focus-visible:ring-[rgb(26_26_26/0.2)] focus-visible:outline-none data-[state=active]:bg-ds-surface data-[state=active]:text-ds-ink disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
       {...props}

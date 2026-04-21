@@ -14,8 +14,9 @@ const buttonVariants = cva(
           'bg-ds-ink text-white hover:opacity-92 dark:bg-white dark:text-[#1a1a1a] dark:hover:opacity-95 dark:focus-visible:ring-white/40',
         destructive: 'bg-destructive text-white hover:opacity-92',
         outline:
-          'bg-white text-ds-ink shadow-none hover:bg-ds-surface-hover dark:bg-ds-surface dark:hover:bg-white/5',
-        secondary: 'bg-ds-sidebar text-ds-ink hover:bg-ds-sidebar-hover',
+          'rounded-[10px] bg-white text-ds-ink shadow-none hover:bg-ds-surface-hover dark:bg-ds-surface dark:hover:bg-white/5',
+        secondary:
+          'rounded-[10px] bg-ds-neutral-chrome text-ds-ink shadow-none hover:bg-ds-neutral-chrome-hover dark:text-ds-ink',
         ghost: 'text-ds-ink hover:bg-ds-surface-hover',
         link: 'rounded-none text-ds-sage-strong underline-offset-4 hover:text-ds-sage-hover hover:underline',
         /** Lingua / cc-glass header: прозрачные кнопки на «стеклянной» панели */
@@ -24,7 +25,7 @@ const buttonVariants = cva(
       },
       size: {
         default: 'h-10 px-4 py-2 has-[>svg]:px-3',
-        sm: 'h-9 gap-1.5 px-3 text-ds-body-sm has-[>svg]:px-2.5',
+        sm: 'h-9 gap-1.5 px-3 has-[>svg]:px-2.5 [font-size:var(--ds-text-body-sm)] leading-[var(--ds-leading-body)]',
         lg: 'h-11 px-6 has-[>svg]:px-4',
         icon: 'size-10',
         'icon-sm': 'size-9',
@@ -38,25 +39,24 @@ const buttonVariants = cva(
   },
 )
 
-function Button({
-  className,
-  variant,
-  size,
-  asChild = false,
-  ...props
-}: React.ComponentProps<'button'> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
-  }) {
+const Button = React.forwardRef<
+  HTMLButtonElement,
+  React.ComponentProps<'button'> &
+    VariantProps<typeof buttonVariants> & {
+      asChild?: boolean
+    }
+>(function Button({ className, variant, size, asChild = false, ...props }, ref) {
   const Comp = asChild ? Slot : 'button'
 
   return (
     <Comp
+      ref={ref}
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={cn(buttonVariants({ variant, size }), className)}
       {...props}
     />
   )
-}
+})
+Button.displayName = 'Button'
 
 export { Button, buttonVariants }

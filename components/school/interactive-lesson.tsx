@@ -1,148 +1,311 @@
 "use client"
 
+import Link from "next/link"
+import { useCallback, useMemo, useState } from "react"
+import { ArrowRight, BookOpen, Headphones, Mic2, PenLine, Sparkles } from "lucide-react"
+
 import type { LessonPayload } from "@/lib/courses/types"
 
 import { AudioPlayer } from "@/components/school/audio-player"
 import { DialoguePanel } from "@/components/school/dialogue-panel"
 import { HomeworkChecklist } from "@/components/school/homework-checklist"
-import { LessonBlock } from "@/components/school/lesson-block"
 import { LessonCharacter } from "@/components/school/lesson-character"
 import { LessonVisualizer } from "@/components/school/lesson-visualizer"
-import { LessonWhimsy } from "@/components/school/lesson-whimsy"
 import { QuizBlocks } from "@/components/school/quiz-blocks"
 import { VocabTabs } from "@/components/school/vocab-tabs"
-
-type HeroItem = { alt: string; url: string }
+import { LessonHskChrome, lessonSectionIndex, lessonSectionKeyAt, type HskLessonSectionKey } from "@/components/school/lesson-hsk-chrome"
 
 type Props = {
   data: LessonPayload
-  heroMedia?: HeroItem[]
+  courseHref: string
+  /** e.g. "HSK 1" — shown compact in the lesson top bar */
+  courseLevelLabel: string
 }
 
-export function InteractiveLesson({ data, heroMedia = [] }: Props) {
-  const { meta, roadmap, presentationSlides, audioTracks, vocabTabs, visualizerModes, dialogueTabs, dialogueTexts, character, games, homeworkTasks } = data
+function vocabWordCount(data: LessonPayload): number {
+  return data.vocabTabs.reduce((n, t) => n + t.cards.length, 0)
+}
 
-  return (
-    <div className="cc-lesson-flow">
-      <header className="cc-lesson-card cc-lesson-card--glass cc-lesson-hero">
-        <div className="cc-lesson-hero-main">
-          <div className="cc-lesson-head">
-            <span className="cc-lesson-eyebrow">{meta.badge ?? "Урок"}</span>
-            <p className="cc-lesson-module-line">{meta.module}</p>
-            <h1>{meta.title}</h1>
-            {meta.chinese ? (
-              <p className="cc-lesson-chinese-line">{meta.chinese}</p>
-            ) : null}
-            <p className="cc-lesson-lead">{meta.lead}</p>
-          </div>
+const SECTION_NEXT_CTA: Partial<Record<HskLessonSectionKey, string>> = {
+  audio: "К словарю",
+  vocab: "К пиньиню",
+  pinyin: "К речи",
+  speech: "К письму",
+  writing: "К игре",
+  game: "К практике",
+  practice: "К финалу",
+}
 
-          {heroMedia.length > 0 ? (
-            <div className="cc-lesson-hero-grid">
-              {heroMedia.map((img) => (
-                <figure key={img.url} className="min-w-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- remote Unsplash URLs; avoids image config */}
-                  <img
-                    src={img.url}
-                    alt={img.alt}
-                    width={1200}
-                    height={800}
-                    className="cc-lesson-hero-img"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                  <figcaption className="cc-lesson-hero-caption">{img.alt}</figcaption>
-                </figure>
-              ))}
+export function InteractiveLesson({ data, courseHref, courseLevelLabel }: Props) {
+  const { meta, presentationSlides, audioTracks, vocabTabs, visualizerModes, dialogueTabs, dialogueTexts, character, games, homeworkTasks } = data
+
+  const [activeKey, setActiveKey] = useState<HskLessonSectionKey>("intro")
+
+  const navLabel = useMemo(() => courseLevelLabel.replace(/\s+/g, ""), [courseLevelLabel])
+
+  const activeIndex = lessonSectionIndex(activeKey)
+
+  const goPrev = useCallback(() => {
+    setActiveKey(lessonSectionKeyAt(activeIndex - 1))
+  }, [activeIndex])
+
+  const goNext = useCallback(() => {
+    setActiveKey(lessonSectionKeyAt(activeIndex + 1))
+  }, [activeIndex])
+
+  const startLesson = useCallback(() => setActiveKey("audio"), [])
+
+  const moduleCards = useMemo(
+    () => [
+      {
+        key: "audio" as const,
+        title: "Аудио",
+        sub: `${audioTracks.length} треков`,
+        Icon: Headphones,
+      },
+      {
+        key: "vocab" as const,
+        title: "Словарь",
+        sub: `${vocabWordCount(data)} слов`,
+        Icon: BookOpen,
+      },
+      {
+        key: "speech" as const,
+        title: "Речь",
+        sub: "Диалоги",
+        Icon: Mic2,
+      },
+      {
+        key: "game" as const,
+        title: "Игра",
+        sub: "Закрепление",
+        Icon: Sparkles,
+      },
+    ],
+    [audioTracks.length, data],
+  )
+
+  const sectionFooter = (key: HskLessonSectionKey) => {
+    const next = SECTION_NEXT_CTA[key]
+    if (!next) return null
+    return (
+      <div className="cc-hsk-panel-footer">
+        <span />
+        <button type="button" className="cc-hsk-btn-next" onClick={goNext}>
+          {next}
+          <ArrowRight className="cc-hsk-btn-next-arrow" aria-hidden />
+        </button>
+      </div>
+    )
+  }
+
+  const sectionIntro = (title: string, subtitle: string) => (
+    <header className="cc-hsk-section-head">
+      <h2 className="cc-hsk-section-title">{title}</h2>
+      <p className="cc-hsk-section-sub">{subtitle}</p>
+    </header>
+  )
+
+  let body: React.ReactNode = null
+
+  switch (activeKey) {
+    case "intro":
+      body = (
+        <div className="cc-hsk-intro-stack">
+          <section className="cc-hsk-hero">
+            <div className="cc-hsk-hero-copy">
+              <span className="cc-hsk-hero-tag">{navLabel} • Урок</span>
+              <p className="cc-hsk-hero-module">{meta.module}</p>
+              <h1 className="cc-hsk-hero-title">{meta.title}</h1>
+              {meta.chinese ? <p className="cc-hsk-hero-han">{meta.chinese}</p> : null}
+              {meta.lead ? <p className="cc-hsk-hero-lead">{meta.lead}</p> : null}
+              <button type="button" className="cc-hsk-hero-cta" onClick={startLesson}>
+                Начать урок
+                <ArrowRight className="cc-hsk-hero-cta-arrow" aria-hidden />
+              </button>
             </div>
-          ) : null}
-        </div>
-
-        <nav className="cc-lesson-roadmap cc-lesson-roadmap--scroll" aria-label="Разделы урока">
-          {roadmap.map((r) => (
-            <a key={r.id} href={`#${r.id}`}>
-              {r.label}
-              <span>{r.text}</span>
-            </a>
-          ))}
-        </nav>
-      </header>
-
-      <div className="cc-lesson-track">
-        <LessonBlock id="cc-l1-slides" eyebrow="Маршрут" title="С чего начнём" intro={<p className="cc-lesson-block-intro">Короткий план: сначала опоры, потом слух и слова, затем речь и письмо.</p>} className="cc-lesson-card--veil">
-          <div className="cc-lesson-grid-2">
-            {presentationSlides.map((s, i) => (
-              <div key={i} className="cc-lesson-pillcard">
-                <strong>{s.title}</strong>
-                <span>{s.text}</span>
+            <div className="cc-hsk-hero-art" aria-hidden>
+              <div className="cc-hsk-hero-art-inner">
+                <svg viewBox="0 0 120 120" className="cc-hsk-hero-art-svg">
+                  <path
+                    d="M24 88 Q60 24 96 88"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M32 40 H88 M60 40 V96"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    opacity={0.45}
+                  />
+                </svg>
               </div>
+            </div>
+          </section>
+
+          <div className="cc-hsk-module-grid">
+            {moduleCards.map(({ key, title, sub, Icon }) => (
+              <button key={key} type="button" className="cc-hsk-module-card" onClick={() => setActiveKey(key)}>
+                <Icon className="cc-hsk-module-icon" strokeWidth={1.5} aria-hidden />
+                <span className="cc-hsk-module-title">{title}</span>
+                <span className="cc-hsk-module-sub">{sub}</span>
+              </button>
             ))}
           </div>
-        </LessonBlock>
 
-        <div className="cc-lesson-whimsy-wrap">
-          <LessonWhimsy kind="sound" />
+          <section className="cc-hsk-goals">
+            <h2 className="cc-hsk-goals-title">Цели урока</h2>
+            <ol className="cc-hsk-goals-list">
+              {presentationSlides.map((s, i) => (
+                <li key={i} className="cc-hsk-goals-item">
+                  <span className="cc-hsk-goals-num">{i + 1}</span>
+                  <div className="cc-hsk-goals-text">
+                    <strong>{s.title}</strong>
+                    <span>{s.text}</span>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
         </div>
+      )
+      break
 
-        <LessonBlock id="cc-l1-audio" eyebrow="Слух" title="Повторяй за диктором" className="cc-lesson-card--veil">
-          <AudioPlayer tracks={audioTracks} />
-        </LessonBlock>
-
-        <div className="cc-lesson-whimsy-wrap">
-          <LessonWhimsy kind="memo" />
+    case "audio":
+      body = (
+        <div className="cc-hsk-panel">
+          {sectionIntro("Повторяй за диктором", "Слушай внимательно и повторяй вслух — так легче запомнить звуки.")}
+          <div className="cc-hsk-panel-inset">
+            <AudioPlayer tracks={audioTracks} />
+          </div>
+          {sectionFooter("audio")}
         </div>
+      )
+      break
 
-        <LessonBlock id="cc-l1-vocab" eyebrow="Лексика" title="Слова, которые пригодятся сразу" className="cc-lesson-card--veil">
-          <VocabTabs tabs={vocabTabs} />
-        </LessonBlock>
-
-        <div className="cc-lesson-whimsy-wrap">
-          <LessonWhimsy kind="spark" />
+    case "vocab":
+      body = (
+        <div className="cc-hsk-panel">
+          {sectionIntro("Словарь урока", "Нажми на карточку — увидишь перевод")}
+          <VocabTabs tabs={vocabTabs} onContinue={goNext} continueLabel="К пиньиню" />
         </div>
+      )
+      break
 
-        <LessonBlock id="cc-l1-visualizer" eyebrow="Пиньинь" title="Собери произношение" className="cc-lesson-card--veil">
-          <LessonVisualizer modes={visualizerModes} />
-        </LessonBlock>
-
-        <div className="cc-lesson-whimsy-wrap">
-          <LessonWhimsy kind="speech" />
+    case "pinyin":
+      body = (
+        <div className="cc-hsk-panel">
+          {sectionIntro("Система пиньиня", "Собери слог, потренируй тоны и закрепи произношение.")}
+          <div className="cc-hsk-panel-inset cc-hsk-panel-inset--flush">
+            <LessonVisualizer modes={visualizerModes} />
+          </div>
+          {sectionFooter("pinyin")}
         </div>
+      )
+      break
 
-        <LessonBlock id="cc-l1-dialogue" eyebrow="Речь" title="Живые фразы и интонация" className="cc-lesson-card--veil">
-          <DialoguePanel tabs={dialogueTabs} texts={dialogueTexts} />
-        </LessonBlock>
-
-        <div className="cc-lesson-whimsy-wrap">
-          <LessonWhimsy kind="pencil" />
+    case "speech":
+      body = (
+        <div className="cc-hsk-panel">
+          {sectionIntro("Речевая практика", "Произноси каждую фразу вслух и отмечай прогресс.")}
+          <DialoguePanel tabs={dialogueTabs} texts={dialogueTexts} variant="hsk" />
+          {sectionFooter("speech")}
         </div>
+      )
+      break
 
-        <LessonBlock id="cc-l1-character" eyebrow="Письмо" title="Черты и иероглиф 妈" className="cc-lesson-card--veil">
+    case "writing":
+      body = (
+        <div className="cc-hsk-panel">
+          {sectionIntro("Система письма", "Базовые черты китайского иероглифа и порядок штрихов.")}
           <LessonCharacter character={character} />
-        </LessonBlock>
-
-        <div className="cc-lesson-whimsy-wrap">
-          <LessonWhimsy kind="star" />
+          {sectionFooter("writing")}
         </div>
+      )
+      break
 
-        <LessonBlock id="cc-l1-games" eyebrow="Проверка" title="Быстрые вопросы" className="cc-lesson-card--veil">
-          <QuizBlocks games={games} />
-        </LessonBlock>
-
-        <div className="cc-lesson-whimsy-wrap">
-          <LessonWhimsy kind="memo" />
+    case "game":
+      body = (
+        <div className="cc-hsk-panel">
+          {sectionIntro("Найди пары", "Соедини китайское слово с переводом")}
+          <QuizBlocks games={games} variant="hsk" />
+          {sectionFooter("game")}
         </div>
+      )
+      break
 
-        <LessonBlock id="cc-l1-homework" eyebrow="Самостоятельно" title="Закрепи материал" className="cc-lesson-card--veil">
-          <HomeworkChecklist tasks={homeworkTasks} />
-        </LessonBlock>
-      </div>
+    case "practice":
+      body = (
+        <div className="cc-hsk-panel">
+          {sectionIntro("Домашняя практика", "Выполни задания для закрепления материала")}
+          <HomeworkChecklist tasks={homeworkTasks} onContinue={goNext} continueLabel="К финалу" />
+        </div>
+      )
+      break
 
-      <section className="cc-lesson-card cc-lesson-card--glass" id="cc-l1-finish">
-        <span className="cc-lesson-eyebrow">Финал</span>
-        <h2 className="cc-lesson-section-title">Итог урока</h2>
-        <p className="cc-lesson-note mt-3">
-          Ты уверенно держишь слух, пиньинь и письмо. Для первого урока это уже очень крепкий результат.
-        </p>
-      </section>
-    </div>
+    case "finish":
+      body = (
+        <div className="cc-hsk-finish">
+          <section className="cc-hsk-finish-hero">
+            <div className="cc-hsk-finish-trophy" aria-hidden>
+              <Sparkles className="h-7 w-7 text-white/90" strokeWidth={1.25} />
+            </div>
+            <h2 className="cc-hsk-finish-title">Урок завершён!</h2>
+            <div className="cc-hsk-finish-stars" aria-hidden>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <span key={i} className={i === 0 ? "cc-hsk-finish-star cc-hsk-finish-star--on" : "cc-hsk-finish-star"} />
+              ))}
+            </div>
+            <p className="cc-hsk-finish-score">100%</p>
+            <p className="cc-hsk-finish-score-label">результат</p>
+          </section>
+
+          <div className="cc-hsk-finish-stats">
+            <div className="cc-hsk-stat-card">
+              <BookOpen className="cc-hsk-stat-icon" strokeWidth={1.35} aria-hidden />
+              <p className="cc-hsk-stat-value">{vocabWordCount(data)} слов</p>
+              <p className="cc-hsk-stat-label">Словарь</p>
+            </div>
+            <div className="cc-hsk-stat-card">
+              <Headphones className="cc-hsk-stat-icon" strokeWidth={1.35} aria-hidden />
+              <p className="cc-hsk-stat-value">{audioTracks.length} треков</p>
+              <p className="cc-hsk-stat-label">Аудио</p>
+            </div>
+            <div className="cc-hsk-stat-card">
+              <PenLine className="cc-hsk-stat-icon" strokeWidth={1.35} aria-hidden />
+              <p className="cc-hsk-stat-value">{character.strokes.length} черт</p>
+              <p className="cc-hsk-stat-label">Письмо</p>
+            </div>
+          </div>
+
+          <div className="cc-hsk-finish-actions">
+            <Link href={courseHref} className="cc-hsk-btn-next cc-hsk-btn-next--link">
+              К списку тем
+              <ArrowRight className="cc-hsk-btn-next-arrow" aria-hidden />
+            </Link>
+          </div>
+        </div>
+      )
+      break
+
+    default:
+      body = null
+  }
+
+  return (
+    <LessonHskChrome
+      courseHref={courseHref}
+      courseNavLabel={navLabel}
+      activeKey={activeKey}
+      onSelect={setActiveKey}
+      onPrev={goPrev}
+      onNext={goNext}
+    >
+      {body}
+    </LessonHskChrome>
   )
 }

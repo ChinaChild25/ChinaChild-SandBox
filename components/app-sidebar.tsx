@@ -234,7 +234,7 @@ export function AppSidebar({ variant = "sidebar" }: AppSidebarProps) {
           variant="outline"
           onClick={logout}
           className={cn(
-            "w-full justify-start rounded-2xl border border-black/10 bg-white font-medium text-ds-ink !shadow-none shadow-none ring-0 transition-colors hover:bg-ds-surface-hover hover:!shadow-none dark:border-white/10 dark:bg-[#262626] dark:text-ds-ink dark:hover:bg-[#333333]",
+            "w-full justify-start rounded-2xl border-0 bg-white font-medium text-ds-ink !shadow-none shadow-none ring-0 transition-colors hover:bg-ds-surface-hover hover:!shadow-none dark:bg-[#262626] dark:text-ds-ink dark:hover:bg-[#333333]",
             drawer ? "py-3 text-[14px]" : "py-6 text-[15px]"
           )}
         >

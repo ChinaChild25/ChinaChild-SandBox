@@ -1,46 +1,5 @@
 import { NextResponse } from "next/server"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
-
-type ProfileRole = "student" | "teacher" | "curator"
-
-async function requireTeacher() {
-  const supabase = await createServerSupabaseClient()
-  const {
-    data: { user }
-  } = await supabase.auth.getUser()
-  if (!user) return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) }
-
-  const { data: me } = await supabase
-    .from("profiles")
-    .select("id, role")
-    .eq("id", user.id)
-    .maybeSingle<{ id: string; role: ProfileRole }>()
-
-  if (!me || (me.role !== "teacher" && me.role !== "curator")) {
-    return { error: NextResponse.json({ error: "Teacher access required" }, { status: 403 }) }
-  }
-
-  return { supabase, me }
-}
-
-async function assertOwnCustomCourse(
-  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
-  teacherId: string,
-  courseId: string
-) {
-  const { data, error } = await supabase
-    .from("courses")
-    .select("id, is_custom, teacher_id")
-    .eq("id", courseId)
-    .maybeSingle<{ id: string; is_custom: boolean; teacher_id: string | null }>()
-
-  if (error) return { error: NextResponse.json({ error: error.message }, { status: 400 }) }
-  if (!data) return { error: NextResponse.json({ error: "Course not found" }, { status: 404 }) }
-  if (!data.is_custom || data.teacher_id !== teacherId) {
-    return { error: NextResponse.json({ error: "Only custom teacher courses are editable" }, { status: 403 }) }
-  }
-  return { ok: true as const }
-}
+import { assertOwnCustomCourse, requireTeacher } from "@/lib/api/teacher-custom-course-server"
 
 export async function GET(_: Request, { params }: { params: Promise<{ courseId: string }> }) {
   const ctx = await requireTeacher()
@@ -53,7 +12,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ courseId: 
 
   const { data: lessons, error } = await supabase
     .from("lessons")
-    .select("id, course_id, title, order, created_at")
+    .select("id, course_id, title, order, module_id, created_at")
     .eq("course_id", courseId)
     .order("order", { ascending: true })
 
@@ -70,16 +29,32 @@ export async function POST(req: Request, { params }: { params: Promise<{ courseI
   const guard = await assertOwnCustomCourse(supabase, me.id, courseId)
   if ("error" in guard) return guard.error
 
-  const body = (await req.json().catch(() => null)) as { title?: string } | null
+  const body = (await req.json().catch(() => null)) as { title?: string; moduleId?: string | null } | null
   const title = body?.title?.trim() || "Новый урок"
+  let moduleId: string | null = body?.moduleId ?? null
 
-  const { data: lastLesson } = await supabase
-    .from("lessons")
-    .select("order")
-    .eq("course_id", courseId)
-    .order("order", { ascending: false })
-    .limit(1)
-    .maybeSingle<{ order: number }>()
+  if (moduleId) {
+    const { data: mod } = await supabase
+      .from("course_modules")
+      .select("id")
+      .eq("id", moduleId)
+      .eq("course_id", courseId)
+      .maybeSingle<{ id: string }>()
+    if (!mod) moduleId = null
+  }
+
+  const lastLessonQuery = () =>
+    supabase
+      .from("lessons")
+      .select("order")
+      .eq("course_id", courseId)
+      .order("order", { ascending: false })
+      .limit(1)
+
+  const { data: lastLesson } =
+    moduleId === null
+      ? await lastLessonQuery().is("module_id", null).maybeSingle<{ order: number }>()
+      : await lastLessonQuery().eq("module_id", moduleId).maybeSingle<{ order: number }>()
 
   const nextOrder = (lastLesson?.order ?? -1) + 1
   const { data, error } = await supabase
@@ -87,9 +62,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ courseI
     .insert({
       course_id: courseId,
       title,
-      order: nextOrder
+      order: nextOrder,
+      module_id: moduleId
     })
-    .select("id, course_id, title, order, created_at")
+    .select("id, course_id, title, order, module_id, created_at")
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })

@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { BookOpenCheck, CalendarCheck2, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Ellipsis, MessageSquare, Repeat, Star, UserRound, X } from "lucide-react"
+import { TOOLTIP_CHIP_SURFACE_CLASS } from "@/components/ui/tooltip"
 import { useAuth } from "@/lib/auth-context"
 import { getAppNow, getAppTodayStart } from "@/lib/app-time"
 import { SCHEDULE_WALL_CLOCK_TIMEZONE, wallClockFromDateInSchoolTz, wallClockFromSlotAt } from "@/lib/schedule-display-tz"
@@ -2008,7 +2009,7 @@ function TooltipHint({
       {open ? (
         <span
           ref={tipRef}
-          className="pointer-events-none fixed z-[140] max-w-[220px] -translate-x-1/2 rounded-[6px] bg-zinc-900 px-2 py-1 text-center text-[11px] leading-snug text-white shadow-md dark:bg-zinc-100 dark:text-zinc-900"
+          className={`pointer-events-none fixed z-[140] max-w-[220px] -translate-x-1/2 text-center ${TOOLTIP_CHIP_SURFACE_CLASS}`}
           style={{ left: position.left, top: position.top }}
         >
           {text}

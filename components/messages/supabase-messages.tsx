@@ -246,7 +246,33 @@ function waitForAudioReady(audio: HTMLAudioElement, timeoutMs = 1500): Promise<v
   })
 }
 
-function MediaImageAttachment({ src, alt }: { src: string; alt: string }) {
+function shouldShowBareChatImage(msg: {
+  mediaUrl: string | null | undefined
+  mediaType?: string | null
+  deletedAt?: string | null
+  text?: string | null
+  replyToId?: string | null
+  isForwarded?: boolean | null
+}): boolean {
+  return (
+    !!msg.mediaUrl &&
+    !msg.mediaType?.startsWith("audio/") &&
+    !msg.deletedAt &&
+    !msg.text?.trim() &&
+    !msg.replyToId &&
+    !msg.isForwarded
+  )
+}
+
+function MediaImageAttachment({
+  src,
+  alt,
+  layout = "inBubble"
+}: {
+  src: string
+  alt: string
+  layout?: "inBubble" | "bare"
+}) {
   const [resolvedSrc, setResolvedSrc] = useState(src)
   const [refreshTried, setRefreshTried] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -293,7 +319,16 @@ function MediaImageAttachment({ src, alt }: { src: string; alt: string }) {
   }
 
   if (failed) {
-    return <p className="mt-1 text-[12px] opacity-80">Не удалось загрузить вложение</p>
+    return (
+      <p
+        className={cn(
+          "text-[12px] opacity-80",
+          layout === "bare" ? "mt-0" : "mt-1"
+        )}
+      >
+        Не удалось загрузить вложение
+      </p>
+    )
   }
 
   return (
@@ -301,7 +336,10 @@ function MediaImageAttachment({ src, alt }: { src: string; alt: string }) {
     <img
       src={resolvedSrc}
       alt={alt}
-      className="mt-1 max-h-64 w-auto rounded-lg object-contain"
+      className={cn(
+        "max-h-64 w-auto rounded-lg object-contain",
+        layout === "inBubble" && "mt-1"
+      )}
       onError={handleError}
     />
   )
@@ -465,7 +503,7 @@ function VoiceMessageBubble({
         tone === "accent"
           ? "text-[color:color-mix(in_srgb,var(--ds-sage-strong)_60%,var(--ds-ink))]"
           : tone === "dark"
-            ? "text-[#1f1f1f]"
+            ? "text-white/95 dark:text-[#1f1f1f]"
             : "text-ds-text-secondary"
       )}
     >
@@ -477,7 +515,7 @@ function VoiceMessageBubble({
           tone === "accent"
             ? ""
             : tone === "dark"
-              ? "bg-black/10 text-[#1f1f1f] hover:bg-black/15"
+              ? "bg-white/15 text-white hover:bg-white/25 dark:bg-black/10 dark:text-[#1f1f1f] dark:hover:bg-black/15"
               : "bg-black/80 text-white dark:bg-white dark:text-[#141414]"
         )}
         style={
@@ -565,12 +603,12 @@ function VoiceMessageBubble({
                   ? tone === "accent"
                     ? ""
                     : tone === "dark"
-                      ? "bg-black/65"
+                      ? "bg-white/75 dark:bg-black/65"
                       : "bg-black/55 dark:bg-white/90"
                   : tone === "accent"
                     ? ""
                     : tone === "dark"
-                      ? "bg-black/28"
+                      ? "bg-white/35 dark:bg-black/28"
                       : "bg-black/28 dark:bg-white/30"
               )}
               style={{
@@ -588,7 +626,7 @@ function VoiceMessageBubble({
             tone === "accent"
               ? ""
               : tone === "dark"
-                ? "text-black/70"
+                ? "text-white/75 dark:text-black/70"
                 : "opacity-90"
           )}
           style={tone === "accent" ? { color: palette.text } : undefined}
@@ -1874,11 +1912,12 @@ export function SupabaseMessages({
                   {!wide ? (
                     <button
                       type="button"
-                      className="grid h-10 w-10 shrink-0 place-content-center rounded-full border border-black/10 bg-ds-surface text-ds-ink transition-colors hover:bg-black/[0.04] active:bg-black/[0.08] dark:border-white/15 dark:hover:bg-white/[0.08] dark:active:bg-white/[0.14]"
+                      className="grid h-11 w-11 shrink-0 select-none place-content-center rounded-[10px] border-0 bg-ds-surface text-ds-ink transition-colors duration-150 hover:bg-black/[0.04] active:bg-black/[0.08] dark:hover:bg-white/[0.08] dark:active:bg-white/[0.14]"
+                      style={ICON_ACTION_NONSELECT_STYLE}
                       onClick={() => setMobilePanel("list")}
                       aria-label="Назад к списку"
                     >
-                      <ArrowLeft className="h-5 w-5" />
+                      <ArrowLeft className="h-5 w-5" strokeWidth={2} aria-hidden />
                     </button>
                   ) : null}
                   {activePeerHref ? (
@@ -1953,7 +1992,9 @@ export function SupabaseMessages({
                       </p>
                     </div>
                   ) : (
-                    messages.map((msg) => (
+                    messages.map((msg) => {
+                      const bareChatImage = shouldShowBareChatImage(msg)
+                      return (
                       <div
                         key={msg.id}
                         className={cn("flex w-full", msg.from === "me" ? "justify-end" : "justify-start")}
@@ -1964,8 +2005,11 @@ export function SupabaseMessages({
                               messageRefs.current[msg.id] = el
                             }}
                             className={cn(
-                              "rounded-2xl px-3.5 py-2.5 text-[14px] leading-[1.5] transition-[box-shadow,background-color]",
-                              msg.from === "me" ? "ds-msg-bubble-me" : "ds-msg-bubble-them",
+                              bareChatImage
+                                ? "inline-block max-w-full overflow-hidden rounded-lg"
+                                : "rounded-2xl px-3.5 py-2.5 text-[14px] leading-[1.5] transition-[box-shadow,background-color]",
+                              !bareChatImage &&
+                                (msg.from === "me" ? "ds-msg-bubble-me" : "ds-msg-bubble-them"),
                               ((myRole === "student" && msg.from === "me") ||
                                 (myRole !== "student" && msg.from === "them" && active?.peer.role === "student")) &&
                                 msg.mediaType?.startsWith("audio/")
@@ -2090,13 +2134,18 @@ export function SupabaseMessages({
                                 }
                               />
                             ) : (
-                              <MediaImageAttachment src={msg.mediaUrl} alt="Вложение" />
+                              <MediaImageAttachment
+                                src={msg.mediaUrl}
+                                alt="Вложение"
+                                layout={bareChatImage ? "bare" : "inBubble"}
+                              />
                             )
                           ) : null}
                           </div>
                           <p
                             className={cn(
-                              "mt-1 flex items-center justify-end gap-1.5 px-1 text-right text-[11px] opacity-80",
+                              "flex items-center justify-end gap-1.5 px-1 text-right text-[11px] opacity-80",
+                              bareChatImage ? "mt-1.5" : "mt-1",
                               msg.from === "me" ? "text-ds-text-secondary" : "text-ds-text-tertiary"
                             )}
                           >
@@ -2127,7 +2176,8 @@ export function SupabaseMessages({
                           </p>
                         </div>
                       </div>
-                    ))
+                      )
+                    })
                   )}
                   {typingUserIds.length > 0 ? (
                     <div className="flex w-full justify-start">
@@ -2259,7 +2309,7 @@ export function SupabaseMessages({
                   <div ref={composerRef} className="relative flex min-w-0 items-end gap-2 sm:gap-3">
                     <label
                       className={cn(
-                        "mb-0.5 grid h-11 w-11 shrink-0 select-none place-content-center rounded-full border border-black/10 text-ds-ink transition-colors dark:border-white/15",
+                        "mb-0.5 grid h-11 w-11 shrink-0 select-none place-content-center rounded-[10px] text-ds-ink transition-colors duration-150",
                         canAttachMedia
                           ? "cursor-pointer hover:bg-black/[0.04] active:bg-black/[0.08] dark:hover:bg-white/[0.08] dark:active:bg-white/[0.14]"
                           : "cursor-not-allowed opacity-40"
@@ -2298,7 +2348,7 @@ export function SupabaseMessages({
                     {wide ? (
                       <button
                         type="button"
-                        className="mb-0.5 grid h-11 w-11 shrink-0 select-none place-content-center rounded-full border border-black/10 text-ds-ink transition-colors hover:bg-black/[0.04] active:bg-black/[0.08] dark:border-white/15 dark:hover:bg-white/[0.08] dark:active:bg-white/[0.14]"
+                        className="mb-0.5 grid h-11 w-11 shrink-0 select-none place-content-center rounded-[10px] text-ds-ink transition-colors duration-150 hover:bg-black/[0.04] active:bg-black/[0.08] dark:hover:bg-white/[0.08] dark:active:bg-white/[0.14]"
                         aria-label="Открыть эмодзи"
                         style={ICON_ACTION_NONSELECT_STYLE}
                         onContextMenu={(e) => e.preventDefault()}
@@ -2344,7 +2394,7 @@ export function SupabaseMessages({
                     <button
                       type="button"
                       className={cn(
-                        "mb-0.5 grid h-11 w-11 shrink-0 select-none place-content-center rounded-full border border-black/10 text-ds-ink transition-colors dark:border-white/15",
+                        "mb-0.5 grid h-11 w-11 shrink-0 select-none place-content-center rounded-[10px] text-ds-ink transition-colors duration-150",
                         canRecordVoice
                           ? "hover:bg-black/[0.04] active:bg-black/[0.08] dark:hover:bg-white/[0.08] dark:active:bg-white/[0.14]"
                           : "cursor-not-allowed opacity-40",

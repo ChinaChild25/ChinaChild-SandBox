@@ -3,7 +3,6 @@
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useEffect, useState } from "react"
 import {
   LayoutGrid,
   GraduationCap,
@@ -13,7 +12,6 @@ import {
   BookOpen,
   Settings,
   LogOut,
-  ChevronRight,
   Users,
   type LucideIcon
 } from "lucide-react"
@@ -21,11 +19,6 @@ import { cn } from "@/lib/utils"
 import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { ChinaChildSidebarLogo } from "@/components/brand-logo"
-import {
-  readNotificationPreferences,
-  subscribeNotificationPreferences,
-  type NotificationPreferences
-} from "@/lib/notification-preferences"
 import { useUiLocale } from "@/lib/ui-locale"
 
 type NavItem = { href: string; labelKey: string; icon: LucideIcon }
@@ -48,12 +41,6 @@ export function TeacherSidebar({ variant = "sidebar" }: TeacherSidebarProps) {
   const { user, logout } = useAuth()
   const { t } = useUiLocale()
   const drawer = variant === "drawer"
-  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(readNotificationPreferences)
-
-  useEffect(() => {
-    setNotifPrefs(readNotificationPreferences())
-    return subscribeNotificationPreferences(() => setNotifPrefs(readNotificationPreferences()))
-  }, [])
 
   const firstName = user?.name?.split(" ")[0] ?? "Преподаватель"
   const avatarSrc = user?.avatar ?? "/staff/zhao-li.png"
@@ -80,39 +67,6 @@ export function TeacherSidebar({ variant = "sidebar" }: TeacherSidebarProps) {
       </Link>
     )
   })
-
-  const hskCard =
-    notifPrefs.lessons ? (
-      <Link
-        href="/teacher/courses"
-        className={cn(
-          "flex no-underline text-ds-ink transition-opacity hover:opacity-95",
-          drawer
-            ? "w-full flex-row items-center gap-3 rounded-xl bg-ds-sage px-3 py-2.5"
-            : "mt-4 flex-col gap-2 rounded-[20px] bg-ds-sage p-4"
-        )}
-      >
-        <div className={cn("font-semibold", drawer ? "min-w-0 flex-1 text-[13px] leading-snug" : "text-[14px]")}>
-          {t("sidebar.hskTitle")}
-        </div>
-        <div
-          className={cn(
-            "overflow-hidden rounded-full bg-white/50",
-            drawer ? "h-1.5 min-w-0 flex-1" : "h-2 w-full"
-          )}
-        >
-          <div className="h-full w-[37%] rounded-full bg-ds-sage-strong" />
-        </div>
-        {!drawer ? (
-          <div className="flex items-center gap-1 text-[13px] font-medium text-ds-ink/80">
-            <span>37%</span>
-            <ChevronRight className="h-4 w-4" aria-hidden />
-          </div>
-        ) : (
-          <span className="shrink-0 text-[12px] font-semibold text-ds-ink/85">37%</span>
-        )}
-      </Link>
-    ) : null
 
   return (
     <div className={cn("flex h-full min-h-0 flex-col text-ds-ink", drawer && "gap-0")}>
@@ -175,7 +129,6 @@ export function TeacherSidebar({ variant = "sidebar" }: TeacherSidebarProps) {
           <nav className="flex flex-col gap-1.5" aria-label={t("sidebar.navAria")}>
             {navLinkNodes}
           </nav>
-          {hskCard}
         </div>
       ) : (
         <>
@@ -185,7 +138,6 @@ export function TeacherSidebar({ variant = "sidebar" }: TeacherSidebarProps) {
           >
             {navLinkNodes}
           </nav>
-          {hskCard}
         </>
       )}
 
@@ -194,7 +146,7 @@ export function TeacherSidebar({ variant = "sidebar" }: TeacherSidebarProps) {
           variant="outline"
           onClick={logout}
           className={cn(
-            "w-full justify-start rounded-2xl border border-black/10 bg-white font-medium text-ds-ink !shadow-none shadow-none ring-0 transition-colors hover:bg-ds-surface-hover hover:!shadow-none dark:border-white/10 dark:bg-[#262626] dark:text-ds-ink dark:hover:bg-[#333333]",
+            "w-full justify-start rounded-2xl border-0 bg-white font-medium text-ds-ink !shadow-none shadow-none ring-0 transition-colors hover:bg-ds-surface-hover hover:!shadow-none dark:bg-[#262626] dark:text-ds-ink dark:hover:bg-[#333333]",
             drawer ? "py-3 text-[14px]" : "py-6 text-[15px]"
           )}
         >

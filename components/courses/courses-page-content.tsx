@@ -1,8 +1,13 @@
 "use client"
 
 import Link from "next/link"
+import { useEffect, useState } from "react"
 import { BookOpen, CheckCircle, ChevronRight } from "lucide-react"
+import { TeacherCourseCard } from "@/components/courses/teacher-course-card"
 import { courseCatalog } from "@/lib/course-catalog"
+import { useAuth } from "@/lib/auth-context"
+import type { TeacherCustomCourse } from "@/lib/types"
+import { courseCoverSurfaceStyle } from "@/lib/teacher-custom-course-form"
 
 const courseVisual: Record<
   "hsk1" | "hsk2",
@@ -50,6 +55,8 @@ const recentActivity = [
   }
 ] as const
 
+const STUDENT_AUTHOR_COURSE_LABEL = "Авторский курс"
+
 export function CoursesPageContent({
   coursesBasePath,
   title,
@@ -61,6 +68,35 @@ export function CoursesPageContent({
   subtitle: string
   activitySectionTitle?: string
 }) {
+  const { user, usesSupabase, authReady } = useAuth()
+  const [assignedCourses, setAssignedCourses] = useState<TeacherCustomCourse[]>([])
+  const [assignedLoading, setAssignedLoading] = useState(false)
+
+  useEffect(() => {
+    if (!authReady || !usesSupabase || user?.role !== "student" || coursesBasePath !== "/courses") {
+      setAssignedCourses([])
+      return
+    }
+    let cancelled = false
+    setAssignedLoading(true)
+    void (async () => {
+      try {
+        const res = await fetch("/api/student/assigned-courses", { cache: "no-store" })
+        const json = (await res.json().catch(() => null)) as { courses?: TeacherCustomCourse[] } | null
+        if (!cancelled) {
+          setAssignedCourses(res.ok && json?.courses ? json.courses : [])
+        }
+      } finally {
+        if (!cancelled) setAssignedLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [authReady, usesSupabase, user?.role, coursesBasePath])
+
+  const showAssigned = coursesBasePath === "/courses" && user?.role === "student" && usesSupabase
+
   return (
     <div className="ds-figma-page">
       <div className="mx-auto w-full max-w-[var(--ds-shell-max-width)]">
@@ -68,6 +104,34 @@ export function CoursesPageContent({
           <h1 className="text-[length:var(--ds-text-8xl)] font-bold leading-none text-ds-text-primary">{title}</h1>
           <p className="mt-1 text-ds-body text-ds-text-secondary">{subtitle}</p>
         </header>
+
+        {showAssigned ? (
+          <section className="mb-10">
+            <h2 className="mb-4 text-[20px] font-semibold text-ds-ink">Курсы от преподавателя</h2>
+            {assignedLoading ? (
+              <p className="text-sm text-ds-text-secondary">Загрузка…</p>
+            ) : assignedCourses.length === 0 ? (
+              <p className="text-sm text-ds-text-secondary">
+                Здесь появятся курсы, которые преподаватель назначит вам в настройках курса.
+              </p>
+            ) : (
+              <div className="ds-course-grid items-stretch">
+                {assignedCourses.map((c) => (
+                  <TeacherCourseCard
+                    key={c.id}
+                    course={c}
+                    href={`${coursesBasePath}/${c.id}`}
+                    courseTypeLabel={STUDENT_AUTHOR_COURSE_LABEL}
+                    lessonProgress={{
+                      completed: c.completed_lesson_count ?? 0,
+                      total: c.lesson_count ?? 0
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        ) : null}
 
         <div className="ds-course-grid">
           {courseCatalog.map((item) => {

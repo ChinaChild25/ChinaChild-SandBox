@@ -27,7 +27,7 @@ export function CourseLessonTabs({ lessons, activeLessonId, onRequestDelete }: P
             key={lesson.id}
             className={cn(
               "relative z-0 flex items-center gap-2 rounded-[20px] p-4",
-              "bg-white dark:bg-ds-surface",
+              "bg-white dark:bg-ds-surface-pill",
               "transition-[transform,box-shadow] duration-200 ease-out",
               "hover:z-10 hover:-translate-y-0.5",
               "hover:shadow-[0_10px_28px_-6px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_12px_36px_-4px_rgba(0,0,0,0.55)]",

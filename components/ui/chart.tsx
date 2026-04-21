@@ -4,6 +4,7 @@ import * as React from 'react'
 import * as RechartsPrimitive from 'recharts'
 
 import { cn } from '@/lib/utils'
+import { TOOLTIP_CHIP_SURFACE_CLASS } from '@/components/ui/tooltip'
 
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: '', dark: '.dark' } as const
@@ -173,7 +174,8 @@ function ChartTooltipContent({
   return (
     <div
       className={cn(
-        'border-border/50 bg-background grid min-w-[8rem] items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl',
+        TOOLTIP_CHIP_SURFACE_CLASS,
+        'grid min-w-[7rem] items-start gap-1',
         className,
       )}
     >
@@ -188,7 +190,7 @@ function ChartTooltipContent({
             <div
               key={item.dataKey}
               className={cn(
-                '[&>svg]:text-muted-foreground flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5',
+                '[&>svg]:text-white/70 flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5',
                 indicator === 'dot' && 'items-center',
               )}
             >
@@ -228,12 +230,12 @@ function ChartTooltipContent({
                   >
                     <div className="grid gap-1.5">
                       {nestLabel ? tooltipLabel : null}
-                      <span className="text-muted-foreground">
+                      <span className="text-white/75">
                         {itemConfig?.label || item.name}
                       </span>
                     </div>
                     {item.value && (
-                      <span className="text-foreground font-mono font-medium tabular-nums">
+                      <span className="font-mono font-medium tabular-nums text-white">
                         {item.value.toLocaleString()}
                       </span>
                     )}

@@ -61,8 +61,8 @@ export function TeacherCoursesPageContent() {
           <CreateCourseCard onClick={() => setIsModalOpen(true)} />
 
           {isLoading ? (
-            <div className="rounded-[var(--ds-radius-xl)] bg-ds-surface-muted p-6 text-sm text-ds-text-secondary">
-              Загрузка курсов...
+            <div className="rounded-[var(--ds-radius-xl)] border border-black/[0.06] bg-[var(--ds-neutral-row)] p-6 text-sm text-ds-text-secondary dark:border-white/10">
+              Загрузка курсов…
             </div>
           ) : null}
         </div>

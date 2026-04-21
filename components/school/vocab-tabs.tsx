@@ -1,30 +1,47 @@
 "use client"
 
 import { useState } from "react"
+import { ArrowRight, Lightbulb } from "lucide-react"
 
 import type { VocabTab } from "@/lib/courses/types"
 
 type Props = {
   tabs: VocabTab[]
+  onContinue?: () => void
+  continueLabel?: string
 }
 
-export function VocabTabs({ tabs }: Props) {
+export function VocabTabs({ tabs, onContinue, continueLabel = "Далее" }: Props) {
   const [active, setActive] = useState(tabs[0]?.id ?? "")
   const [flipped, setFlipped] = useState<number | null>(null)
+  const [seen, setSeen] = useState<Set<string>>(() => new Set())
 
   const current = tabs.find((t) => t.id === active) ?? tabs[0]
   if (!current) return null
 
+  const cardKey = (i: number) => `${current.id}:${i}`
+
+  const onFlip = (i: number) => {
+    const isFlipped = flipped === i
+    const next = isFlipped ? null : i
+    setFlipped(next)
+    if (!isFlipped) {
+      setSeen((prev) => new Set(prev).add(cardKey(i)))
+    }
+  }
+
+  const openedCount = current.cards.reduce((n, _, i) => n + (seen.has(cardKey(i)) ? 1 : 0), 0)
+
   return (
-    <div className="min-w-0">
-      <div className="ds-lesson-figma-tabs" role="tablist" aria-label="Словарь по разделам">
+    <div className="cc-hsk-vocab min-w-0">
+      <div className="cc-hsk-vocab-subtabs" role="tablist" aria-label="Словарь по разделам">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
             role="tab"
             aria-selected={tab.id === active}
-            className={`ds-lesson-figma-tab ${tab.id === active ? "ds-lesson-figma-tab--active" : ""}`}
+            className={`cc-hsk-vocab-subtab ${tab.id === active ? "cc-hsk-vocab-subtab--active" : ""}`}
             onClick={() => {
               setActive(tab.id)
               setFlipped(null)
@@ -35,10 +52,8 @@ export function VocabTabs({ tabs }: Props) {
         ))}
       </div>
 
-      <p className="mb-4 text-[14px] text-ds-text-tertiary">Нажмите на карточку, чтобы увидеть перевод</p>
-
       <div
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+        className="cc-hsk-vocab-grid"
         role="tabpanel"
       >
         {current.cards.map((c, i) => {
@@ -47,25 +62,44 @@ export function VocabTabs({ tabs }: Props) {
             <button
               key={`${current.id}-${i}`}
               type="button"
-              onClick={() => setFlipped(isFlipped ? null : i)}
-              className="min-h-[120px] cursor-pointer rounded-2xl p-5 text-left transition-transform hover:scale-[1.02]"
-              style={{
-                backgroundColor: isFlipped ? "var(--ds-ink)" : "#f5f5f5",
-                color: isFlipped ? "#ffffff" : "var(--ds-ink)"
-              }}
+              onClick={() => onFlip(i)}
+              className={`cc-hsk-vocab-card ${isFlipped ? "cc-hsk-vocab-card--open" : ""}`}
             >
-              <div className="text-center text-[32px] font-normal">{c.hanzi}</div>
+              <div className="cc-hsk-vocab-han">{c.hanzi}</div>
               {isFlipped ? (
-                <div className="mt-2 text-center">
-                  <div className="text-[13px] text-[#aaaaaa]">{c.pinyin}</div>
-                  <div className="text-[15px]">{c.meaning}</div>
+                <div className="cc-hsk-vocab-back">
+                  <div className="cc-hsk-vocab-pin">{c.pinyin}</div>
+                  <div className="cc-hsk-vocab-mean">{c.meaning}</div>
                 </div>
               ) : (
-                <div className="mt-1 text-center text-[13px] text-ds-text-tertiary">{c.pinyin}</div>
+                <div className="cc-hsk-vocab-pin-muted">{c.pinyin}</div>
               )}
             </button>
           )
         })}
+      </div>
+
+      <aside className="cc-hsk-vocab-tip">
+        <div className="cc-hsk-vocab-tip-head">
+          <Lightbulb className="cc-hsk-vocab-tip-bulb" aria-hidden />
+          <strong>Совет по запоминанию</strong>
+        </div>
+        <p>
+          Повторяй слова вслух сразу после переворота карточки. Произнеси его 3 раза подряд — так мозг запоминает и
+          звук, и значение одновременно.
+        </p>
+      </aside>
+
+      <div className="cc-hsk-vocab-foot">
+        <span className="cc-hsk-vocab-opened">
+          Открыто: {openedCount}/{current.cards.length}
+        </span>
+        {onContinue ? (
+          <button type="button" className="cc-hsk-btn-next" onClick={onContinue}>
+            {continueLabel}
+            <ArrowRight className="cc-hsk-btn-next-arrow" aria-hidden />
+          </button>
+        ) : null}
       </div>
     </div>
   )

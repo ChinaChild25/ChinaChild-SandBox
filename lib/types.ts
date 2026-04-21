@@ -105,7 +105,10 @@ export const LESSON_BLOCK_TYPES = [
   "quiz_single",
   "audio",
   "image",
-  "video"
+  "video",
+  "note",
+  "link",
+  "divider"
 ] as const
 
 export type LessonBlockType = (typeof LESSON_BLOCK_TYPES)[number]
@@ -123,8 +126,29 @@ export interface TeacherCustomCourse {
   is_platform_course?: boolean
   cover_color?: string | null
   cover_style?: string | null
+  /** Фото-обложка (URL или Storage) */
+  cover_image_url?: string | null
+  /** CSS background-position, напр. 72% 28% */
+  cover_image_position?: string | null
   teacher_name?: string | null
   teacher_avatar_url?: string | null
+  /** Present on list payload from GET /api/teacher/courses */
+  lesson_count?: number
+  /** GET /api/student/assigned-courses — уроки, отмеченные учеником как пройденные */
+  completed_lesson_count?: number
+  /** Сумма слотов лексики по блокам (сопоставление + пропуски) */
+  new_words_count?: number
+  /** Блоков «аудио» с загруженным файлом */
+  audio_count?: number
+  created_at: string
+}
+
+/** Named section of a custom course; contains ordered lessons. */
+export interface TeacherCourseModule {
+  id: string
+  course_id: string
+  title: string
+  order: number
   created_at: string
 }
 
@@ -133,6 +157,7 @@ export interface TeacherLesson {
   course_id: string
   title: string
   order: number
+  module_id?: string | null
   task_badge_color?: string | null
   created_at: string
 }

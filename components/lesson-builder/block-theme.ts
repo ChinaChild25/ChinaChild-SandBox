@@ -13,7 +13,13 @@ export const blockTypeAccentClass: Record<LessonBlockType, string> = {
   video:
     "border-[#ffd4c4] bg-[#fff0ea] text-[#6d3d2e] hover:bg-[#ffe4d8] dark:border-[#8a5c4a] dark:bg-[#34221c] dark:text-[#ffdccd] dark:hover:bg-[#452f26]",
   audio:
-    "border-[#ffd2dd] bg-[#ffeaf0] text-[#7f3c4f] hover:bg-[#ffdbe6] dark:border-[#8a4b5e] dark:bg-[#3a2430] dark:text-[#ffd9e4] dark:hover:bg-[#472c3a]"
+    "border-[#ffd2dd] bg-[#ffeaf0] text-[#7f3c4f] hover:bg-[#ffdbe6] dark:border-[#8a4b5e] dark:bg-[#3a2430] dark:text-[#ffd9e4] dark:hover:bg-[#472c3a]",
+  note:
+    "border-[#bde6e7] bg-[#eaf9f9] text-[#2b6064] hover:bg-[#d8f3f4] dark:border-[#3c7278] dark:bg-[#1d3134] dark:text-[#c8eff1] dark:hover:bg-[#284146]",
+  link:
+    "border-[#bfd0ff] bg-[#ecf1ff] text-[#304d8d] hover:bg-[#dee7ff] dark:border-[#4660a2] dark:bg-[#232d48] dark:text-[#d9e1ff] dark:hover:bg-[#2d3960]",
+  divider:
+    "border-[#d8d8de] bg-[#f7f7f9] text-[#5a5a67] hover:bg-[#efeff4] dark:border-[#4c4c57] dark:bg-[#232329] dark:text-[#d8d8df] dark:hover:bg-[#2b2b33]"
 }
 
 /** Same palette as `blockTypeAccentClass` without border utilities (for compact icon buttons). */
@@ -24,7 +30,10 @@ export const blockTypeAccentFillClass: Record<LessonBlockType, string> = {
   quiz_single: "bg-[#f7edff] text-[#5f3a87] hover:bg-[#f0e0ff] dark:bg-[#2f2142] dark:text-[#ecd8ff] dark:hover:bg-[#3a2952]",
   image: "bg-[#e8f7fc] text-[#2a5560] hover:bg-[#d6f0f8] dark:bg-[#1a2e34] dark:text-[#c8ecf5] dark:hover:bg-[#243d45]",
   video: "bg-[#fff0ea] text-[#6d3d2e] hover:bg-[#ffe4d8] dark:bg-[#34221c] dark:text-[#ffdccd] dark:hover:bg-[#452f26]",
-  audio: "bg-[#ffeaf0] text-[#7f3c4f] hover:bg-[#ffdbe6] dark:bg-[#3a2430] dark:text-[#ffd9e4] dark:hover:bg-[#472c3a]"
+  audio: "bg-[#ffeaf0] text-[#7f3c4f] hover:bg-[#ffdbe6] dark:bg-[#3a2430] dark:text-[#ffd9e4] dark:hover:bg-[#472c3a]",
+  note: "bg-[#eaf9f9] text-[#2b6064] hover:bg-[#d8f3f4] dark:bg-[#1d3134] dark:text-[#c8eff1] dark:hover:bg-[#284146]",
+  link: "bg-[#ecf1ff] text-[#304d8d] hover:bg-[#dee7ff] dark:bg-[#232d48] dark:text-[#d9e1ff] dark:hover:bg-[#2d3960]",
+  divider: "bg-[#f7f7f9] text-[#5a5a67] hover:bg-[#efeff4] dark:bg-[#232329] dark:text-[#d8d8df] dark:hover:bg-[#2b2b33]"
 }
 
 export const blockTypeStudentTheme: Record<
@@ -101,5 +110,32 @@ export const blockTypeStudentTheme: Record<
     ring: "ring-[#eb9ab0]/50 dark:ring-[#a76579]/45",
     text: "text-[#7f3c4f] dark:text-[#ffd9e4]",
     accent: "accent-[#7f3c4f] dark:accent-[#ffd9e4]"
+  },
+  note: {
+    panel: "border-[#bde6e7]/80 bg-[#eaf9f9]/75 dark:border-[#3c7278]/80 dark:bg-[#1d3134]/60",
+    soft: "border-[#bde6e7] bg-[#f3fbfb] text-[#2b6064] dark:border-[#3c7278] dark:bg-[#1d3134]/70 dark:text-[#c8eff1]",
+    active: "border-[#bde6e7] bg-[#eaf9f9] text-[#2b6064] dark:border-[#3c7278] dark:bg-[#1d3134] dark:text-[#c8eff1]",
+    hover: "hover:bg-[#d8f3f4] dark:hover:bg-[#284146]",
+    ring: "ring-[#72c5ca]/50 dark:ring-[#4c8f94]/45",
+    text: "text-[#2b6064] dark:text-[#c8eff1]",
+    accent: "accent-[#2b6064] dark:accent-[#c8eff1]"
+  },
+  link: {
+    panel: "border-[#bfd0ff]/80 bg-[#ecf1ff]/75 dark:border-[#4660a2]/80 dark:bg-[#232d48]/60",
+    soft: "border-[#bfd0ff] bg-[#f4f7ff] text-[#304d8d] dark:border-[#4660a2] dark:bg-[#232d48]/70 dark:text-[#d9e1ff]",
+    active: "border-[#bfd0ff] bg-[#ecf1ff] text-[#304d8d] dark:border-[#4660a2] dark:bg-[#232d48] dark:text-[#d9e1ff]",
+    hover: "hover:bg-[#dee7ff] dark:hover:bg-[#2d3960]",
+    ring: "ring-[#96acec]/50 dark:ring-[#6581c8]/45",
+    text: "text-[#304d8d] dark:text-[#d9e1ff]",
+    accent: "accent-[#304d8d] dark:accent-[#d9e1ff]"
+  },
+  divider: {
+    panel: "border-[#d8d8de]/80 bg-[#f7f7f9]/80 dark:border-[#4c4c57]/80 dark:bg-[#232329]/70",
+    soft: "border-[#d8d8de] bg-[#fcfcfd] text-[#5a5a67] dark:border-[#4c4c57] dark:bg-[#232329]/80 dark:text-[#d8d8df]",
+    active: "border-[#d8d8de] bg-[#f7f7f9] text-[#5a5a67] dark:border-[#4c4c57] dark:bg-[#232329] dark:text-[#d8d8df]",
+    hover: "hover:bg-[#efeff4] dark:hover:bg-[#2b2b33]",
+    ring: "ring-[#b7b7c4]/45 dark:ring-[#6f6f80]/45",
+    text: "text-[#5a5a67] dark:text-[#d8d8df]",
+    accent: "accent-[#5a5a67] dark:accent-[#d8d8df]"
   }
 }

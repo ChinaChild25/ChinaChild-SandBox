@@ -22,7 +22,9 @@ import {
   Trash2,
   X
 } from "lucide-react"
+import { TOOLTIP_CHIP_SURFACE_CLASS } from "@/components/ui/tooltip"
 import { useAuth } from "@/lib/auth-context"
+import { cn } from "@/lib/utils"
 import { wallClockFromSlotAt } from "@/lib/schedule-display-tz"
 import { calendarWeekdayFromDateKey, firstRecurringSlotDateKey } from "@/lib/schedule/calendar-ymd"
 import { isFirstScheduledSlotInPast, nextEligibleStartDateKey } from "@/lib/schedule/recurring-slot-eligibility"
@@ -2430,7 +2432,10 @@ function TooltipIconButton({
       {open ? (
         <span
           ref={tooltipRef}
-          className="pointer-events-none fixed z-[120] max-w-[220px] -translate-x-1/2 rounded-[6px] bg-[#202124] px-2 py-1 text-center text-[11px] leading-snug text-white shadow-md"
+          className={cn(
+            "pointer-events-none fixed z-[120] max-w-[220px] -translate-x-1/2 text-center",
+            TOOLTIP_CHIP_SURFACE_CLASS,
+          )}
           style={{ left: position.left, top: position.top }}
         >
           {tooltip}
@@ -2495,7 +2500,10 @@ function TooltipHint({
       {open ? (
         <span
           ref={tipRef}
-          className="pointer-events-none fixed z-[140] max-w-[220px] -translate-x-1/2 rounded-[6px] bg-zinc-900 px-2 py-1 text-center text-[11px] leading-snug text-white shadow-md dark:bg-zinc-100 dark:text-zinc-900"
+          className={cn(
+            "pointer-events-none fixed z-[140] max-w-[220px] -translate-x-1/2 text-center",
+            TOOLTIP_CHIP_SURFACE_CLASS,
+          )}
           style={{ left: position.left, top: position.top }}
         >
           {text}

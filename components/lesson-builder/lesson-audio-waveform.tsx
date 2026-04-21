@@ -1,9 +1,10 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
-import { Pause, Play } from "lucide-react"
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
+import { Pause, Play, Volume2, VolumeX } from "lucide-react"
 import { computeWaveformPeaksFromUrl } from "@/lib/audio-waveform"
 import { Button } from "@/components/ui/button"
+import { Slider } from "@/components/ui/slider"
 import { cn } from "@/lib/utils"
 
 const DEFAULT_BAR_COUNT = 40
@@ -88,6 +89,27 @@ function formatTime(seconds: number): string {
   return `${m}:${String(s).padStart(2, "0")}`
 }
 
+/** Равносторонний ▶ в 24×24; className SVG должен содержать `size-*` (иначе `Button` даёт svg size-4). */
+function SolidPlayIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden>
+      <path
+        fill="currentColor"
+        d="M5.45 6.75Q5.87 5.98 6.359 6.225L15.453 11.475Q16.982 12 15.453 12.525L6.359 17.775Q5.87 18.02 5.45 17.25Z"
+      />
+    </svg>
+  )
+}
+
+function SolidPauseIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
+      <rect x="4.4" y="4.15" width="6.55" height="15.7" rx="3.2" ry="3.2" />
+      <rect x="13.05" y="4.15" width="6.55" height="15.7" rx="3.2" ry="3.2" />
+    </svg>
+  )
+}
+
 export function LessonAudioPlayerRow({
   src,
   peaks,
@@ -103,7 +125,11 @@ export function LessonAudioPlayerRow({
   idleBarClassName,
   liveActiveBarClassName,
   liveIdleBarClassName,
-  timeClassName
+  timeClassName,
+  seekable = false,
+  volumeControl = false,
+  transportIconMode = "lucide",
+  transportIconClassName,
 }: {
   src: string
   peaks?: number[] | null
@@ -121,8 +147,17 @@ export function LessonAudioPlayerRow({
   liveActiveBarClassName?: string
   liveIdleBarClassName?: string
   timeClassName?: string
+  /** Клик / перетаскивание по полосе волны — перемотка */
+  seekable?: boolean
+  /** Слайдер громкости (элемент `audio.volume`) */
+  volumeControl?: boolean
+  /** `solid` — залитые play/pause (цвет через `transportIconClassName` + currentColor). */
+  transportIconMode?: "lucide" | "solid"
+  /** Класс для SVG (например `text-neutral-500`). */
+  transportIconClassName?: string
 }) {
   const audioRef = useRef<HTMLAudioElement>(null)
+  const waveRef = useRef<HTMLDivElement>(null)
   const onDecodedRef = useRef(onDecodedPeaks)
   onDecodedRef.current = onDecodedPeaks
 
@@ -131,6 +166,7 @@ export function LessonAudioPlayerRow({
   const [duration, setDuration] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
   const [fetchedPeaks, setFetchedPeaks] = useState<number[] | null>(null)
+  const [volume, setVolume] = useState(1)
 
   const mergedPeaks = peaks && peaks.length > 0 ? peaks : fetchedPeaks
 
@@ -141,6 +177,12 @@ export function LessonAudioPlayerRow({
     setDuration(0)
     setCurrentTime(0)
   }, [src])
+
+  useEffect(() => {
+    const el = audioRef.current
+    if (!el) return
+    el.volume = volume
+  }, [volume])
 
   useEffect(() => {
     if (!src || isRecording || liveBars) return
@@ -183,6 +225,7 @@ export function LessonAudioPlayerRow({
       return
     }
     try {
+      el.volume = volume
       await el.play()
       setPlaying(true)
     } catch {
@@ -190,15 +233,57 @@ export function LessonAudioPlayerRow({
     }
   }
 
+  const seekFromClientX = useCallback(
+    (clientX: number) => {
+      const wave = waveRef.current
+      const el = audioRef.current
+      if (!seekable || !wave || !el) return
+      const d = el.duration
+      if (!Number.isFinite(d) || d <= 0) return
+      const rect = wave.getBoundingClientRect()
+      const ratio = clamp01((clientX - rect.left) / rect.width)
+      el.currentTime = ratio * d
+      setCurrentTime(el.currentTime)
+      setProgress(ratio)
+    },
+    [seekable],
+  )
+
+  const onWavePointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (!seekable) return
+      e.preventDefault()
+      e.currentTarget.setPointerCapture(e.pointerId)
+      seekFromClientX(e.clientX)
+    },
+    [seekable, seekFromClientX],
+  )
+
+  const onWavePointerMove = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (!seekable) return
+      if (!e.currentTarget.hasPointerCapture(e.pointerId)) return
+      seekFromClientX(e.clientX)
+    },
+    [seekable, seekFromClientX],
+  )
+
+  const onWavePointerUp = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    }
+  }, [])
+
   const showPlayer = Boolean(src) && !isRecording && !(liveBars && liveBars.length > 0)
 
   const timeLabel =
-    showPlayer && duration > 0 ? (playing ? formatTime(currentTime) : formatTime(duration)) : ""
+    showPlayer && duration > 0 ? `${formatTime(currentTime)} / ${formatTime(duration)}` : ""
 
   return (
     <div
       className={cn(
         "flex items-center gap-2 rounded-lg border border-border/70 bg-background/80 px-2 py-1.5 dark:bg-muted/30",
+        volumeControl && "flex-wrap",
         containerClassName,
         className
       )}
@@ -209,23 +294,105 @@ export function LessonAudioPlayerRow({
             type="button"
             variant="secondary"
             size="icon"
-            className={cn("h-9 w-9 shrink-0 rounded-full", buttonClassName)}
+            className={cn("h-9 w-9 shrink-0", buttonClassName, "rounded-full")}
             onClick={() => void togglePlay()}
             aria-label={playing ? "Пауза" : "Воспроизвести"}
           >
-            {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
+            {transportIconMode === "solid" ? (
+              playing ? (
+                <SolidPauseIcon className={cn("size-4 shrink-0", transportIconClassName)} />
+              ) : (
+                <SolidPlayIcon
+                  className={cn("size-4 shrink-0 translate-x-px", transportIconClassName)}
+                />
+              )
+            ) : playing ? (
+              <Pause className="h-4 w-4" />
+            ) : (
+              <Play className="h-4 w-4 ml-0.5" />
+            )}
           </Button>
-          <VoiceWaveformBars
-            peaks={mergedPeaks}
-            progress={playing || progress > 0 ? progress : 0}
-            barCount={barCount}
-            className={waveformClassName}
-            playedBarClassName={playedBarClassName}
-            idleBarClassName={idleBarClassName}
-            liveActiveBarClassName={liveActiveBarClassName}
-            liveIdleBarClassName={liveIdleBarClassName}
-          />
-          <span className={cn("w-10 shrink-0 text-right tabular-nums text-xs text-muted-foreground", timeClassName)}>{timeLabel}</span>
+          <div
+            ref={waveRef}
+            className={cn(
+              "flex min-w-0 flex-1 touch-none items-stretch",
+              seekable &&
+                "cursor-pointer rounded-md px-0.5 py-0.5 hover:bg-black/[0.06] dark:hover:bg-white/[0.08]",
+            )}
+            role={seekable ? "slider" : undefined}
+            tabIndex={seekable ? 0 : undefined}
+            aria-label={seekable ? "Позиция воспроизведения" : undefined}
+            aria-valuemin={seekable ? 0 : undefined}
+            aria-valuemax={seekable ? 100 : undefined}
+            aria-valuenow={seekable ? Math.round(progress * 100) : undefined}
+            onPointerDown={seekable ? onWavePointerDown : undefined}
+            onPointerMove={seekable ? onWavePointerMove : undefined}
+            onPointerUp={seekable ? onWavePointerUp : undefined}
+            onPointerCancel={seekable ? onWavePointerUp : undefined}
+            onKeyDown={
+              seekable
+                ? (e) => {
+                    const el = audioRef.current
+                    if (!el || !Number.isFinite(el.duration) || el.duration <= 0) return
+                    if (e.key === "ArrowLeft") {
+                      e.preventDefault()
+                      el.currentTime = Math.max(0, el.currentTime - 5)
+                    } else if (e.key === "ArrowRight") {
+                      e.preventDefault()
+                      el.currentTime = Math.min(el.duration, el.currentTime + 5)
+                    }
+                  }
+                : undefined
+            }
+          >
+            <VoiceWaveformBars
+              peaks={mergedPeaks}
+              progress={playing || progress > 0 ? progress : 0}
+              barCount={barCount}
+              className={cn("min-w-0 flex-1", waveformClassName)}
+              playedBarClassName={playedBarClassName}
+              idleBarClassName={idleBarClassName}
+              liveActiveBarClassName={liveActiveBarClassName}
+              liveIdleBarClassName={liveIdleBarClassName}
+            />
+          </div>
+          <span
+            className={cn(
+              "shrink-0 whitespace-nowrap text-right tabular-nums text-[11px] text-muted-foreground sm:text-xs",
+              timeClassName,
+            )}
+          >
+            {timeLabel}
+          </span>
+          {volumeControl ? (
+            <div className="flex w-[76px] shrink-0 items-center gap-1.5 sm:w-[92px]">
+              {volume < 0.04 ? (
+                <VolumeX className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+              ) : (
+                <Volume2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+              )}
+              <Slider
+                className={cn(
+                  "min-w-0 flex-1 py-1",
+                  /* track/range/thumb: без bg-muted/bg-primary (в sage-accent они зелёные) */
+                  "[&_[data-slot=slider-track]]:!bg-neutral-300/70 dark:[&_[data-slot=slider-track]]:!bg-neutral-600/45",
+                  "[&_[data-slot=slider-range]]:!bg-neutral-600 dark:[&_[data-slot=slider-range]]:!bg-neutral-300",
+                  "[&_[data-slot=slider-thumb]]:!border-neutral-400 [&_[data-slot=slider-thumb]]:!bg-white",
+                  "dark:[&_[data-slot=slider-thumb]]:!border-neutral-500",
+                )}
+                min={0}
+                max={100}
+                step={1}
+                value={[Math.round(volume * 100)]}
+                onValueChange={(v) => {
+                  const pct = (v[0] ?? 0) / 100
+                  setVolume(pct)
+                  if (audioRef.current) audioRef.current.volume = pct
+                }}
+                aria-label="Громкость"
+              />
+            </div>
+          ) : null}
           <audio
             ref={audioRef}
             src={src}
@@ -234,6 +401,7 @@ export function LessonAudioPlayerRow({
             onLoadedMetadata={(e) => {
               const d = e.currentTarget.duration
               setDuration(Number.isFinite(d) ? d : 0)
+              e.currentTarget.volume = volume
             }}
             onTimeUpdate={onTimeUpdate}
             onEnded={() => {

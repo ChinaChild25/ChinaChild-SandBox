@@ -25,8 +25,8 @@
   --ds-sidebar-padding: 24px;
 
   /**
-   * Нейтральный UI (фильтры, строки списков, навигация расписания):
-   * не меняется при data-ui-accent — везде одинаковый серый.
+   * Нейтральный UI (фильтры, строки списков, навигация расписания, TabsList, variant secondary у Button):
+   * не меняется при data-ui-accent — везде одинаковый серый (не путать с --ds-sidebar, который тонируется под акцент).
    */
   --ds-neutral-chrome: #e8e8e8;
   --ds-neutral-chrome-hover: #d8d8d8;
@@ -157,7 +157,7 @@
   --destructive-foreground: #ffffff;
   --border: rgb(0 0 0 / 0.1);
   --input: transparent;
-  --input-background: #f3f3f5;
+  --input-background: #e8e8e8;
   --switch-background: #cbced4;
   --ring: rgb(26 26 26 / 0.35);
   --font-weight-medium: var(--ds-font-medium);
@@ -195,6 +195,359 @@
     opacity: 1;
     transform: translateY(-2px);
   }
+}
+
+@keyframes dsPreviewCursorDragWord {
+  0% { left: 22.73%; top: 12.89%; transform: scale(1); }
+  28% { left: 22.73%; top: 12.89%; transform: scale(0.88); }
+  66% { left: 44.12%; top: 30.6%; transform: scale(1); }
+  100% { left: 22.73%; top: 12.89%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorSelect {
+  0% { left: 12%; top: 8%; transform: scale(1); }
+  36% { left: 12%; top: 8%; transform: scale(0.86); }
+  66% { left: 12%; top: 8%; transform: scale(1); }
+  100% { left: 12%; top: 8%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorCheckbox {
+  0% { left: 42.51%; top: 59.77%; transform: scale(1); }
+  35% { left: 42.51%; top: 59.77%; transform: scale(0.84); }
+  65% { left: 6.42%; top: 42.58%; transform: scale(1); }
+  100% { left: 42.51%; top: 59.77%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorOrderWord {
+  0% { left: 31.28%; top: 13.93%; transform: scale(1); }
+  30% { left: 31.28%; top: 13.93%; transform: scale(0.88); }
+  68% { left: 52.14%; top: 37.37%; transform: scale(1); }
+  100% { left: 31.28%; top: 13.93%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorMatchWord {
+  0% { left: 30%; top: 38%; transform: scale(1); }
+  30% { left: 30%; top: 38%; transform: scale(0.9); }
+  65% { left: 60%; top: 38%; transform: scale(1); }
+  100% { left: 30%; top: 38%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorAudioTap {
+  0% { left: 8%; top: 38%; transform: scale(1); }
+  35% { left: 8%; top: 38%; transform: scale(0.86); }
+  65% { left: 8%; top: 38%; transform: scale(1); }
+  100% { left: 8%; top: 38%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorClickGeneric {
+  0% { left: 34%; top: 38%; transform: scale(1); }
+  35% { left: 34%; top: 38%; transform: scale(0.85); }
+  65% { left: 34%; top: 38%; transform: scale(1); }
+  100% { left: 34%; top: 38%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorDragGeneric {
+  0% { left: 10%; top: 18%; transform: scale(1); }
+  30% { left: 10%; top: 18%; transform: scale(0.9); }
+  65% { left: 32%; top: 54%; transform: scale(1); }
+  100% { left: 10%; top: 18%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorMatchGeneric {
+  0% { left: 18%; top: 42%; transform: scale(1); }
+  30% { left: 18%; top: 42%; transform: scale(0.9); }
+  65% { left: 50%; top: 42%; transform: scale(1); }
+  100% { left: 18%; top: 42%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorOrderGeneric {
+  0% { left: 24%; top: 28%; transform: scale(1); }
+  30% { left: 24%; top: 28%; transform: scale(0.9); }
+  65% { left: 36%; top: 56%; transform: scale(1); }
+  100% { left: 24%; top: 28%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorImageDrag {
+  0% { left: 10%; top: 14%; transform: scale(1); }
+  28% { left: 10%; top: 14%; transform: scale(0.88); }
+  66% { left: 20%; top: 46%; transform: scale(1); }
+  100% { left: 10%; top: 14%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorImageType {
+  0% { left: 20%; top: 58%; transform: scale(1); }
+  38% { left: 20%; top: 58%; transform: scale(0.86); }
+  70% { left: 20%; top: 58%; transform: scale(1); }
+  100% { left: 20%; top: 58%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorImageForm {
+  0% { left: 20%; top: 58%; transform: scale(1); }
+  38% { left: 20%; top: 58%; transform: scale(0.86); }
+  70% { left: 20%; top: 58%; transform: scale(1); }
+  100% { left: 20%; top: 58%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorAnswerTfu {
+  0% { left: 40.11%; top: 59.24%; transform: scale(1); }
+  36% { left: 40.11%; top: 59.24%; transform: scale(0.86); }
+  68% { left: 15.24%; top: 29.04%; transform: scale(1); }
+  100% { left: 40.11%; top: 59.24%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorOrderColumns {
+  0% { left: 16.71%; top: 58.72%; transform: scale(1); }
+  30% { left: 16.71%; top: 58.72%; transform: scale(0.9); }
+  66% { left: 34.09%; top: 13.41%; transform: scale(1); }
+  100% { left: 16.71%; top: 58.72%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorOrderText {
+  0% { left: 40%; top: 26%; transform: scale(1); }
+  35% { left: 40%; top: 26%; transform: scale(0.88); }
+  68% { left: 18%; top: 26%; transform: scale(1); }
+  100% { left: 40%; top: 26%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorOrderLetters {
+  0% { left: 18%; top: 54%; transform: scale(1); }
+  30% { left: 18%; top: 54%; transform: scale(0.88); }
+  66% { left: 10%; top: 34%; transform: scale(1); }
+  100% { left: 18%; top: 54%; transform: scale(1); }
+}
+
+@keyframes dsPreviewChipDrag {
+  0%, 24% { transform: translate(0, 0); opacity: 1; }
+  55%, 76% { transform: translate(38px, 64px); opacity: 0; }
+  100% { transform: translate(0, 0); opacity: 1; }
+}
+
+@keyframes dsPreviewDropAnswer {
+  0%, 48% { opacity: 0; transform: translateY(3px); }
+  60%, 84% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(3px); }
+}
+
+@keyframes dsPreviewDropPlaceholder {
+  0%, 48% { opacity: 1; }
+  60%, 84% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes dsPreviewSlotGlow {
+  0%, 48% { box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08); }
+  60%, 84% { box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.55); background: rgb(16 185 129 / 0.16); }
+  100% { box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08); background: rgb(0 0 0 / 0.05); }
+}
+
+@keyframes dsPreviewCheckboxTick {
+  0%, 44% { background: rgb(255 255 255 / 0.95); border-color: rgb(0 0 0 / 0.25); }
+  58%, 84% { background: rgb(16 185 129 / 0.2); border-color: rgb(16 185 129 / 0.55); }
+  100% { background: rgb(255 255 255 / 0.95); border-color: rgb(0 0 0 / 0.25); }
+}
+
+@keyframes dsPreviewCheckboxMark {
+  0%, 48% { opacity: 0; transform: scale(0.6); }
+  60%, 84% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.6); }
+}
+
+@keyframes dsPreviewSelectMenu {
+  0%, 38% { opacity: 0; transform: translateY(-4px); }
+  52%, 82% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+
+@keyframes dsPreviewSelectValue {
+  0%, 58% { color: var(--ds-text-secondary); }
+  70%, 84% { color: var(--ds-text-primary); }
+  100% { color: var(--ds-text-secondary); }
+}
+
+@keyframes dsPreviewOrderToken {
+  0%, 24% { transform: translate(0, 0); opacity: 1; }
+  56%, 80% { transform: translate(0, 66px); opacity: 0; }
+  100% { transform: translate(0, 0); opacity: 1; }
+}
+
+@keyframes dsPreviewOrderSlot {
+  0%, 50% { box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08); }
+  62%, 84% { box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.55); background: rgb(16 185 129 / 0.16); }
+  100% { box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08); background: rgb(255 255 255 / 0.85); }
+}
+
+@keyframes dsPreviewMatchLine {
+  0%, 35% { opacity: 0; transform: scaleX(0.15); }
+  58%, 84% { opacity: 1; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(0.15); }
+}
+
+@keyframes dsPreviewTargetGlow {
+  0%, 38% {
+    box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.25);
+    background-color: rgb(255 255 255 / 0.85);
+  }
+  58%, 84% {
+    box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.75);
+    background-color: rgb(16 185 129 / 0.18);
+  }
+  100% {
+    box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.25);
+    background-color: rgb(255 255 255 / 0.85);
+  }
+}
+
+@keyframes dsPreviewAnswerGlow {
+  0%, 42% {
+    background-color: rgb(16 185 129 / 0.12);
+    transform: translateY(0);
+  }
+  58%, 84% {
+    background-color: rgb(16 185 129 / 0.24);
+    transform: translateY(-1px);
+  }
+  100% {
+    background-color: rgb(16 185 129 / 0.12);
+    transform: translateY(0);
+  }
+}
+
+.ds-preview-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 6;
+  width: 14px;
+  height: 18px;
+  pointer-events: none;
+  background: #101010;
+  clip-path: polygon(0 0, 0 100%, 26% 72%, 43% 100%, 56% 93%, 40% 64%, 84% 64%);
+  filter: drop-shadow(0 1px 0 rgb(255 255 255 / 0.8));
+}
+
+.ds-preview-cursor--click { animation: dsPreviewCursorClickGeneric 1.8s ease-in-out infinite; }
+.ds-preview-cursor--drag { animation: dsPreviewCursorDragGeneric 2.1s ease-in-out infinite; }
+.ds-preview-cursor--match { animation: dsPreviewCursorMatchGeneric 2.1s ease-in-out infinite; }
+.ds-preview-cursor--order { animation: dsPreviewCursorOrderGeneric 2.1s ease-in-out infinite; }
+.ds-preview-cursor--audio { animation: dsPreviewCursorAudioTap 1.7s ease-in-out infinite; }
+.ds-preview-cursor--drag-word { animation: dsPreviewCursorDragWord 2.1s ease-in-out infinite; }
+.ds-preview-cursor--select { animation: dsPreviewCursorSelect 1.9s ease-in-out infinite; }
+.ds-preview-cursor--checkbox { animation: dsPreviewCursorCheckbox 1.8s ease-in-out infinite; }
+.ds-preview-cursor--order-word { animation: dsPreviewCursorOrderWord 2.1s ease-in-out infinite; }
+.ds-preview-cursor--match-word { animation: dsPreviewCursorMatchWord 2.1s ease-in-out infinite; }
+.ds-preview-cursor--image-drag { animation: dsPreviewCursorImageDrag 2.1s ease-in-out infinite; }
+.ds-preview-cursor--image-type { animation: dsPreviewCursorImageType 1.9s ease-in-out infinite; }
+.ds-preview-cursor--image-form { animation: dsPreviewCursorImageForm 1.9s ease-in-out infinite; }
+.ds-preview-cursor--answer-tfu { animation: dsPreviewCursorAnswerTfu 1.8s ease-in-out infinite; }
+.ds-preview-cursor--order-columns { animation: dsPreviewCursorOrderColumns 2.1s ease-in-out infinite; }
+.ds-preview-cursor--order-text { animation: dsPreviewCursorOrderText 2s ease-in-out infinite; }
+.ds-preview-cursor--order-letters { animation: dsPreviewCursorOrderLetters 2s ease-in-out infinite; }
+
+.ds-preview-chip-source { opacity: 0.65; }
+.ds-preview-chip-drag { animation: dsPreviewChipDrag 2.1s ease-in-out infinite; }
+.ds-preview-drop-slot {
+  position: relative;
+  display: inline-flex;
+  min-width: 56px;
+  justify-content: center;
+  animation: dsPreviewSlotGlow 2.1s ease-in-out infinite;
+}
+.ds-preview-drop-placeholder { animation: dsPreviewDropPlaceholder 2.1s ease-in-out infinite; }
+.ds-preview-drop-answer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  animation: dsPreviewDropAnswer 2.1s ease-in-out infinite;
+}
+
+.ds-preview-choice-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ds-preview-checkbox {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  border: 1px solid rgb(0 0 0 / 0.25);
+  background: rgb(255 255 255 / 0.95);
+}
+.ds-preview-choice-row--selected .ds-preview-checkbox { animation: dsPreviewCheckboxTick 1.8s ease-in-out infinite; }
+.ds-preview-choice-row--selected .ds-preview-checkbox::after {
+  content: "✓";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #16a34a;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0;
+  animation: dsPreviewCheckboxMark 1.8s ease-in-out infinite;
+}
+
+.ds-preview-select-field {
+  position: relative;
+  display: inline-flex;
+  min-width: 88px;
+}
+.ds-preview-select-value { animation: dsPreviewSelectValue 1.9s ease-in-out infinite; }
+.ds-preview-select-menu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  z-index: 5;
+  border-radius: 8px;
+  background: #fff;
+  padding: 4px 8px;
+  color: #111;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 0.15);
+  opacity: 0;
+  animation: dsPreviewSelectMenu 1.9s ease-in-out infinite;
+}
+
+.ds-preview-order-token { animation: dsPreviewOrderToken 2.1s ease-in-out infinite; }
+.ds-preview-order-slot {
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08);
+  animation: dsPreviewOrderSlot 2.1s ease-in-out infinite;
+}
+
+.ds-preview-image-drop-target,
+.ds-preview-image-type-target,
+.ds-preview-image-form-target,
+.ds-preview-answer-target,
+.ds-preview-column-target,
+.ds-preview-order-text-target,
+.ds-preview-letter-slot {
+  box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.45);
+}
+
+.ds-preview-image-drop-target,
+.ds-preview-image-type-target,
+.ds-preview-image-form-target,
+.ds-preview-column-target,
+.ds-preview-order-text-target,
+.ds-preview-letter-slot {
+  animation: dsPreviewTargetGlow 2s ease-in-out infinite;
+}
+
+.ds-preview-answer-target {
+  animation: dsPreviewAnswerGlow 1.9s ease-in-out infinite;
+}
+
+.ds-preview-link-line {
+  position: absolute;
+  left: 126px;
+  top: 84px;
+  width: 104px;
+  height: 2px;
+  background: rgb(16 185 129 / 0.75);
+  transform-origin: left center;
+  opacity: 0;
+  animation: dsPreviewMatchLine 2.1s ease-in-out infinite;
 }
 
 .dark {
@@ -245,6 +598,8 @@
   --ds-text-placeholder: #9ca3af;
   --ds-chevron: #8a8a8a;
   --ds-surface-muted: #1e1e1e;
+  /* Панели / «инпутные» карточки (как :root #e8e8e8 на светлом) — TeacherCourseBuilder, lesson editor blocks */
+  --input-background: var(--ds-surface-muted);
   --ds-surface-pill: #262626;
   --ds-surface-hover: #2a2a2a;
   --ds-sage: #3d4d2e;
@@ -374,7 +729,8 @@ html:not(.dark)[data-ui-accent="sage"] {
   --ds-sidebar: #d4e4c4;
   --ds-sidebar-hover: #c4d8b0;
   --ds-panel-muted: #dfe8d4;
-  --ds-surface-muted: #e6eedc;
+  /* Плашки/скелетоны: нейтральный серый, без тона акцента (см. :root --ds-surface-muted) */
+  --ds-surface-muted: #f8f8f8;
   --ds-sage: #d4e7b0;
   --ds-sage-strong: #8ab84a;
   --ds-sage-hover: #6d9838;
@@ -386,7 +742,7 @@ html:not(.dark)[data-ui-accent="pink"] {
   --ds-sidebar: #edd4d4;
   --ds-sidebar-hover: #e4c4c4;
   --ds-panel-muted: #ead5d5;
-  --ds-surface-muted: #f0dede;
+  --ds-surface-muted: #f8f8f8;
   --ds-sage: #efd6d6;
   --ds-sage-strong: #c06060;
   --ds-sage-hover: #a84848;
@@ -398,7 +754,7 @@ html:not(.dark)[data-ui-accent="blue"] {
   --ds-sidebar: #d4dff0;
   --ds-sidebar-hover: #c4d2e8;
   --ds-panel-muted: #dde6f4;
-  --ds-surface-muted: #e6ecf8;
+  --ds-surface-muted: #f8f8f8;
   --ds-sage: #d4dff4;
   --ds-sage-strong: #3d6ea8;
   --ds-sage-hover: #2f5685;
@@ -410,7 +766,7 @@ html:not(.dark)[data-ui-accent="orange"] {
   --ds-sidebar: #f0e4d4;
   --ds-sidebar-hover: #e8d8c4;
   --ds-panel-muted: #f2e8dc;
-  --ds-surface-muted: #f8efe4;
+  --ds-surface-muted: #f8f8f8;
   --ds-sage: #fce8d4;
   --ds-sage-strong: #c0631a;
   --ds-sage-hover: #9e4f14;
@@ -426,7 +782,7 @@ html.dark[data-ui-accent="sage"] {
   --ds-sidebar: #151c13;
   --ds-sidebar-hover: #243320;
   --ds-panel-muted: #1a2218;
-  --ds-surface-muted: #131a11;
+  --ds-surface-muted: #1e1e1e;
   --ds-sage: #2a3826;
   --ds-sage-strong: #a3c968;
   --ds-sage-hover: #c4e085;
@@ -444,7 +800,7 @@ html.dark[data-ui-accent="pink"] {
   --ds-sidebar: #1f1618;
   --ds-sidebar-hover: #322428;
   --ds-panel-muted: #241a1d;
-  --ds-surface-muted: #161012;
+  --ds-surface-muted: #1e1e1e;
   --ds-sage: #3a282c;
   --ds-sage-strong: #e88787;
   --ds-sage-hover: #f0a8a8;
@@ -462,7 +818,7 @@ html.dark[data-ui-accent="blue"] {
   --ds-sidebar: #141b26;
   --ds-sidebar-hover: #1c2636;
   --ds-panel-muted: #182030;
-  --ds-surface-muted: #0f141c;
+  --ds-surface-muted: #1e1e1e;
   --ds-sage: #1e2d40;
   --ds-sage-strong: #7eb0e8;
   --ds-sage-hover: #9ec8f5;
@@ -480,7 +836,7 @@ html.dark[data-ui-accent="orange"] {
   --ds-sidebar: #1c1610;
   --ds-sidebar-hover: #2e2418;
   --ds-panel-muted: #221a12;
-  --ds-surface-muted: #15120d;
+  --ds-surface-muted: #1e1e1e;
   --ds-sage: #3d3020;
   --ds-sage-strong: #e8994a;
   --ds-sage-hover: #f0b06a;
@@ -500,7 +856,7 @@ html.dark[data-ui-accent="orange"] {
 .ds-lesson-editor-page {
   --ds-surface-muted: #f8f8f8;
   --ds-panel-muted: #ebebeb;
-  /* Сильнее, чем в :root: карточки блоков на --input-background (#f3f3f5), иначе ghost-hover почти не виден */
+  /* Сильнее, чем в :root: карточки блоков на --input-background (#e8e8e8), иначе ghost-hover почти не виден */
   --ds-surface-hover: #dedee2;
   --muted: #f4f4f5;
   --muted-foreground: #71717a;
@@ -522,7 +878,7 @@ html.dark[data-ui-accent="orange"] {
   --secondary-foreground: oklch(0.985 0 0);
 }
 
-/* Перекрываем глобальный .ds-input-field: в редакторе урока — фон как у страницы, без рамки (Tailwind border-0 иначе проигрывает по специфичности). */
+/* Перекрываем глобальный .ds-input-field: в редакторе урока — фон как у страницы; без рамки (глобальный 1px иначе перебивает Tailwind border-0). */
 .ds-lesson-editor-page .ds-input-field {
   background-color: var(--background);
   border: none;
@@ -534,6 +890,24 @@ html.dark[data-ui-accent="orange"] {
   border: none;
   border-image: none;
   box-shadow: none;
+}
+
+/* Название урока — единственное поле с рамкой в шапке редактора (остальные .ds-input-field в странице без бордера). */
+.ds-lesson-editor-page .ds-lesson-editor-title-field.ds-input-field {
+  border: 1px solid rgba(227, 227, 227, 1);
+  border-image: none;
+}
+
+.ds-lesson-editor-page .ds-lesson-editor-title-field.ds-input-field:focus-visible {
+  border: 1px solid rgba(227, 227, 227, 1);
+  border-image: none;
+  box-shadow: none;
+}
+
+/* Иероглифы в материале урока: только элементы с классом .lesson-cjk-text (редактор и предпросмотр). */
+.lesson-cjk-text {
+  font-size: 20px;
+  line-height: 1.45;
 }
 
 @layer components {
@@ -779,7 +1153,7 @@ html.dark[data-ui-accent="orange"] {
     }
   }
 
-  /** Как в превью v0: p-4 md:p-10 */
+  /** Базовые поля контента: мобильные safe-area + ровные края для всех страниц (ученик/преподаватель). */
   .ds-figma-shell-page-pad {
     box-sizing: border-box;
     display: flex;
@@ -788,7 +1162,24 @@ html.dark[data-ui-accent="orange"] {
     flex: 1;
     min-height: 0;
     width: 100%;
-    padding: 1rem;
+    padding-top: 0.875rem;
+    padding-bottom: max(0.875rem, calc(env(safe-area-inset-bottom) + 0.5rem));
+    padding-left: max(0.875rem, calc(env(safe-area-inset-left) + 0.5rem));
+    padding-right: max(0.875rem, calc(env(safe-area-inset-right) + 0.5rem));
+  }
+
+  /* Не даём вложенным флекс-контейнерам раздвигать мобильный viewport по ширине. */
+  .ds-figma-shell-page-pad > * {
+    min-width: 0;
+  }
+
+  @media (min-width: 480px) {
+    .ds-figma-shell-page-pad {
+      padding-top: 1rem;
+      padding-bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem));
+      padding-left: max(1rem, calc(env(safe-area-inset-left) + 0.5rem));
+      padding-right: max(1rem, calc(env(safe-area-inset-right) + 0.5rem));
+    }
   }
 
   @media (min-width: 768px) {
@@ -825,6 +1216,7 @@ html.dark[data-ui-accent="orange"] {
   .ds-figma-page {
     box-sizing: border-box;
     width: 100%;
+    min-width: 0;
   }
 
   /* —— App shell (Layout) —— */
@@ -1964,6 +2356,31 @@ html.dark[data-ui-accent="orange"] {
   .ds-input-field:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  textarea.ds-input-field {
+    height: auto;
+    min-height: 4rem;
+    padding-top: var(--ds-space-3);
+    padding-bottom: var(--ds-space-3);
+    resize: vertical;
+    field-sizing: content;
+  }
+
+  [data-slot="select-trigger"].ds-input-field {
+    display: inline-flex;
+    width: auto;
+    max-width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--ds-space-2);
+  }
+
+  [data-slot="select-trigger"].ds-input-field[data-size="sm"] {
+    height: 40px;
+    min-height: 40px;
+    padding-inline: var(--ds-space-3);
+    font-size: var(--ds-text-sm);
   }
 
   .ds-btn-primary-solid {
