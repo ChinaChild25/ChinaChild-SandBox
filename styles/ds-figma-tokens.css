@@ -1,0 +1,3399 @@
+/**
+ * Figma dashboard design tokens + layout primitives (reference: Figmadasboard).
+ * Inter is applied globally via Next.js --font-inter; --ds-font-sans follows it.
+ */
+
+:root {
+  --ds-font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* —— Canvas & shell —— */
+  --ds-canvas: #f5f5f5;
+  --ds-surface: #ffffff;
+  --ds-ink: #1a1a1a;
+  --ds-border-strong: #1a1a1a;
+  --ds-shell-border-width: 0px;
+  --ds-shell-radius: 0px;
+  --ds-shell-max-width: none;
+  --ds-shadow-shell: none;
+  /** Скругление правого края серого сайдбара (desktop) */
+  --ds-sidebar-radius-right: 40px;
+
+  /* —— Sidebar —— */
+  --ds-sidebar: #e8e8e8;
+  --ds-sidebar-hover: #d8d8d8;
+  --ds-sidebar-width: 280px;
+  --ds-sidebar-padding: 24px;
+
+  /**
+   * Нейтральный UI (фильтры, строки списков, навигация расписания, TabsList, variant secondary у Button):
+   * не меняется при data-ui-accent — везде одинаковый серый (не путать с --ds-sidebar, который тонируется под акцент).
+   */
+  --ds-neutral-chrome: #e8e8e8;
+  --ds-neutral-chrome-hover: #d8d8d8;
+  --ds-neutral-row: #f5f5f5;
+  --ds-neutral-row-hover: #ebebeb;
+  --ds-group-card-bg: #f5f5f5;
+  --ds-group-card-bg-dark: #2a2a2a;
+
+  /* —— Text hierarchy (exact Figma greys) —— */
+  --ds-text-primary: #1a1a1a;
+  --ds-text-secondary: #666666;
+  --ds-text-muted: #555555;
+  --ds-text-tertiary: #888888;
+  --ds-text-quaternary: #444444;
+  --ds-text-soft: #aaaaaa;
+  --ds-text-soft-dark: #777777;
+  --ds-text-placeholder: #aaaaaa;
+  --ds-chevron: #cccccc;
+
+  /* —— Surfaces & accents —— */
+  --ds-surface-muted: #f8f8f8;
+  --ds-surface-pill: #f5f5f5;
+  --ds-surface-hover: #f0f0f0;
+  --ds-sage: #d4e7b0;
+  --ds-sage-strong: #8ab84a;
+  --ds-sage-hover: #6d9838;
+  --ds-pink: #f4c4c4;
+  --ds-pink-strong: #c06060;
+  --ds-gray-tile: #e5e5e5;
+  --ds-panel-muted: #ebebeb;
+  --ds-icon-on-dark: #777777;
+  --ds-stat-muted-on-dark: #aaaaaa;
+  --ds-stat-fraction-muted: #888888;
+  --ds-stat-fraction-muted-dark: #666666;
+  --ds-white-60: rgb(255 255 255 / 0.6);
+  --ds-white-60-progress: rgb(255 255 255 / 0.6);
+
+  /* —— Spacing (8px grid) —— */
+  --ds-space-1: 4px;
+  --ds-space-2: 8px;
+  --ds-space-3: 12px;
+  --ds-space-4: 16px;
+  --ds-space-5: 20px;
+  --ds-space-6: 24px;
+  --ds-space-7: 28px;
+  --ds-space-8: 32px;
+  --ds-space-10: 40px;
+  --ds-page-padding: 32px;
+  --ds-gutter: 24px;
+  --ds-section-gap: 32px;
+  --ds-card-padding-lg: 28px;
+  --ds-card-padding-md: 24px;
+  --ds-stat-padding: 24px;
+
+  /* —— Radius —— */
+  --ds-radius-sm: 8px;
+  --ds-radius-md: 16px;
+  --ds-radius-lg: 24px;
+  --ds-radius-xl: 28px;
+  --ds-radius-pill: 9999px;
+
+  /* —— Typography scale (px, Figma) —— */
+  --ds-text-2xs: 10px;
+  --ds-text-xs: 11px;
+  --ds-text-sm: 12px;
+  --ds-text-sm-plus: 13px;
+  --ds-text-body-sm: 14px;
+  --ds-text-body: 15px;
+  --ds-text-body-lg: 16px;
+  --ds-text-body-xl: 17px;
+  --ds-text-lg: 18px;
+  --ds-text-xl: 20px;
+  --ds-text-2xl: 24px;
+  --ds-text-3xl: 26px;
+  --ds-text-4xl: 28px;
+  --ds-text-5xl: 30px;
+  --ds-text-6xl: 32px;
+  --ds-text-7xl: 34px;
+  --ds-text-8xl: 36px;
+  --ds-text-stat: 50px;
+
+  --ds-font-normal: 400;
+  --ds-font-medium: 500;
+  --ds-font-semibold: 600;
+  --ds-font-bold: 700;
+
+  --ds-leading-none: 1;
+  --ds-leading-tight: 1.3;
+  --ds-leading-body: 1.5;
+  --ds-leading-relaxed: 1.7;
+
+  --ds-tracking-tight: -0.02em;
+
+  /* —— Logo / profile —— */
+  --ds-logo-size: 28px;
+  --ds-profile-avatar: 110px;
+  --ds-profile-name-size: 36px;
+  --ds-contact-avatar: 56px;
+  --ds-lesson-dot: 88px;
+
+  /* —— Layout columns —— */
+  --ds-dashboard-aside: 380px;
+
+  /* —— Icons —— */
+  --ds-icon-nav: 20px;
+  --ds-icon-sm: 18px;
+  --ds-icon-md: 22px;
+  --ds-icon-chevron: 26px;
+  --ds-icon-contact: 24px;
+
+  /* —— shadcn bridge (semantic) —— */
+  --font-size: 16px;
+  --background: var(--ds-surface);
+  --foreground: var(--ds-text-primary);
+  --card: var(--ds-surface);
+  --card-foreground: var(--ds-text-primary);
+  --popover: var(--ds-surface);
+  --popover-foreground: var(--ds-text-primary);
+  --primary: var(--ds-ink);
+  --primary-foreground: #ffffff;
+  --secondary: var(--ds-sidebar);
+  --secondary-foreground: var(--ds-ink);
+  --muted: var(--ds-sidebar);
+  --muted-foreground: var(--ds-text-muted);
+  --accent: var(--ds-sidebar-hover);
+  --accent-foreground: var(--ds-ink);
+  --destructive: #d4183d;
+  --destructive-foreground: #ffffff;
+  --border: rgb(0 0 0 / 0.1);
+  --input: transparent;
+  --input-background: #e8e8e8;
+  --switch-background: #cbced4;
+  --ring: rgb(26 26 26 / 0.35);
+  --font-weight-medium: var(--ds-font-medium);
+  --font-weight-normal: var(--ds-font-normal);
+  --radius: 16px;
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: var(--ds-sidebar);
+  --sidebar-foreground: var(--ds-text-primary);
+  --sidebar-primary: var(--ds-ink);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--ds-sidebar-hover);
+  --sidebar-accent-foreground: var(--ds-text-primary);
+  --sidebar-border: rgb(0 0 0 / 0.08);
+  --sidebar-ring: var(--ring);
+
+  /* Legacy base layer aliases (h1–h4 in @layer base) */
+  --text-base: var(--ds-text-body-lg);
+  --text-lg: var(--ds-text-lg);
+  --text-xl: var(--ds-text-xl);
+  --text-2xl: var(--ds-text-2xl);
+}
+
+@keyframes typingDot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes dsPreviewCursorDragWord {
+  0% { left: 22.73%; top: 12.89%; transform: scale(1); }
+  28% { left: 22.73%; top: 12.89%; transform: scale(0.88); }
+  66% { left: 44.12%; top: 30.6%; transform: scale(1); }
+  100% { left: 22.73%; top: 12.89%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorSelect {
+  0% { left: 12%; top: 8%; transform: scale(1); }
+  36% { left: 12%; top: 8%; transform: scale(0.86); }
+  66% { left: 12%; top: 8%; transform: scale(1); }
+  100% { left: 12%; top: 8%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorCheckbox {
+  0% { left: 42.51%; top: 59.77%; transform: scale(1); }
+  35% { left: 42.51%; top: 59.77%; transform: scale(0.84); }
+  65% { left: 6.42%; top: 42.58%; transform: scale(1); }
+  100% { left: 42.51%; top: 59.77%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorOrderWord {
+  0% { left: 31.28%; top: 13.93%; transform: scale(1); }
+  30% { left: 31.28%; top: 13.93%; transform: scale(0.88); }
+  68% { left: 52.14%; top: 37.37%; transform: scale(1); }
+  100% { left: 31.28%; top: 13.93%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorMatchWord {
+  0% { left: 30%; top: 38%; transform: scale(1); }
+  30% { left: 30%; top: 38%; transform: scale(0.9); }
+  65% { left: 60%; top: 38%; transform: scale(1); }
+  100% { left: 30%; top: 38%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorAudioTap {
+  0% { left: 8%; top: 38%; transform: scale(1); }
+  35% { left: 8%; top: 38%; transform: scale(0.86); }
+  65% { left: 8%; top: 38%; transform: scale(1); }
+  100% { left: 8%; top: 38%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorClickGeneric {
+  0% { left: 34%; top: 38%; transform: scale(1); }
+  35% { left: 34%; top: 38%; transform: scale(0.85); }
+  65% { left: 34%; top: 38%; transform: scale(1); }
+  100% { left: 34%; top: 38%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorDragGeneric {
+  0% { left: 10%; top: 18%; transform: scale(1); }
+  30% { left: 10%; top: 18%; transform: scale(0.9); }
+  65% { left: 32%; top: 54%; transform: scale(1); }
+  100% { left: 10%; top: 18%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorMatchGeneric {
+  0% { left: 18%; top: 42%; transform: scale(1); }
+  30% { left: 18%; top: 42%; transform: scale(0.9); }
+  65% { left: 50%; top: 42%; transform: scale(1); }
+  100% { left: 18%; top: 42%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorOrderGeneric {
+  0% { left: 24%; top: 28%; transform: scale(1); }
+  30% { left: 24%; top: 28%; transform: scale(0.9); }
+  65% { left: 36%; top: 56%; transform: scale(1); }
+  100% { left: 24%; top: 28%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorImageDrag {
+  0% { left: 10%; top: 14%; transform: scale(1); }
+  28% { left: 10%; top: 14%; transform: scale(0.88); }
+  66% { left: 20%; top: 46%; transform: scale(1); }
+  100% { left: 10%; top: 14%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorImageType {
+  0% { left: 20%; top: 58%; transform: scale(1); }
+  38% { left: 20%; top: 58%; transform: scale(0.86); }
+  70% { left: 20%; top: 58%; transform: scale(1); }
+  100% { left: 20%; top: 58%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorImageForm {
+  0% { left: 20%; top: 58%; transform: scale(1); }
+  38% { left: 20%; top: 58%; transform: scale(0.86); }
+  70% { left: 20%; top: 58%; transform: scale(1); }
+  100% { left: 20%; top: 58%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorAnswerTfu {
+  0% { left: 40.11%; top: 59.24%; transform: scale(1); }
+  36% { left: 40.11%; top: 59.24%; transform: scale(0.86); }
+  68% { left: 15.24%; top: 29.04%; transform: scale(1); }
+  100% { left: 40.11%; top: 59.24%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorOrderColumns {
+  0% { left: 16.71%; top: 58.72%; transform: scale(1); }
+  30% { left: 16.71%; top: 58.72%; transform: scale(0.9); }
+  66% { left: 34.09%; top: 13.41%; transform: scale(1); }
+  100% { left: 16.71%; top: 58.72%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorOrderText {
+  0% { left: 40%; top: 26%; transform: scale(1); }
+  35% { left: 40%; top: 26%; transform: scale(0.88); }
+  68% { left: 18%; top: 26%; transform: scale(1); }
+  100% { left: 40%; top: 26%; transform: scale(1); }
+}
+
+@keyframes dsPreviewCursorOrderLetters {
+  0% { left: 18%; top: 54%; transform: scale(1); }
+  30% { left: 18%; top: 54%; transform: scale(0.88); }
+  66% { left: 10%; top: 34%; transform: scale(1); }
+  100% { left: 18%; top: 54%; transform: scale(1); }
+}
+
+@keyframes dsPreviewChipDrag {
+  0%, 24% { transform: translate(0, 0); opacity: 1; }
+  55%, 76% { transform: translate(38px, 64px); opacity: 0; }
+  100% { transform: translate(0, 0); opacity: 1; }
+}
+
+@keyframes dsPreviewDropAnswer {
+  0%, 48% { opacity: 0; transform: translateY(3px); }
+  60%, 84% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(3px); }
+}
+
+@keyframes dsPreviewDropPlaceholder {
+  0%, 48% { opacity: 1; }
+  60%, 84% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes dsPreviewSlotGlow {
+  0%, 48% { box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08); }
+  60%, 84% { box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.55); background: rgb(16 185 129 / 0.16); }
+  100% { box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08); background: rgb(0 0 0 / 0.05); }
+}
+
+@keyframes dsPreviewCheckboxTick {
+  0%, 44% { background: rgb(255 255 255 / 0.95); border-color: rgb(0 0 0 / 0.25); }
+  58%, 84% { background: rgb(16 185 129 / 0.2); border-color: rgb(16 185 129 / 0.55); }
+  100% { background: rgb(255 255 255 / 0.95); border-color: rgb(0 0 0 / 0.25); }
+}
+
+@keyframes dsPreviewCheckboxMark {
+  0%, 48% { opacity: 0; transform: scale(0.6); }
+  60%, 84% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.6); }
+}
+
+@keyframes dsPreviewSelectMenu {
+  0%, 38% { opacity: 0; transform: translateY(-4px); }
+  52%, 82% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+
+@keyframes dsPreviewSelectValue {
+  0%, 58% { color: var(--ds-text-secondary); }
+  70%, 84% { color: var(--ds-text-primary); }
+  100% { color: var(--ds-text-secondary); }
+}
+
+@keyframes dsPreviewOrderToken {
+  0%, 24% { transform: translate(0, 0); opacity: 1; }
+  56%, 80% { transform: translate(0, 66px); opacity: 0; }
+  100% { transform: translate(0, 0); opacity: 1; }
+}
+
+@keyframes dsPreviewOrderSlot {
+  0%, 50% { box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08); }
+  62%, 84% { box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.55); background: rgb(16 185 129 / 0.16); }
+  100% { box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08); background: rgb(255 255 255 / 0.85); }
+}
+
+@keyframes dsPreviewMatchLine {
+  0%, 35% { opacity: 0; transform: scaleX(0.15); }
+  58%, 84% { opacity: 1; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(0.15); }
+}
+
+@keyframes dsPreviewTargetGlow {
+  0%, 38% {
+    box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.25);
+    background-color: rgb(255 255 255 / 0.85);
+  }
+  58%, 84% {
+    box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.75);
+    background-color: rgb(16 185 129 / 0.18);
+  }
+  100% {
+    box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.25);
+    background-color: rgb(255 255 255 / 0.85);
+  }
+}
+
+@keyframes dsPreviewAnswerGlow {
+  0%, 42% {
+    background-color: rgb(16 185 129 / 0.12);
+    transform: translateY(0);
+  }
+  58%, 84% {
+    background-color: rgb(16 185 129 / 0.24);
+    transform: translateY(-1px);
+  }
+  100% {
+    background-color: rgb(16 185 129 / 0.12);
+    transform: translateY(0);
+  }
+}
+
+.ds-preview-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 6;
+  width: 14px;
+  height: 18px;
+  pointer-events: none;
+  background: #101010;
+  clip-path: polygon(0 0, 0 100%, 26% 72%, 43% 100%, 56% 93%, 40% 64%, 84% 64%);
+  filter: drop-shadow(0 1px 0 rgb(255 255 255 / 0.8));
+}
+
+.ds-preview-cursor--click { animation: dsPreviewCursorClickGeneric 1.8s ease-in-out infinite; }
+.ds-preview-cursor--drag { animation: dsPreviewCursorDragGeneric 2.1s ease-in-out infinite; }
+.ds-preview-cursor--match { animation: dsPreviewCursorMatchGeneric 2.1s ease-in-out infinite; }
+.ds-preview-cursor--order { animation: dsPreviewCursorOrderGeneric 2.1s ease-in-out infinite; }
+.ds-preview-cursor--audio { animation: dsPreviewCursorAudioTap 1.7s ease-in-out infinite; }
+.ds-preview-cursor--drag-word { animation: dsPreviewCursorDragWord 2.1s ease-in-out infinite; }
+.ds-preview-cursor--select { animation: dsPreviewCursorSelect 1.9s ease-in-out infinite; }
+.ds-preview-cursor--checkbox { animation: dsPreviewCursorCheckbox 1.8s ease-in-out infinite; }
+.ds-preview-cursor--order-word { animation: dsPreviewCursorOrderWord 2.1s ease-in-out infinite; }
+.ds-preview-cursor--match-word { animation: dsPreviewCursorMatchWord 2.1s ease-in-out infinite; }
+.ds-preview-cursor--image-drag { animation: dsPreviewCursorImageDrag 2.1s ease-in-out infinite; }
+.ds-preview-cursor--image-type { animation: dsPreviewCursorImageType 1.9s ease-in-out infinite; }
+.ds-preview-cursor--image-form { animation: dsPreviewCursorImageForm 1.9s ease-in-out infinite; }
+.ds-preview-cursor--answer-tfu { animation: dsPreviewCursorAnswerTfu 1.8s ease-in-out infinite; }
+.ds-preview-cursor--order-columns { animation: dsPreviewCursorOrderColumns 2.1s ease-in-out infinite; }
+.ds-preview-cursor--order-text { animation: dsPreviewCursorOrderText 2s ease-in-out infinite; }
+.ds-preview-cursor--order-letters { animation: dsPreviewCursorOrderLetters 2s ease-in-out infinite; }
+
+.ds-preview-chip-source { opacity: 0.65; }
+.ds-preview-chip-drag { animation: dsPreviewChipDrag 2.1s ease-in-out infinite; }
+.ds-preview-drop-slot {
+  position: relative;
+  display: inline-flex;
+  min-width: 56px;
+  justify-content: center;
+  animation: dsPreviewSlotGlow 2.1s ease-in-out infinite;
+}
+.ds-preview-drop-placeholder { animation: dsPreviewDropPlaceholder 2.1s ease-in-out infinite; }
+.ds-preview-drop-answer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  animation: dsPreviewDropAnswer 2.1s ease-in-out infinite;
+}
+
+.ds-preview-choice-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ds-preview-checkbox {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  border: 1px solid rgb(0 0 0 / 0.25);
+  background: rgb(255 255 255 / 0.95);
+}
+.ds-preview-choice-row--selected .ds-preview-checkbox { animation: dsPreviewCheckboxTick 1.8s ease-in-out infinite; }
+.ds-preview-choice-row--selected .ds-preview-checkbox::after {
+  content: "✓";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #16a34a;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0;
+  animation: dsPreviewCheckboxMark 1.8s ease-in-out infinite;
+}
+
+.ds-preview-select-field {
+  position: relative;
+  display: inline-flex;
+  min-width: 88px;
+}
+.ds-preview-select-value { animation: dsPreviewSelectValue 1.9s ease-in-out infinite; }
+.ds-preview-select-menu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  z-index: 5;
+  border-radius: 8px;
+  background: #fff;
+  padding: 4px 8px;
+  color: #111;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 0.15);
+  opacity: 0;
+  animation: dsPreviewSelectMenu 1.9s ease-in-out infinite;
+}
+
+.ds-preview-order-token { animation: dsPreviewOrderToken 2.1s ease-in-out infinite; }
+.ds-preview-order-slot {
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08);
+  animation: dsPreviewOrderSlot 2.1s ease-in-out infinite;
+}
+
+.ds-preview-image-drop-target,
+.ds-preview-image-type-target,
+.ds-preview-image-form-target,
+.ds-preview-answer-target,
+.ds-preview-column-target,
+.ds-preview-order-text-target,
+.ds-preview-letter-slot {
+  box-shadow: inset 0 0 0 1px rgb(16 185 129 / 0.45);
+}
+
+.ds-preview-image-drop-target,
+.ds-preview-image-type-target,
+.ds-preview-image-form-target,
+.ds-preview-column-target,
+.ds-preview-order-text-target,
+.ds-preview-letter-slot {
+  animation: dsPreviewTargetGlow 2s ease-in-out infinite;
+}
+
+.ds-preview-answer-target {
+  animation: dsPreviewAnswerGlow 1.9s ease-in-out infinite;
+}
+
+.ds-preview-link-line {
+  position: absolute;
+  left: 126px;
+  top: 84px;
+  width: 104px;
+  height: 2px;
+  background: rgb(16 185 129 / 0.75);
+  transform-origin: left center;
+  opacity: 0;
+  animation: dsPreviewMatchLine 2.1s ease-in-out infinite;
+}
+
+.dark {
+  /* Совпадает с областью контента — без «чёрной рамки» вокруг приложения */
+  --background: #0a0a0a;
+  /* Читаемый основной текст на #0a / #14 (как в v0, ~rgb(232,232,232)) */
+  --foreground: #e8e8e8;
+  --card: oklch(0.145 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.396 0.141 25.723);
+  --destructive-foreground: oklch(0.637 0.237 25.331);
+  --border: oklch(0.269 0 0);
+  --input: oklch(0.269 0 0);
+  --ring: oklch(0.439 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.269 0 0);
+  --sidebar-ring: oklch(0.439 0 0);
+
+  /* ChinaChild / Figma dashboard tokens — dark surfaces */
+  --ds-canvas: #0c0c0c;
+  --ds-surface: #141414;
+  --ds-ink: #e8e8e8;
+  --ds-border-strong: #e8e8e8;
+  --ds-sidebar: #1a1a1a;
+  --ds-sidebar-hover: #2f2f2f;
+  --ds-text-primary: #e8e8e8;
+  --ds-text-secondary: #c6c6c6;
+  --ds-text-muted: #b8b8b8;
+  --ds-text-tertiary: #a0a0a0;
+  --ds-text-quaternary: #d0d0d0;
+  --ds-text-soft: #9a9a9a;
+  --ds-text-soft-dark: #b0b0b0;
+  --ds-text-placeholder: #9ca3af;
+  --ds-chevron: #8a8a8a;
+  --ds-surface-muted: #1e1e1e;
+  /* Панели / «инпутные» карточки (как :root #e8e8e8 на светлом) — TeacherCourseBuilder, lesson editor blocks */
+  --input-background: var(--ds-surface-muted);
+  --ds-surface-pill: #262626;
+  --ds-surface-hover: #2a2a2a;
+  --ds-sage: #3d4d2e;
+  --ds-sage-strong: #9bc45c;
+  --ds-sage-hover: #b8d97a;
+  --ds-pink: #4a3034;
+  --ds-pink-strong: #e57373;
+  --ds-gray-tile: #2a2a2a;
+  --ds-panel-muted: #1a1a1a;
+  --ds-icon-on-dark: #a3a3a3;
+  --ds-stat-muted-on-dark: #b5b5b5;
+  --ds-stat-fraction-muted: #9ca3af;
+  --ds-stat-fraction-muted-dark: #d4d4d4;
+  --ds-white-60: rgb(255 255 255 / 0.12);
+  --ds-white-60-progress: rgb(255 255 255 / 0.45);
+
+  --ds-neutral-chrome: #1a1a1a;
+  --ds-neutral-chrome-hover: #2f2f2f;
+  --ds-neutral-row: #1e1e1e;
+  --ds-neutral-row-hover: #262626;
+}
+
+/* Tailwind v4: bridge semantic CSS variables → theme utilities (border-border, bg-background, …) */
+@theme inline {
+  --font-sans: var(--ds-font-sans);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Figma / dashboard tokens → Tailwind color utilities (bg-ds-*, text-ds-*, border-ds-*, …) */
+  --color-ds-canvas: var(--ds-canvas);
+  --color-ds-surface: var(--ds-surface);
+  --color-ds-ink: var(--ds-ink);
+  --color-ds-border-strong: var(--ds-border-strong);
+  --color-ds-sidebar: var(--ds-sidebar);
+  --color-ds-sidebar-hover: var(--ds-sidebar-hover);
+  --color-ds-neutral-chrome: var(--ds-neutral-chrome);
+  --color-ds-neutral-chrome-hover: var(--ds-neutral-chrome-hover);
+  --color-ds-neutral-row: var(--ds-neutral-row);
+  --color-ds-neutral-row-hover: var(--ds-neutral-row-hover);
+  --color-ds-group-card-bg: var(--ds-group-card-bg);
+  --color-ds-group-card-bg-dark: var(--ds-group-card-bg-dark);
+  --color-ds-text-primary: var(--ds-text-primary);
+  --color-ds-text-secondary: var(--ds-text-secondary);
+  --color-ds-text-muted: var(--ds-text-muted);
+  --color-ds-text-tertiary: var(--ds-text-tertiary);
+  --color-ds-text-quaternary: var(--ds-text-quaternary);
+  --color-ds-text-soft: var(--ds-text-soft);
+  --color-ds-text-soft-dark: var(--ds-text-soft-dark);
+  --color-ds-text-placeholder: var(--ds-text-placeholder);
+  --color-ds-chevron: var(--ds-chevron);
+  --color-ds-surface-muted: var(--ds-surface-muted);
+  --color-ds-surface-pill: var(--ds-surface-pill);
+  --color-ds-surface-hover: var(--ds-surface-hover);
+  --color-ds-sage: var(--ds-sage);
+  --color-ds-sage-strong: var(--ds-sage-strong);
+  --color-ds-sage-hover: var(--ds-sage-hover);
+  --color-ds-pink: var(--ds-pink);
+  --color-ds-pink-strong: var(--ds-pink-strong);
+  --color-ds-gray-tile: var(--ds-gray-tile);
+  --color-ds-panel-muted: var(--ds-panel-muted);
+  --color-ds-icon-on-dark: var(--ds-icon-on-dark);
+  --color-ds-stat-muted-on-dark: var(--ds-stat-muted-on-dark);
+  --color-ds-stat-fraction-muted: var(--ds-stat-fraction-muted);
+  --color-ds-stat-fraction-muted-dark: var(--ds-stat-fraction-muted-dark);
+  --color-ds-white-60: var(--ds-white-60);
+  --color-ds-white-60-progress: var(--ds-white-60-progress);
+
+  /* Figma type scale → text-ds-* font-size utilities */
+  --text-ds-2xs: var(--ds-text-2xs);
+  --text-ds-xs: var(--ds-text-xs);
+  --text-ds-sm: var(--ds-text-sm);
+  --text-ds-sm-plus: var(--ds-text-sm-plus);
+  --text-ds-body-sm: var(--ds-text-body-sm);
+  --text-ds-body: var(--ds-text-body);
+  --text-ds-body-lg: var(--ds-text-body-lg);
+  --text-ds-body-xl: var(--ds-text-body-xl);
+  --text-ds-lg: var(--ds-text-lg);
+  --text-ds-xl: var(--ds-text-xl);
+  --text-ds-2xl: var(--ds-text-2xl);
+  --text-ds-3xl: var(--ds-text-3xl);
+  --text-ds-4xl: var(--ds-text-4xl);
+  --text-ds-5xl: var(--ds-text-5xl);
+  --text-ds-6xl: var(--ds-text-6xl);
+  --text-ds-7xl: var(--ds-text-7xl);
+  --text-ds-8xl: var(--ds-text-8xl);
+  --text-ds-stat: var(--ds-text-stat);
+}
+
+/* Light theme colour accents (Figma «Зелёная» / «Розовая») */
+html:not(.dark)[data-ui-accent="sage"] {
+  --ds-canvas: #e8efe0;
+  --ds-sidebar: #d4e4c4;
+  --ds-sidebar-hover: #c4d8b0;
+  --ds-panel-muted: #dfe8d4;
+  /* Плашки/скелетоны: нейтральный серый, без тона акцента (см. :root --ds-surface-muted) */
+  --ds-surface-muted: #f8f8f8;
+  --ds-sage: #d4e7b0;
+  --ds-sage-strong: #8ab84a;
+  --ds-sage-hover: #6d9838;
+  --ds-group-card-bg: color-mix(in srgb, var(--ds-sage) 34%, #f5f5f5);
+}
+
+html:not(.dark)[data-ui-accent="pink"] {
+  --ds-canvas: #f5e8e8;
+  --ds-sidebar: #edd4d4;
+  --ds-sidebar-hover: #e4c4c4;
+  --ds-panel-muted: #ead5d5;
+  --ds-surface-muted: #f8f8f8;
+  --ds-sage: #efd6d6;
+  --ds-sage-strong: #c06060;
+  --ds-sage-hover: #a84848;
+  --ds-group-card-bg: color-mix(in srgb, var(--ds-sage) 34%, #f5f5f5);
+}
+
+html:not(.dark)[data-ui-accent="blue"] {
+  --ds-canvas: #e8eef8;
+  --ds-sidebar: #d4dff0;
+  --ds-sidebar-hover: #c4d2e8;
+  --ds-panel-muted: #dde6f4;
+  --ds-surface-muted: #f8f8f8;
+  --ds-sage: #d4dff4;
+  --ds-sage-strong: #3d6ea8;
+  --ds-sage-hover: #2f5685;
+  --ds-group-card-bg: color-mix(in srgb, var(--ds-sage) 34%, #f5f5f5);
+}
+
+html:not(.dark)[data-ui-accent="orange"] {
+  --ds-canvas: #faf4e8;
+  --ds-sidebar: #f0e4d4;
+  --ds-sidebar-hover: #e8d8c4;
+  --ds-panel-muted: #f2e8dc;
+  --ds-surface-muted: #f8f8f8;
+  --ds-sage: #fce8d4;
+  --ds-sage-strong: #c0631a;
+  --ds-sage-hover: #9e4f14;
+  --ds-group-card-bg: color-mix(in srgb, var(--ds-sage) 34%, #f5f5f5);
+}
+
+/**
+ * Тёмная тема — те же акценты, что в светлой: тонированный холст/сайдбар и яркие
+ * --ds-sage-strong/--ds-sage-hover для ссылок и плашек (читаемый контраст).
+ */
+html.dark[data-ui-accent="sage"] {
+  --ds-canvas: #0b0f0a;
+  --ds-sidebar: #151c13;
+  --ds-sidebar-hover: #243320;
+  --ds-panel-muted: #1a2218;
+  --ds-surface-muted: #1e1e1e;
+  --ds-sage: #2a3826;
+  --ds-sage-strong: #a3c968;
+  --ds-sage-hover: #c4e085;
+  --ds-pink: #2a3826;
+  --ds-pink-strong: #a3c968;
+  --accent: #243320;
+  --accent-foreground: #e8f2e4;
+  --sidebar-accent: #243320;
+  --sidebar-accent-foreground: #e8f2e4;
+  --ds-group-card-bg-dark: color-mix(in srgb, var(--ds-sage) 48%, #1e1e1e);
+}
+
+html.dark[data-ui-accent="pink"] {
+  --ds-canvas: #100c0d;
+  --ds-sidebar: #1f1618;
+  --ds-sidebar-hover: #322428;
+  --ds-panel-muted: #241a1d;
+  --ds-surface-muted: #1e1e1e;
+  --ds-sage: #3a282c;
+  --ds-sage-strong: #e88787;
+  --ds-sage-hover: #f0a8a8;
+  --ds-pink: #3a282c;
+  --ds-pink-strong: #e88787;
+  --accent: #322428;
+  --accent-foreground: #fce8e8;
+  --sidebar-accent: #322428;
+  --sidebar-accent-foreground: #fce8e8;
+  --ds-group-card-bg-dark: color-mix(in srgb, var(--ds-sage) 48%, #1e1e1e);
+}
+
+html.dark[data-ui-accent="blue"] {
+  --ds-canvas: #090d12;
+  --ds-sidebar: #141b26;
+  --ds-sidebar-hover: #1c2636;
+  --ds-panel-muted: #182030;
+  --ds-surface-muted: #1e1e1e;
+  --ds-sage: #1e2d40;
+  --ds-sage-strong: #7eb0e8;
+  --ds-sage-hover: #9ec8f5;
+  --ds-pink: #1e2d40;
+  --ds-pink-strong: #7eb0e8;
+  --accent: #1c2636;
+  --accent-foreground: #e4eef8;
+  --sidebar-accent: #1c2636;
+  --sidebar-accent-foreground: #e4eef8;
+  --ds-group-card-bg-dark: color-mix(in srgb, var(--ds-sage) 48%, #1e1e1e);
+}
+
+html.dark[data-ui-accent="orange"] {
+  --ds-canvas: #0e0c09;
+  --ds-sidebar: #1c1610;
+  --ds-sidebar-hover: #2e2418;
+  --ds-panel-muted: #221a12;
+  --ds-surface-muted: #1e1e1e;
+  --ds-sage: #3d3020;
+  --ds-sage-strong: #e8994a;
+  --ds-sage-hover: #f0b06a;
+  --ds-pink: #3d3020;
+  --ds-pink-strong: #e8994a;
+  --accent: #2e2418;
+  --accent-foreground: #f8eee4;
+  --sidebar-accent: #2e2418;
+  --sidebar-accent-foreground: #f8eee4;
+  --ds-group-card-bg-dark: color-mix(in srgb, var(--ds-sage) 48%, #1e1e1e);
+}
+
+/**
+ * Редактор урока: нейтральные «шейпы» и hover, без тона data-ui-accent.
+ * В :root --muted/--accent привязаны к --ds-sidebar (sage → зеленоватый фон при hover:bg-muted и т.п.).
+ */
+.ds-lesson-editor-page {
+  --ds-surface-muted: #f8f8f8;
+  --ds-panel-muted: #ebebeb;
+  /* Сильнее, чем в :root: карточки блоков на --input-background (#e8e8e8), иначе ghost-hover почти не виден */
+  --ds-surface-hover: #dedee2;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --accent: #e4e4e7;
+  --accent-foreground: #18181b;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+}
+
+.dark .ds-lesson-editor-page {
+  --ds-surface-muted: #1e1e1e;
+  --ds-panel-muted: #1a1a1a;
+  --ds-surface-hover: #3a3a3a;
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+}
+
+/* Перекрываем глобальный .ds-input-field: в редакторе урока — фон как у страницы; без рамки (глобальный 1px иначе перебивает Tailwind border-0). */
+.ds-lesson-editor-page .ds-input-field {
+  background-color: var(--background);
+  border: none;
+  border-image: none;
+  box-shadow: none;
+}
+
+.ds-lesson-editor-page .ds-input-field:focus-visible {
+  border: none;
+  border-image: none;
+  box-shadow: none;
+}
+
+.ds-lesson-editor-page .ds-lesson-editor-control-field.ds-input-field,
+.ds-lesson-editor-page [data-slot="select-trigger"].ds-lesson-editor-control-field {
+  background-color: var(--ds-surface-muted);
+  border: 1px solid transparent;
+  border-image: none;
+  box-shadow: none;
+}
+
+.ds-lesson-editor-page .ds-lesson-editor-control-field.ds-input-field:focus-visible,
+.ds-lesson-editor-page [data-slot="select-trigger"].ds-lesson-editor-control-field:focus-visible {
+  background-color: var(--ds-neutral-row-hover);
+  border: 1px solid transparent;
+  border-image: none;
+  box-shadow: none;
+}
+
+.ds-lesson-editor-page .ds-lesson-editor-title-field.ds-input-field {
+  border: none;
+  border-image: none;
+}
+
+.ds-lesson-editor-page .ds-lesson-editor-title-field.ds-input-field:focus-visible {
+  border: none;
+  border-image: none;
+  box-shadow: none;
+}
+
+/* Иероглифы в материале урока: только элементы с классом .lesson-cjk-text (редактор и предпросмотр). */
+.lesson-cjk-text {
+  font-size: 20px;
+  line-height: 1.45;
+}
+
+@layer components {
+  /* —— App после логина: на весь экран, без рамки и без «карточки» с отступами от края viewport —— */
+  .ds-figma-shell-outer {
+    box-sizing: border-box;
+    display: flex;
+    width: 100%;
+    max-width: none;
+    min-height: 100svh;
+    min-height: 100dvh;
+    /* Поверх dvh: реальная высота после клавиатуры iOS (задаётся VisualViewportSync) */
+    min-height: var(--visual-viewport-height, 100dvh);
+    /**
+     * Без фиксированной высоты outer растягивался по контенту → main.scrollHeight === clientHeight,
+     * скролл уезжал на document, ResizeObserver на main давал лавину перерисовок.
+     */
+    height: var(--visual-viewport-height, 100dvh);
+    max-height: var(--visual-viewport-height, 100dvh);
+    overflow: hidden;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    border: none;
+    outline: none;
+    box-shadow: none;
+    background-color: #ffffff;
+    font-family: var(--ds-font-sans);
+  }
+
+  .dark .ds-figma-shell-outer {
+    background-color: #0a0a0a;
+  }
+
+  .ds-figma-shell-row {
+    display: flex;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 0%;
+    align-items: stretch;
+    border: none;
+    box-shadow: none;
+  }
+
+  /**
+   * Если где-то осталась обёртка с таким классом — не даём ей рамку/отступы/ограничивать ширину.
+   * Полноэкранный режим только через ds-figma-shell-outer + row.
+   */
+  .ds-figma-shell-card {
+    box-sizing: border-box;
+    display: flex;
+    width: 100%;
+    max-width: none;
+    min-height: 0;
+    flex: 1 1 0%;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    background: transparent;
+    color: inherit;
+  }
+
+  /**
+   * Сайдбар — строго нейтральный серый (--ds-neutral-chrome), без тонирования data-ui-accent
+   * (акцент меняет --ds-sidebar и холст, но не колонку навигации).
+   */
+  .ds-figma-shell-sidebar {
+    display: none;
+    width: 280px;
+    flex-shrink: 0;
+    flex-direction: column;
+    box-sizing: border-box;
+    align-self: stretch;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    background-color: var(--ds-neutral-chrome);
+    /* Как v0: px-7 pt-7 по сути — отступы зоны лого и навигации */
+    padding: 28px 28px 24px;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+  }
+
+  @media (min-width: 1024px) {
+    /* Без вертикальных полей — иначе видна «чёрная рамка» вокруг блока на тёмном фоне */
+    .ds-figma-shell-sidebar {
+      display: flex;
+      min-height: 0;
+      flex: 0 0 280px;
+      align-self: stretch;
+      border-radius: 0 var(--ds-sidebar-radius-right) var(--ds-sidebar-radius-right) 0;
+      padding-top: max(28px, env(safe-area-inset-top));
+    }
+  }
+
+  .ds-figma-shell-main {
+    display: flex;
+    min-height: 0;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    background-color: #ffffff;
+  }
+
+  .dark .ds-figma-shell-main {
+    background-color: #0a0a0a;
+  }
+
+  .dark .ds-figma-shell-main-scroll {
+    color: var(--ds-text-primary);
+  }
+
+  /** Прокрутка как у v0: основной скролл на main */
+  .ds-figma-shell-main-scroll {
+    box-sizing: border-box;
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    flex-direction: column;
+    /* clip: гориз. обрезка без поломки sticky внутри скроллящегося main */
+    overflow-x: clip;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  @supports not (overflow: clip) {
+    .ds-figma-shell-main-scroll {
+      overflow-x: hidden;
+    }
+  }
+
+  /**
+   * Мобильный «стеклянный» бар: fixed, полное скругление, остаётся у верха экрана при скролле.
+   * Внутренний блок — pointer-events: auto.
+   */
+  .ds-mobile-top-chrome {
+    pointer-events: none;
+    position: fixed;
+    z-index: 45;
+    top: 0;
+    right: 0;
+    left: 0;
+    box-sizing: border-box;
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+    padding-right: max(0.75rem, env(safe-area-inset-right));
+    padding-bottom: 0.5rem;
+    padding-left: max(0.75rem, env(safe-area-inset-left));
+  }
+
+  .ds-mobile-top-chrome__bar {
+    pointer-events: auto;
+    display: flex;
+    min-height: 3rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.375rem 0.5rem 0.375rem 0.625rem;
+    border-radius: 1.125rem;
+    border: 1px solid rgb(0 0 0 / 0.09);
+    background-color: rgb(255 255 255 / 0.7);
+    box-shadow:
+      0 4px 24px rgb(0 0 0 / 0.07),
+      0 1px 0 rgb(255 255 255 / 0.55) inset;
+    backdrop-filter: blur(22px) saturate(1.75);
+    -webkit-backdrop-filter: blur(22px) saturate(1.75);
+  }
+
+  .dark .ds-mobile-top-chrome__bar {
+    border-color: rgb(255 255 255 / 0.1);
+    background-color: rgb(18 18 18 / 0.72);
+    box-shadow: 0 6px 28px rgb(0 0 0 / 0.42);
+  }
+
+  .ds-mobile-top-chrome__menu-btn {
+    display: inline-flex;
+    height: 2.25rem;
+    width: 2.25rem;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.875rem;
+    border: 1px solid #111111;
+    background-color: #111111;
+    color: #ffffff;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease,
+      transform 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .ds-mobile-top-chrome__menu-btn:hover {
+    border-color: #000000;
+    background-color: #000000;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgb(0 0 0 / 0.2);
+  }
+
+  .ds-mobile-top-chrome__menu-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.18);
+  }
+
+  .dark .ds-mobile-top-chrome__menu-btn {
+    border-color: #111111;
+    background-color: #111111;
+    color: #ffffff;
+  }
+
+  .dark .ds-mobile-top-chrome__menu-btn:hover {
+    border-color: #000000;
+    background-color: #000000;
+    color: #ffffff;
+    box-shadow: 0 8px 20px rgb(0 0 0 / 0.45);
+  }
+
+  /** Резервируем место под fixed-бар, чтобы контент не уезжал под него */
+  .ds-mobile-top-chrome-spacer {
+    flex-shrink: 0;
+    height: calc(max(0.5rem, env(safe-area-inset-top)) + 3.75rem + 0.5rem);
+  }
+
+  /**
+   * Редактор урока (компактный тулбар): убираем дублирующий site-chrome с бургером,
+   * остаётся одна стеклянная полоса с инструментами урока.
+   */
+  @media (max-width: 1023px) {
+    main.ds-figma-shell-main-scroll.ds-lesson-editor-toolbar-docked .ds-mobile-top-chrome {
+      display: none;
+    }
+
+    main.ds-figma-shell-main-scroll.ds-lesson-editor-toolbar-docked .ds-mobile-top-chrome-spacer {
+      display: none;
+    }
+  }
+
+  /** Базовые поля контента: мобильные safe-area + ровные края для всех страниц (ученик/преподаватель). */
+  .ds-figma-shell-page-pad {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    padding-top: 0.875rem;
+    padding-bottom: max(0.875rem, calc(env(safe-area-inset-bottom) + 0.5rem));
+    padding-left: max(0.875rem, calc(env(safe-area-inset-left) + 0.5rem));
+    padding-right: max(0.875rem, calc(env(safe-area-inset-right) + 0.5rem));
+  }
+
+  /* Не даём вложенным флекс-контейнерам раздвигать мобильный viewport по ширине. */
+  .ds-figma-shell-page-pad > * {
+    min-width: 0;
+  }
+
+  @media (min-width: 480px) {
+    .ds-figma-shell-page-pad {
+      padding-top: 1rem;
+      padding-bottom: max(1rem, calc(env(safe-area-inset-bottom) + 0.5rem));
+      padding-left: max(1rem, calc(env(safe-area-inset-left) + 0.5rem));
+      padding-right: max(1rem, calc(env(safe-area-inset-right) + 0.5rem));
+    }
+  }
+
+  @media (min-width: 768px) {
+    .ds-figma-shell-page-pad {
+      padding: 2.5rem;
+    }
+  }
+
+  /** Сообщения: на телефоне почти на всю ширину; на десктопе — меньше левого поля */
+  .ds-figma-shell-page-pad:has(.ds-messages-page) {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+
+  @media (min-width: 640px) {
+    .ds-figma-shell-page-pad:has(.ds-messages-page) {
+      padding-left: 1rem;
+      padding-right: 1rem;
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .ds-figma-shell-page-pad:has(.ds-messages-page) {
+      padding-left: 1.25rem;
+      padding-right: 2.5rem;
+    }
+  }
+
+  /** Корень страницы без собственных полей — поля даёт shell */
+  .ds-figma-page {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* —— App shell (Layout) —— */
+  .ds-app-canvas {
+    display: flex;
+    min-height: 100dvh;
+    width: 100%;
+    align-items: stretch;
+    justify-content: flex-start;
+    background-color: var(--ds-surface);
+    padding: 0;
+    font-family: var(--ds-font-sans);
+  }
+
+  .ds-app-shell {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    width: 100%;
+    max-width: none;
+    min-height: 100dvh;
+    overflow: hidden;
+    border-radius: 0;
+    border: none;
+    background-color: var(--ds-surface);
+    box-shadow: none;
+  }
+
+  .ds-app-row {
+    display: flex;
+    flex: 1;
+    min-height: 100dvh;
+  }
+
+  .ds-sidebar {
+    display: flex;
+    width: var(--ds-sidebar-width);
+    flex-shrink: 0;
+    flex-direction: column;
+    align-self: stretch;
+    min-height: 100dvh;
+    background-color: var(--ds-sidebar);
+    padding: var(--ds-sidebar-padding);
+    border-radius: 0 var(--ds-sidebar-radius-right) var(--ds-sidebar-radius-right) 0;
+  }
+
+  .ds-main {
+    min-width: 0;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    background-color: var(--ds-surface);
+  }
+
+  .ds-brand-logo {
+    font-size: var(--ds-logo-size);
+    font-weight: var(--ds-font-bold);
+    line-height: var(--ds-leading-none);
+    color: var(--ds-ink);
+  }
+
+  .ds-profile-avatar {
+    width: var(--ds-profile-avatar);
+    height: var(--ds-profile-avatar);
+    margin-bottom: var(--ds-space-3);
+    overflow: hidden;
+    border-radius: var(--ds-radius-pill);
+    background-color: var(--ds-surface);
+  }
+
+  .ds-profile-name {
+    margin-bottom: var(--ds-space-1);
+    font-size: var(--ds-profile-name-size);
+    font-weight: var(--ds-font-normal);
+    line-height: var(--ds-leading-none);
+    color: var(--ds-ink);
+  }
+
+  .ds-profile-role {
+    font-size: var(--ds-text-body-sm);
+    color: var(--ds-text-muted);
+  }
+
+  .ds-nav-link {
+    display: flex;
+    align-items: center;
+    gap: var(--ds-space-3);
+    border-radius: var(--ds-radius-md);
+    padding: var(--ds-space-3) var(--ds-space-4);
+    font-size: var(--ds-text-body);
+    font-weight: var(--ds-font-medium);
+    line-height: var(--ds-leading-body);
+    color: var(--ds-ink);
+    text-decoration: none;
+    transition: background-color 0.15s ease;
+  }
+
+  .ds-nav-link--active {
+    background-color: var(--ds-ink);
+    color: #ffffff;
+  }
+
+  .ds-nav-link:not(.ds-nav-link--active):hover {
+    background-color: var(--ds-sidebar-hover);
+  }
+
+  .ds-nav-icon {
+    width: var(--ds-icon-nav);
+    height: var(--ds-icon-nav);
+    flex-shrink: 0;
+  }
+
+  /* —— Page layout —— */
+  .ds-page {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: min(1400px, 100%);
+    margin-inline: auto;
+    padding: max(var(--ds-space-4), env(safe-area-inset-top))
+      max(var(--ds-space-4), env(safe-area-inset-right))
+      max(var(--ds-space-6), env(safe-area-inset-bottom))
+      max(var(--ds-space-4), env(safe-area-inset-left));
+  }
+
+  @media (min-width: 768px) {
+    .ds-page {
+      padding: var(--ds-page-padding) max(var(--ds-page-padding), env(safe-area-inset-right))
+        var(--ds-page-padding) max(var(--ds-page-padding), env(safe-area-inset-left));
+    }
+  }
+
+  .ds-section-header {
+    margin-bottom: var(--ds-section-gap);
+  }
+
+  .ds-section-header__title {
+    margin-bottom: var(--ds-space-1);
+    font-size: var(--ds-text-8xl);
+    font-weight: var(--ds-font-bold);
+    line-height: var(--ds-leading-none);
+    color: var(--ds-text-primary);
+  }
+
+  .ds-section-header__subtitle {
+    font-size: var(--ds-text-body);
+    color: var(--ds-text-secondary);
+  }
+
+  /* —— Dashboard —— */
+  .ds-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: var(--ds-section-gap);
+  }
+
+  @media (min-width: 768px) {
+    .ds-stat-grid {
+      gap: 1.25rem;
+    }
+  }
+
+  @media (min-width: 640px) and (max-width: 1023px) {
+    .ds-stat-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .ds-stat-grid > :nth-child(3) {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 639px) {
+    .ds-stat-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .ds-stat-card {
+    border-radius: var(--ds-radius-xl);
+    padding: var(--ds-stat-padding);
+  }
+
+  .ds-stat-card--muted {
+    background-color: var(--ds-sidebar);
+  }
+
+  /** Десктоп: нейтральный серый, без оттенка акцентного сайдбара (sage и т.д.) */
+  @media (min-width: 1024px) {
+    .ds-stat-card--muted {
+      background-color: var(--ds-neutral-row);
+    }
+
+    .dark .ds-stat-card--muted {
+      background-color: var(--ds-surface-muted);
+    }
+  }
+
+  .ds-stat-card--dark {
+    background-color: var(--ds-ink);
+    color: #ffffff;
+  }
+
+  /* В тёмной теме --ds-ink светлый: отдельная «тёмная» плитка для читаемости */
+  .dark .ds-stat-card--dark {
+    background-color: #2c2c2e;
+    color: #fafafa;
+  }
+
+  .dark .ds-stat-card--dark .ds-stat-card__icon-badge {
+    background-color: rgb(255 255 255 / 0.12);
+    color: #ffffff;
+  }
+
+  .ds-stat-card--sage {
+    background-color: var(--ds-sage);
+  }
+
+  .ds-stat-card__value {
+    margin-bottom: var(--ds-space-2);
+    font-size: var(--ds-text-stat);
+    font-weight: var(--ds-font-normal);
+    line-height: var(--ds-leading-none);
+  }
+
+  .ds-stat-card__label {
+    font-size: var(--ds-text-body);
+  }
+
+  .ds-stat-card--interactive {
+    position: relative;
+    text-decoration: none;
+    color: inherit;
+    transition:
+      transform 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  .ds-stat-card--interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 42px rgb(0 0 0 / 0.1);
+  }
+
+  .ds-stat-card--interactive:active {
+    transform: translateY(0);
+  }
+
+  .ds-stat-card--interactive:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--ds-surface), 0 0 0 4px rgb(26 26 26 / 0.22);
+  }
+
+  .ds-stat-card--dark.ds-stat-card--interactive:hover {
+    box-shadow: 0 18px 50px rgb(0 0 0 / 0.42);
+  }
+
+  .ds-stat-card__top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--ds-space-3);
+    margin-bottom: var(--ds-space-2);
+  }
+
+  .ds-stat-card__icon-badge {
+    display: flex;
+    height: 40px;
+    width: 40px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--ds-radius-md);
+    background-color: rgb(255 255 255 / 0.55);
+    color: var(--ds-ink);
+  }
+
+  .ds-stat-card--dark .ds-stat-card__icon-badge {
+    background-color: rgb(255 255 255 / 0.12);
+    color: #ffffff;
+  }
+
+  .ds-stat-card--sage .ds-stat-card__icon-badge {
+    background-color: rgb(255 255 255 / 0.55);
+  }
+
+  .ds-stat-card__cta {
+    margin-top: var(--ds-space-4);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--ds-text-body-sm);
+    font-weight: var(--ds-font-medium);
+    transition:
+      gap 0.15s ease,
+      opacity 0.15s ease;
+  }
+
+  .ds-stat-card--interactive:hover .ds-stat-card__cta {
+    gap: 8px;
+  }
+
+  .ds-stat-card--dark .ds-stat-card__cta {
+    color: rgb(255 255 255 / 0.88);
+  }
+
+  .ds-stat-card--muted .ds-stat-card__cta,
+  .ds-stat-card--sage .ds-stat-card__cta {
+    color: var(--ds-sage-hover);
+  }
+
+  /* Ссылки под числами на главной (макет Figma) */
+  .ds-dashboard-stat-link {
+    margin-top: 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ds-sage-strong);
+    text-decoration: none;
+    transition:
+      color 0.15s ease,
+      gap 0.15s ease;
+  }
+
+  .ds-dashboard-stat-link:hover {
+    gap: 6px;
+    color: var(--ds-sage-hover);
+  }
+
+  .ds-stat-card--dark .ds-dashboard-stat-link {
+    color: var(--ds-sage-strong);
+  }
+
+  .ds-stat-card--dark .ds-dashboard-stat-link:hover {
+    color: color-mix(in srgb, var(--ds-sage-strong) 58%, #ffffff);
+  }
+
+  .ds-stat-card--sage .ds-dashboard-stat-link {
+    color: color-mix(in srgb, var(--ds-sage-strong) 42%, var(--ds-ink));
+  }
+
+  .ds-stat-card--sage .ds-dashboard-stat-link:hover {
+    color: color-mix(in srgb, var(--ds-sage-strong) 32%, var(--ds-ink));
+  }
+
+  .dark .ds-stat-card--sage .ds-dashboard-stat-link {
+    color: var(--ds-sage-hover);
+  }
+
+  .dark .ds-stat-card--sage .ds-dashboard-stat-link:hover {
+    color: color-mix(in srgb, var(--ds-sage-hover) 72%, #ffffff);
+  }
+
+  /* Главная: ширина и ритм как в v0 (узкая колонка ~760px → на xl шире под две колонки) */
+  .ds-dashboard-page {
+    --ds-section-gap: 28px;
+    width: 100%;
+    max-width: min(100%, 760px);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  @media (min-width: 1280px) {
+    .ds-dashboard-page {
+      max-width: min(100%, 1200px);
+    }
+  }
+
+  .ds-dashboard-grid {
+    display: grid;
+    gap: var(--ds-gutter);
+    grid-template-columns: minmax(0, 1fr) minmax(0, var(--ds-dashboard-aside));
+  }
+
+  /** Иначе flex внутри ячейки не сжимается и уезжает вправо на мобилке */
+  .ds-dashboard-grid > * {
+    min-width: 0;
+  }
+
+  @media (max-width: 1279px) {
+    .ds-dashboard-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  .ds-lesson-row {
+    display: flex;
+    cursor: pointer;
+    align-items: center;
+    gap: var(--ds-space-4);
+    margin-bottom: 0;
+    border-radius: var(--ds-radius-md);
+    padding: 10px 12px;
+    transition: background-color 0.16s ease;
+  }
+
+  .ds-lesson-row:hover {
+    background-color: rgb(0 0 0 / 0.035);
+  }
+
+  .ds-lesson-row:hover .ds-lesson-row__chevron {
+    opacity: 1;
+  }
+
+  .ds-lesson-dot {
+    display: flex;
+    width: var(--ds-lesson-dot);
+    height: var(--ds-lesson-dot);
+    flex-shrink: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--ds-radius-pill);
+  }
+
+  .ds-lesson-dot__day {
+    margin-bottom: var(--ds-space-1);
+    font-size: var(--ds-text-3xl);
+    font-weight: var(--ds-font-normal);
+    line-height: var(--ds-leading-none);
+  }
+
+  .ds-lesson-dot__time {
+    font-size: var(--ds-text-xs);
+  }
+
+  .ds-lesson-row__title {
+    margin-bottom: var(--ds-space-1);
+    font-size: var(--ds-text-xl);
+    font-weight: var(--ds-font-normal);
+    line-height: var(--ds-leading-none);
+    color: var(--ds-text-primary);
+  }
+
+  .ds-lesson-row__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--ds-space-2);
+    font-size: var(--ds-text-sm-plus);
+    color: var(--ds-text-secondary);
+  }
+
+  .ds-lesson-row__chevron {
+    flex-shrink: 0;
+    color: var(--ds-chevron);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .ds-link-sage {
+    border: none;
+    background: none;
+    font-size: var(--ds-text-body);
+    color: var(--ds-sage-strong);
+    cursor: pointer;
+    transition: color 0.15s ease;
+  }
+
+  .ds-link-sage:hover {
+    color: var(--ds-sage-hover);
+  }
+
+  a.ds-link-sage {
+    text-decoration: none;
+  }
+
+  .ds-calendar-title-bold {
+    font-size: var(--ds-text-5xl);
+    font-weight: var(--ds-font-bold);
+    line-height: var(--ds-leading-none);
+    color: var(--ds-text-primary);
+  }
+
+  .ds-calendar-title-reg {
+    font-size: var(--ds-text-5xl);
+    font-weight: var(--ds-font-normal);
+    line-height: var(--ds-leading-none);
+    color: var(--ds-text-primary);
+  }
+
+  .ds-calendar-weekday {
+    padding-bottom: var(--ds-space-1);
+    text-align: center;
+    font-size: var(--ds-text-sm);
+    color: var(--ds-text-tertiary);
+  }
+
+  .ds-calendar-cell {
+    cursor: pointer;
+    border-radius: var(--ds-radius-sm);
+    padding-block: 6px;
+    text-align: center;
+    font-size: var(--ds-text-body-sm);
+  }
+
+  .ds-calendar-cell--today {
+    background-color: var(--ds-sage);
+  }
+
+  .ds-calendar-cell:not(.ds-calendar-cell--today):hover {
+    background-color: var(--ds-surface-hover);
+  }
+
+  /* Figma Dashboard calendar: tight gap, sage today cell, single event dot */
+  .ds-calendar-grid-figma {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: var(--ds-space-1);
+  }
+
+  .ds-calendar-day-cell {
+    cursor: pointer;
+    border-radius: var(--ds-radius-md);
+    padding: 6px 2px 8px;
+    text-align: center;
+    transition: background-color 0.15s ease;
+  }
+
+  .ds-calendar-day-cell--today {
+    background-color: var(--ds-sage);
+  }
+
+  .ds-calendar-day-cell:hover:not(.ds-calendar-day-cell--today) {
+    background-color: var(--ds-surface-hover);
+  }
+
+  .ds-calendar-event-dot {
+    margin-top: 2px;
+    display: flex;
+    height: 10px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ds-calendar-event-dot > span {
+    height: 4px;
+    width: 4px;
+    border-radius: var(--ds-radius-pill);
+    background-color: var(--ds-ink);
+  }
+
+  .ds-contact-row {
+    display: flex;
+    cursor: pointer;
+    align-items: center;
+    gap: var(--ds-space-3);
+  }
+
+  .ds-contact-avatar {
+    position: relative;
+    height: var(--ds-contact-avatar);
+    width: var(--ds-contact-avatar);
+    flex-shrink: 0;
+    overflow: hidden;
+    border-radius: var(--ds-radius-pill);
+    background-color: #e5e7eb;
+  }
+
+  .ds-contact-name {
+    margin-bottom: 2px;
+    font-size: var(--ds-text-lg);
+    font-weight: var(--ds-font-normal);
+    line-height: var(--ds-leading-none);
+    color: var(--ds-text-primary);
+  }
+
+  .ds-contact-role {
+    font-size: var(--ds-text-sm-plus);
+    color: var(--ds-text-secondary);
+  }
+
+  /* —— Courses —— */
+  .ds-course-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--ds-gutter);
+    margin-bottom: var(--ds-space-10);
+  }
+
+  @media (max-width: 1023px) {
+    .ds-course-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .ds-course-card {
+    cursor: pointer;
+    border-radius: var(--ds-radius-xl);
+    padding: var(--ds-card-padding-lg);
+    transition: transform 0.2s ease;
+  }
+
+  .ds-course-card:hover {
+    transform: scale(1.01);
+  }
+
+  .ds-activity-card {
+    display: flex;
+    align-items: center;
+    gap: var(--ds-space-4);
+    border-radius: var(--ds-radius-md);
+    background-color: var(--ds-surface-muted);
+    padding: var(--ds-space-4);
+  }
+
+  .ds-activity-icon {
+    display: flex;
+    height: 36px;
+    width: 36px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--ds-radius-pill);
+    background-color: var(--ds-sage);
+  }
+
+  /* —— Auth: 2 колонки, иллюстрация слева (SVG), стеклянная панель формы, крупная типографика —— */
+  .ds-auth-root {
+    min-height: 100dvh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    font-family: var(--ds-font-sans);
+    color: #141414;
+    color-scheme: light dark;
+  }
+
+  @media (min-width: 1024px) {
+    .ds-auth-root {
+      flex-direction: row;
+    }
+  }
+
+  .ds-auth-marketing {
+    position: relative;
+    display: flex;
+    min-height: 38dvh;
+    flex-shrink: 0;
+    flex-direction: column;
+    overflow: hidden;
+    background: linear-gradient(
+      128deg,
+      #f5f3ff 0%,
+      #ede9fe 22%,
+      #ddd6fe 48%,
+      #c4b5fd 72%,
+      #a78bfa 100%
+    );
+  }
+
+  .dark .ds-auth-marketing {
+    background: linear-gradient(128deg, #0a0912 0%, #1e1b4b 40%, #312e81 78%, #0f172a 100%);
+  }
+
+  @media (min-width: 1024px) {
+    .ds-auth-marketing {
+      width: 50%;
+      flex: 1 1 50%;
+      min-height: 100dvh;
+    }
+  }
+
+  .ds-auth-marketing__logo-corner {
+    position: absolute;
+    z-index: 4;
+    top: max(1rem, env(safe-area-inset-top));
+    left: max(1rem, env(safe-area-inset-left));
+    width: 52px;
+    height: 52px;
+  }
+
+  .ds-auth-marketing__logo-img {
+    display: block;
+    height: 52px;
+    width: 52px;
+    object-fit: contain;
+  }
+
+  .dark .ds-auth-marketing__logo-img {
+    filter: invert(1);
+  }
+
+  .ds-auth-marketing__brand {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    padding: 4.5rem 1.25rem 2.5rem;
+  }
+
+  @media (min-width: 1024px) {
+    .ds-auth-marketing__brand {
+      padding: 3rem 2rem;
+    }
+  }
+
+  .ds-auth-marketing__brand-text {
+    max-width: 18ch;
+    text-align: center;
+    font-size: clamp(2.5rem, 9vw, 6.25rem);
+    font-weight: var(--ds-font-bold);
+    line-height: 0.92;
+    letter-spacing: -0.045em;
+    color: rgb(49 46 89 / 0.92);
+    text-shadow: 0 2px 24px rgb(255 255 255 / 0.35);
+  }
+
+  .dark .ds-auth-marketing__brand-text {
+    color: rgb(255 255 255 / 0.94);
+    text-shadow: 0 12px 48px rgb(0 0 0 / 0.35);
+  }
+
+  .ds-auth-marketing__shine {
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    background: linear-gradient(125deg, rgb(255 255 255 / 0.35) 0%, transparent 38%, transparent 100%);
+  }
+
+  .dark .ds-auth-marketing__shine {
+    background: linear-gradient(125deg, rgb(255 255 255 / 0.06) 0%, transparent 40%, transparent 100%);
+  }
+
+  .ds-auth-form-aside {
+    position: relative;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    background: linear-gradient(165deg, rgb(255 255 255 / 0.92) 0%, rgb(250 250 252 / 0.88) 100%);
+    padding: max(1.25rem, env(safe-area-inset-top)) max(1.25rem, env(safe-area-inset-right))
+      max(1.75rem, env(safe-area-inset-bottom)) max(1.25rem, env(safe-area-inset-left));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-left: 1px solid rgb(255 255 255 / 0.55);
+    box-shadow: -12px 0 40px rgb(0 0 0 / 0.06);
+  }
+
+  @media (min-width: 1024px) {
+    .ds-auth-form-aside {
+      width: 50%;
+      flex: 1 1 50%;
+      padding: 2.5rem max(2rem, env(safe-area-inset-right)) 2.5rem max(2.25rem, env(safe-area-inset-left));
+    }
+  }
+
+  .dark .ds-auth-form-aside {
+    background: linear-gradient(165deg, rgb(24 24 27 / 0.92) 0%, rgb(15 15 18 / 0.94) 100%);
+    border-left-color: rgb(255 255 255 / 0.08);
+    box-shadow: -8px 0 48px rgb(0 0 0 / 0.45);
+    color: #fafafa;
+  }
+
+  .ds-auth-form-scroll {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .ds-auth-form-inner {
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+    max-width: 28rem;
+  }
+
+  @media (min-width: 1024px) {
+    .ds-auth-form-inner {
+      max-width: 30rem;
+    }
+  }
+
+  .ds-auth-screen-title {
+    font-size: clamp(2.75rem, 6vw, 3.5rem);
+    font-weight: 700;
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+    color: #0a0a0a;
+  }
+
+  .dark .ds-auth-screen-title {
+    color: #fafafa;
+  }
+
+  .ds-auth-screen-sub {
+    margin-top: 0.875rem;
+    margin-bottom: 2rem;
+    font-size: clamp(1.125rem, 2.4vw, 1.3125rem);
+    line-height: 1.55;
+    color: #525252;
+  }
+
+  .dark .ds-auth-screen-sub {
+    color: #a3a3a3;
+  }
+
+  .ds-auth-accent-link {
+    font-weight: 600;
+    color: #d97744;
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  .ds-auth-accent-link:hover {
+    color: #c2410c;
+  }
+
+  .dark .ds-auth-accent-link {
+    color: #fdba74;
+  }
+
+  .dark .ds-auth-accent-link:hover {
+    color: #fed7aa;
+  }
+
+  .ds-auth-help-fab {
+    position: fixed;
+    right: max(1.25rem, env(safe-area-inset-right));
+    bottom: max(1.25rem, env(safe-area-inset-bottom));
+    z-index: 40;
+    display: flex;
+    height: 3rem;
+    width: 3rem;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 9999px;
+    background-color: #1c1c1e;
+    color: #ffffff;
+    cursor: pointer;
+    box-shadow: 0 4px 24px rgb(0 0 0 / 0.2);
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+
+  .dark .ds-auth-help-fab {
+    background-color: #fafafa;
+    color: #141414;
+    box-shadow: 0 4px 24px rgb(0 0 0 / 0.35);
+  }
+
+  .ds-auth-help-fab:hover {
+    opacity: 0.92;
+    transform: scale(1.05);
+  }
+
+  .ds-auth-divider {
+    margin-top: 1.75rem;
+    margin-bottom: 1.75rem;
+    border: 0;
+    border-top: 1px solid rgb(0 0 0 / 0.08);
+  }
+
+  .dark .ds-auth-divider {
+    border-top-color: rgb(255 255 255 / 0.1);
+  }
+
+  /* Поля и кнопки — крупнее */
+  .ds-auth-root .ds-input-field {
+    height: 58px;
+    border-radius: 14px;
+    border: 1px solid rgb(0 0 0 / 0.1);
+    background-color: rgb(255 255 255 / 0.85);
+    font-size: 1.0625rem;
+    color: #141414;
+  }
+
+  .dark .ds-auth-root .ds-input-field {
+    background-color: rgb(39 39 42 / 0.75);
+    border-color: rgb(255 255 255 / 0.12);
+    color: #fafafa;
+  }
+
+  .ds-auth-root .ds-input-field::placeholder {
+    color: #9ca3af;
+  }
+
+  .dark .ds-auth-root .ds-input-field::placeholder {
+    color: #71717a;
+  }
+
+  .ds-auth-root .ds-input-field:focus-visible {
+    border-color: rgb(0 0 0 / 0.22);
+    box-shadow: 0 0 0 4px rgb(0 0 0 / 0.06);
+  }
+
+  .dark .ds-auth-root .ds-input-field:focus-visible {
+    border-color: rgb(255 255 255 / 0.28);
+    box-shadow: 0 0 0 4px rgb(255 255 255 / 0.08);
+  }
+
+  .ds-auth-root .ds-btn-primary-solid {
+    height: 58px;
+    border-radius: 14px;
+    background-color: #1c1c1e;
+    font-size: 1.0625rem;
+    font-weight: 700;
+  }
+
+  .dark .ds-auth-root .ds-btn-primary-solid {
+    background-color: #fafafa;
+    color: #141414;
+  }
+
+  .ds-auth-root .ds-btn-primary-solid:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+
+  .ds-auth-root .ds-auth-field-label {
+    margin-bottom: 0.5rem;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: #404040;
+  }
+
+  .dark .ds-auth-root .ds-auth-field-label {
+    color: #d4d4d4;
+  }
+
+  .ds-segmented {
+    display: inline-flex;
+    width: fit-content;
+    border-radius: var(--ds-radius-pill);
+    padding: 6px;
+    background-color: #ececf0;
+  }
+
+  .ds-segmented__btn {
+    border: none;
+    border-radius: var(--ds-radius-pill);
+    padding: 10px 20px;
+    font-family: inherit;
+    font-size: var(--ds-text-body-sm);
+    font-weight: var(--ds-font-medium);
+    line-height: var(--ds-leading-body);
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+    background: transparent;
+    color: var(--ds-text-muted);
+  }
+
+  .ds-segmented__btn:hover:not(.ds-segmented__btn--active) {
+    color: var(--ds-ink);
+  }
+
+  .ds-segmented__btn--active {
+    background-color: var(--ds-ink);
+    color: #ffffff;
+  }
+
+  .ds-form-card {
+    border-radius: var(--ds-radius-xl);
+    border: 1px solid rgb(0 0 0 / 0.06);
+    background-color: #fafafa;
+    padding: var(--ds-space-6);
+  }
+
+  @media (min-width: 768px) {
+    .ds-form-card {
+      padding: var(--ds-space-8);
+    }
+  }
+
+  /* Плоская белая зона формы (макет Figma, без «стеклянной» карточки) */
+  .ds-auth-form-panel {
+    width: 100%;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .ds-auth-field-label {
+    display: block;
+    margin-bottom: var(--ds-space-1);
+    font-size: var(--ds-text-xs);
+    font-weight: var(--ds-font-medium);
+    letter-spacing: 0.02em;
+    color: var(--ds-text-tertiary);
+  }
+
+  .ds-auth-field-label--flush {
+    margin-bottom: 0;
+  }
+
+  .ds-auth-remember {
+    display: flex;
+    align-items: center;
+    gap: var(--ds-space-3);
+  }
+
+  .ds-auth-remember-track {
+    position: relative;
+    height: 22px;
+    width: 38px;
+    flex-shrink: 0;
+    cursor: pointer;
+    border: none;
+    border-radius: var(--ds-radius-pill);
+    padding: 0;
+    transition: background-color 0.15s ease;
+  }
+
+  .ds-auth-remember-track--on {
+    background-color: var(--ds-ink);
+  }
+
+  .ds-auth-remember-track--off {
+    background-color: var(--ds-sidebar);
+  }
+
+  .ds-auth-remember-knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    height: 16px;
+    width: 16px;
+    border-radius: var(--ds-radius-pill);
+    background-color: #ffffff;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+    transition: transform 0.15s ease;
+  }
+
+  .ds-auth-remember-track--on .ds-auth-remember-knob {
+    transform: translateX(16px);
+  }
+
+  .ds-auth-social-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ds-space-3);
+    padding-top: var(--ds-space-4);
+  }
+
+  .ds-auth-social-link {
+    border: none;
+    background: none;
+    padding: 4px 2px;
+    font-family: inherit;
+    font-size: var(--ds-text-sm-plus);
+    color: var(--ds-text-tertiary);
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 3px;
+    transition:
+      color 0.15s ease,
+      text-decoration-color 0.15s ease;
+  }
+
+  .ds-auth-social-link:hover {
+    color: var(--ds-ink);
+    text-decoration-color: var(--ds-ink);
+  }
+
+  .ds-auth-social-sep {
+    font-size: var(--ds-text-sm-plus);
+    color: var(--ds-sidebar-hover);
+  }
+
+  .ds-contact-card {
+    display: flex;
+    align-items: center;
+    gap: var(--ds-space-3);
+    border-radius: var(--ds-radius-xl);
+    border: 1px solid transparent;
+    padding: var(--ds-space-2) var(--ds-space-3);
+    transition:
+      background-color 0.16s ease,
+      border-color 0.16s ease,
+      box-shadow 0.16s ease;
+  }
+
+  .ds-contact-card:hover {
+    background-color: rgb(0 0 0 / 0.03);
+    border-color: rgb(0 0 0 / 0.06);
+    box-shadow: 0 8px 28px rgb(0 0 0 / 0.05);
+  }
+
+  .ds-feature-tile {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--ds-space-4);
+    border-radius: var(--ds-radius-xl);
+    background-color: var(--ds-surface);
+    padding: var(--ds-space-5);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.06);
+  }
+
+  .ds-feature-tile__icon {
+    display: grid;
+    height: 40px;
+    width: 40px;
+    flex-shrink: 0;
+    place-content: center;
+    border-radius: var(--ds-radius-pill);
+    background-color: var(--ds-sage);
+    color: var(--ds-ink);
+  }
+
+  .ds-input-field {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: 48px;
+    border-radius: var(--ds-radius-md);
+    border: 1px solid rgb(0 0 0 / 0.1);
+    background-color: var(--ds-surface);
+    padding: 0 var(--ds-space-4);
+    font-family: inherit;
+    font-size: var(--ds-text-body);
+    font-weight: var(--ds-font-normal);
+    line-height: var(--ds-leading-body);
+    color: var(--ds-text-primary);
+    outline: none;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .ds-input-field::placeholder {
+    color: var(--ds-text-placeholder);
+  }
+
+  .ds-input-field:focus-visible {
+    border-color: rgb(0 0 0 / 0.2);
+    box-shadow: 0 0 0 3px rgb(26 26 26 / 0.12);
+  }
+
+  .ds-input-field:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  textarea.ds-input-field {
+    height: auto;
+    min-height: 4rem;
+    padding-top: var(--ds-space-3);
+    padding-bottom: var(--ds-space-3);
+    resize: vertical;
+    field-sizing: content;
+  }
+
+  [data-slot="select-trigger"].ds-input-field {
+    display: inline-flex;
+    width: auto;
+    max-width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--ds-space-2);
+  }
+
+  [data-slot="select-trigger"].ds-input-field[data-size="sm"] {
+    height: 40px;
+    min-height: 40px;
+    padding-inline: var(--ds-space-3);
+    font-size: var(--ds-text-sm);
+  }
+
+  .ds-btn-primary-solid {
+    display: inline-flex;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ds-space-2);
+    height: 48px;
+    border: none;
+    border-radius: var(--ds-radius-md);
+    background-color: var(--ds-ink);
+    font-family: inherit;
+    font-size: var(--ds-text-body);
+    font-weight: var(--ds-font-medium);
+    line-height: var(--ds-leading-body);
+    color: #ffffff;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+
+  .ds-btn-primary-solid:hover:not(:disabled) {
+    opacity: 0.92;
+  }
+
+  .ds-btn-primary-solid:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .ds-btn-primary-solid:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(26 26 26 / 0.2);
+  }
+
+  .dark .ds-btn-primary-solid {
+    background-color: #fafafa;
+    color: #141414;
+  }
+
+  .dark .ds-btn-primary-solid:focus-visible {
+    box-shadow: 0 0 0 3px rgb(255 255 255 / 0.25);
+  }
+
+  .ds-btn-social {
+    display: inline-flex;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: var(--ds-space-2);
+    border-radius: var(--ds-radius-md);
+    border: 1px solid rgb(0 0 0 / 0.1);
+    background-color: var(--ds-surface);
+    font-family: inherit;
+    font-size: var(--ds-text-body-sm);
+    font-weight: var(--ds-font-medium);
+    color: var(--ds-ink);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+
+  .ds-btn-social:hover {
+    background-color: var(--input-background);
+  }
+
+  .ds-btn-social:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(26 26 26 / 0.12);
+  }
+
+  .ds-field-label {
+    font-size: var(--ds-text-sm-plus);
+    font-weight: var(--ds-font-medium);
+    line-height: var(--ds-leading-body);
+    color: var(--ds-ink);
+  }
+
+  .ds-course-card__icon-wrap {
+    display: flex;
+    height: 48px;
+    width: 48px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--ds-radius-md);
+    background-color: var(--ds-white-60);
+  }
+
+  .ds-progress-track {
+    height: 8px;
+    overflow: hidden;
+    border-radius: var(--ds-radius-pill);
+    background-color: var(--ds-white-60);
+  }
+
+  .ds-progress-fill {
+    height: 100%;
+    border-radius: var(--ds-radius-pill);
+    transition: width 0.25s ease;
+  }
+
+  .ds-activity-row {
+    display: flex;
+    align-items: center;
+    gap: var(--ds-space-4);
+    border-radius: var(--ds-radius-md);
+    background-color: var(--ds-surface-muted);
+    padding: var(--ds-space-4);
+    text-decoration: none;
+    color: inherit;
+    outline: none;
+    transition: background-color 0.15s ease;
+  }
+
+  .ds-activity-row:hover {
+    background-color: var(--ds-surface-hover);
+  }
+
+  .ds-activity-row:focus-visible {
+    box-shadow: 0 0 0 2px rgb(26 26 26 / 0.2);
+  }
+
+  /* —— Lesson screen tabs (Figmadasboard LessonPage.tsx) —— */
+  .ds-lesson-figma-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ds-space-2);
+    margin-bottom: var(--ds-space-6);
+    border-bottom: 1px solid var(--ds-sidebar);
+    padding-bottom: 0;
+  }
+
+  .ds-lesson-figma-tab {
+    margin-bottom: -1px;
+    border: none;
+    border-radius: 12px 12px 0 0;
+    padding: 10px 20px;
+    font-family: inherit;
+    font-size: var(--ds-text-body-sm);
+    font-weight: var(--ds-font-medium);
+    line-height: var(--ds-leading-body);
+    cursor: pointer;
+    background: transparent;
+    color: var(--ds-text-tertiary);
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .ds-lesson-figma-tab:hover:not(.ds-lesson-figma-tab--active) {
+    color: var(--ds-ink);
+  }
+
+  .ds-lesson-figma-tab--active {
+    background-color: var(--ds-ink);
+    color: #ffffff;
+  }
+
+  /* —— Settings: как превью v0 — p-6 md:p-8 от края main (компенсация shell-page-pad) —— */
+  .ds-settings-page-bleed {
+    box-sizing: border-box;
+    width: calc(100% + 2rem);
+    max-width: none;
+    margin: -1rem;
+    padding: 1.5rem;
+    color: #1a1a1a;
+  }
+
+  @media (min-width: 768px) {
+    .ds-settings-page-bleed {
+      width: calc(100% + 5rem);
+      margin: -2.5rem;
+      padding: 2rem;
+    }
+  }
+
+  .dark .ds-settings-page-bleed {
+    color: var(--ds-ink);
+  }
+
+  .ds-settings-v0-stack {
+    display: flex;
+    max-width: min(100%, 1100px);
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  @media (min-width: 768px) {
+    .ds-settings-v0-stack {
+      gap: 1.5rem;
+    }
+  }
+
+  /** Десктоп: 2×2 карточки; мобилка — одна колонка */
+  .ds-settings-panels-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  @media (min-width: 1024px) {
+    .ds-settings-panels-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.25rem 1.25rem;
+      align-items: start;
+    }
+  }
+
+  /** Неактивные фильтры / техкнопки — серые на любом акценте */
+  .ds-neutral-pill {
+    background-color: var(--ds-neutral-chrome);
+    color: var(--ds-ink);
+    transition: background-color 0.15s ease;
+  }
+
+  .ds-neutral-pill:hover {
+    background-color: var(--ds-neutral-chrome-hover);
+  }
+
+  .ds-settings-page-title {
+    margin: 0 0 0.25rem;
+    font-size: clamp(1.75rem, 4vw, 2.25rem);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    color: var(--ds-ink);
+  }
+
+  .ds-settings-page-lead {
+    margin: 0 0 1.5rem;
+    font-size: 0.9375rem;
+    line-height: 1.45;
+    color: var(--ds-text-secondary);
+  }
+
+  @media (min-width: 768px) {
+    .ds-settings-page-lead {
+      margin-bottom: 2rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .ds-settings-page-header .ds-settings-page-lead {
+      margin-bottom: 1rem;
+    }
+  }
+
+  /* Секции настроек: тот же нейтральный серый, что сайдбар; без теней; акцент не тонирует */
+  .ds-settings-panel {
+    border-radius: 28px;
+    border: none;
+    background-color: var(--ds-neutral-chrome);
+    padding: 1.25rem 1.25rem 1.5rem;
+    box-shadow: none;
+  }
+
+  @media (min-width: 768px) {
+    .ds-settings-panel {
+      padding: 1.35rem 1.35rem 1.5rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .ds-settings-panel {
+      padding: 1.25rem 1.35rem 1.4rem;
+    }
+
+    .ds-settings-panel .ds-settings-section-head {
+      margin-bottom: var(--ds-space-4);
+      font-size: 1.05rem;
+    }
+  }
+
+  /* —— Оплата: варианты карточек (светлая / тёмная тема), без обводки —— */
+  .ds-payment-page .ds-settings-panel.ds-payment-panel {
+    border: none;
+    box-shadow: none;
+  }
+
+  .dark .ds-payment-page .ds-settings-panel.ds-payment-panel {
+    border: none;
+  }
+
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--neutral {
+    background-color: var(--ds-neutral-row);
+  }
+
+  .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--neutral {
+    background-color: var(--ds-surface-muted);
+  }
+
+  /* Как блок «HSK 1 — Прогресс» в сайдбаре: bg-ds-sage */
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--sage {
+    background-color: var(--ds-sage);
+  }
+
+  .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--sage {
+    background-color: var(--ds-sage);
+  }
+
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--ink {
+    background-color: var(--ds-ink);
+    color: #ffffff;
+    box-shadow: 0 8px 28px rgb(0 0 0 / 0.14);
+  }
+
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-settings-section-head {
+    color: #ffffff;
+  }
+
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-settings-section-head svg {
+    color: rgb(255 255 255 / 0.78);
+  }
+
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-settings-subtitle {
+    color: rgb(255 255 255 / 0.92);
+  }
+
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .text-ds-ink {
+    color: #ffffff;
+  }
+
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .text-ds-text-tertiary {
+    color: rgb(255 255 255 / 0.68);
+  }
+
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-payment-panel--ink-cta {
+    border: none;
+    background-color: #ffffff;
+    color: var(--ds-ink);
+  }
+
+  .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-payment-panel--ink-cta:hover {
+    opacity: 0.92;
+  }
+
+  /**
+   * Тёмная тема: та же логика, что в светлой — тёмная «чернильная» плашка и светлый текст.
+   * Раньше фон был #ececec, а var(--ds-ink) в .dark = светлый — заголовок сливался с карточкой.
+   */
+  .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink {
+    background-color: #1a1a1a;
+    color: #ffffff;
+    box-shadow: 0 8px 32px rgb(0 0 0 / 0.55);
+  }
+
+  .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-settings-section-head {
+    color: #ffffff;
+  }
+
+  .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-settings-section-head svg {
+    color: rgb(255 255 255 / 0.78);
+  }
+
+  .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-settings-subtitle {
+    color: rgb(255 255 255 / 0.92);
+  }
+
+  .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .text-ds-ink {
+    color: #ffffff;
+  }
+
+  .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .text-ds-text-tertiary {
+    color: rgb(255 255 255 / 0.72);
+  }
+
+  .dark .ds-payment-page .ds-payment-panel.ds-payment-panel--ink .ds-payment-panel--ink-cta {
+    background-color: #ffffff;
+    color: #141414;
+  }
+
+  .ds-settings-section-head {
+    display: flex;
+    align-items: center;
+    gap: var(--ds-space-3);
+    margin: 0 0 var(--ds-space-5);
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--ds-ink);
+  }
+
+  .ds-settings-section-head svg {
+    flex-shrink: 0;
+    color: var(--ds-text-tertiary);
+  }
+
+  .ds-settings-subtitle {
+    margin-bottom: var(--ds-space-3);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--ds-text-tertiary);
+  }
+
+  /** Шапка профиля куратора / преподавателя (как референс Figma) */
+  .ds-mentor-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  @media (min-width: 768px) {
+    .ds-mentor-hero {
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 2.5rem;
+    }
+  }
+
+  .ds-mentor-hero__photo-wrap {
+    position: relative;
+    margin-left: auto;
+    margin-right: auto;
+    height: 168px;
+    width: 168px;
+    flex-shrink: 0;
+    overflow: hidden;
+    border-radius: var(--ds-radius-lg);
+    background-color: #f0f0f0;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+  }
+
+  @media (min-width: 768px) {
+    .ds-mentor-hero__photo-wrap {
+      margin-left: 0;
+      margin-right: 0;
+      height: 176px;
+      width: 176px;
+    }
+  }
+
+  .ds-mentor-hero__stats-row {
+    display: none;
+    margin-top: 1.5rem;
+    width: 100%;
+    align-items: center;
+  }
+
+  @media (min-width: 768px) {
+    .ds-mentor-hero__stats-row {
+      display: flex;
+      margin-top: 1.75rem;
+    }
+  }
+
+  .ds-mentor-hero__stat-divider {
+    height: 2rem;
+    width: 1px;
+    flex-shrink: 0;
+    align-self: center;
+    background-color: rgb(0 0 0 / 0.1);
+  }
+
+  .dark .ds-mentor-hero__stat-divider {
+    background-color: rgb(255 255 255 / 0.12);
+  }
+
+  .ds-mentor-hero__stat-cell {
+    display: flex;
+    flex-direction: column;
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  .ds-mentor-hero__stat-cell:first-of-type {
+    padding-left: 0;
+  }
+
+  .ds-mentor-hero__stat-cell:last-of-type {
+    padding-right: 0;
+  }
+
+  .ds-mentor-hero__stat-value {
+    font-size: var(--ds-text-2xl);
+    font-weight: var(--ds-font-bold);
+    line-height: 1;
+    color: var(--ds-ink);
+  }
+
+  .ds-mentor-hero__stat-label {
+    margin-top: 0.35rem;
+    font-size: var(--ds-text-sm-plus);
+    color: #666666;
+  }
+
+  .dark .ds-mentor-hero__stat-label {
+    color: var(--ds-text-tertiary);
+  }
+
+  .ds-mentor-hero__actions {
+    margin-top: 1.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  @media (min-width: 768px) {
+    .ds-mentor-hero__actions {
+      justify-content: flex-start;
+    }
+  }
+
+  /**
+   * Профиль преподавателя — блок «Предметы»: фон из палитры акцента (--ds-sage*),
+   * заголовок и пилюли в тёмном оттенке того же ряда (как референс Figma).
+   */
+  .ds-mentor-subjects-card {
+    border-radius: var(--ds-radius-lg);
+    background-color: color-mix(in srgb, var(--ds-sage) 78%, #ffffff);
+    padding: var(--ds-space-6);
+  }
+
+  @media (min-width: 768px) {
+    .ds-mentor-subjects-card {
+      padding: var(--ds-space-7);
+    }
+  }
+
+  .dark .ds-mentor-subjects-card {
+    background-color: color-mix(in srgb, var(--ds-sage) 55%, #0f0f0f);
+  }
+
+  .ds-mentor-subjects-card__head {
+    display: flex;
+    margin-bottom: var(--ds-space-4);
+    align-items: center;
+    gap: var(--ds-space-2);
+    font-size: var(--ds-text-lg);
+    font-weight: var(--ds-font-semibold);
+    /* тёмный «лесной» оттенок в ряду акцента */
+    color: color-mix(in srgb, var(--ds-sage-strong) 52%, #0f2912 48%);
+  }
+
+  .dark .ds-mentor-subjects-card__head {
+    color: color-mix(in srgb, var(--ds-sage-hover) 70%, #f0fdf4 30%);
+  }
+
+  .ds-mentor-subjects-card__head svg {
+    flex-shrink: 0;
+    color: inherit;
+  }
+
+  .ds-mentor-subjects-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ds-space-2);
+  }
+
+  .ds-mentor-subjects-pill {
+    border-radius: 9999px;
+    padding: 0.5rem 0.875rem;
+    font-size: var(--ds-text-sm-plus);
+    font-weight: var(--ds-font-medium);
+    /* пилюли светлее карточки, текст того же тёмного зелёного ряда */
+    background-color: color-mix(in srgb, var(--ds-sage) 22%, #ffffff 78%);
+    color: color-mix(in srgb, var(--ds-sage-strong) 52%, #0f2912 48%);
+  }
+
+  .dark .ds-mentor-subjects-pill {
+    background-color: color-mix(in srgb, var(--ds-sage) 35%, #ffffff 12%);
+    color: color-mix(in srgb, var(--ds-sage-hover) 65%, #ffffff 35%);
+  }
+
+  .ds-settings-label {
+    display: block;
+    margin-bottom: var(--ds-space-1);
+    font-size: var(--ds-text-xs);
+    color: var(--ds-text-tertiary);
+  }
+
+  .ds-settings-input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 48px;
+    border-radius: var(--ds-radius-md);
+    border: none;
+    background-color: #ffffff;
+    padding: 0 var(--ds-space-5);
+    font-family: inherit;
+    font-size: var(--ds-text-body-sm);
+    color: var(--ds-ink);
+    outline: none;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+    transition:
+      box-shadow 0.15s ease,
+      background-color 0.15s ease;
+  }
+
+  .dark .ds-settings-input {
+    background-color: #2c2c32;
+    color: var(--ds-ink);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  }
+
+  .ds-settings-input:focus {
+    box-shadow: 0 0 0 2px var(--ds-ink);
+  }
+
+  .dark .ds-settings-input:focus {
+    box-shadow: 0 0 0 2px rgb(255 255 255 / 0.38);
+  }
+
+  .ds-settings-input::placeholder {
+    color: var(--ds-text-placeholder);
+  }
+
+  .ds-settings-segmented {
+    display: inline-flex;
+    width: fit-content;
+    max-width: 100%;
+    flex-wrap: wrap;
+    gap: 4px;
+    border-radius: var(--ds-radius-md);
+    padding: 4px;
+    background-color: #d0d1d8;
+  }
+
+  .dark .ds-settings-segmented {
+    background-color: #121216;
+  }
+
+  .ds-settings-segmented__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+    border-radius: calc(var(--ds-radius-md) - 4px);
+    padding: 10px 18px;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.25;
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+    background: transparent;
+    color: var(--ds-text-muted);
+  }
+
+  .ds-settings-segmented__btn:hover:not(.ds-settings-segmented__btn--active) {
+    color: var(--ds-ink);
+  }
+
+  .ds-settings-segmented__btn--active {
+    background-color: #000000;
+    color: #ffffff;
+  }
+
+  .dark .ds-settings-segmented__btn--active {
+    background-color: #e8e8e8;
+    color: #141414;
+  }
+
+  .ds-settings-accent-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .ds-settings-accent-tile {
+    position: relative;
+    display: flex;
+    min-height: 88px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 20px;
+    border: none;
+    padding: var(--ds-space-4);
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      transform 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+
+  .ds-settings-accent-tile:hover {
+    transform: scale(1.02);
+  }
+
+  .ds-settings-accent-tile--active {
+    box-shadow: 0 10px 28px rgb(0 0 0 / 0.14);
+  }
+
+  .dark .ds-settings-accent-tile--active {
+    box-shadow: 0 12px 36px rgb(0 0 0 / 0.5);
+  }
+
+  .ds-settings-accent-check {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    height: 26px;
+    width: 26px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background-color: rgb(255 255 255 / 0.95);
+    color: var(--ds-sage-hover);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+  }
+
+  .ds-settings-panel .ds-figma-toggle--on {
+    background-color: var(--ds-sage-strong);
+  }
+
+  .ds-settings-panel .ds-figma-toggle--off {
+    background-color: #bdbdc5;
+  }
+
+  .dark .ds-settings-panel .ds-figma-toggle--off {
+    background-color: #3f3f46;
+  }
+
+  .ds-figma-toggle {
+    position: relative;
+    height: 24px;
+    width: 48px;
+    flex-shrink: 0;
+    cursor: pointer;
+    border: none;
+    border-radius: var(--ds-radius-pill);
+    padding: 0;
+    transition: background-color 0.15s ease;
+  }
+
+  .ds-figma-toggle--on {
+    background-color: var(--ds-ink);
+  }
+
+  .ds-figma-toggle--off {
+    background-color: var(--ds-sidebar-hover);
+  }
+
+  .ds-figma-toggle-knob {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    height: 16px;
+    width: 16px;
+    border-radius: var(--ds-radius-pill);
+    background-color: #ffffff;
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+    transition: transform 0.15s ease;
+  }
+
+  .ds-figma-toggle--on .ds-figma-toggle-knob {
+    transform: translateX(24px);
+  }
+
+  /* —— Schedule week column (Figmadasboard Schedule.tsx) —— */
+  .ds-schedule-day-head {
+    border-radius: var(--ds-radius-md);
+    padding: var(--ds-space-2);
+    text-align: center;
+  }
+
+  .ds-schedule-day-head--today {
+    background-color: var(--ds-ink);
+    color: #ffffff;
+  }
+
+  .dark .ds-schedule-day-head--today {
+    background-color: #fafafa;
+    color: #141414;
+  }
+
+  .ds-schedule-day-head--muted {
+    background-color: var(--ds-neutral-chrome);
+    color: var(--ds-text-tertiary);
+  }
+
+  .ds-schedule-slot {
+    cursor: pointer;
+    border-radius: var(--ds-radius-md);
+    padding: 10px;
+    transition: opacity 0.15s ease;
+  }
+
+  .ds-schedule-slot:hover {
+    opacity: 0.92;
+  }
+
+  .ds-schedule-empty {
+    min-height: 60px;
+    flex: 1;
+    border-radius: var(--ds-radius-md);
+    border: 2px dashed var(--ds-neutral-chrome-hover);
+  }
+
+  .dark .ds-schedule-empty {
+    border-color: rgb(255 255 255 / 0.12);
+  }
+
+  .ds-schedule-slot--lesson {
+    background-color: #e2e3e8;
+    color: var(--ds-ink);
+  }
+
+  .dark .ds-schedule-slot--lesson {
+    background-color: #52525b;
+    color: #fafafa;
+  }
+
+  .ds-schedule-slot--club {
+    background-color: var(--ds-gray-tile);
+    color: var(--ds-ink);
+    border: 1px solid rgb(0 0 0 / 0.1);
+  }
+
+  .dark .ds-schedule-slot--club {
+    border-color: rgb(255 255 255 / 0.14);
+  }
+
+  .ds-schedule-slot--test {
+    background-color: var(--ds-pink);
+    color: var(--ds-ink);
+  }
+
+  .dark .ds-schedule-slot--test {
+    color: #fde8ea;
+  }
+
+  .ds-schedule-slot--event {
+    background-color: var(--ds-sage);
+    color: var(--ds-ink);
+  }
+
+  .dark .ds-schedule-slot--event {
+    color: #ecfccb;
+  }
+
+  /* —— Classes list (Figmadasboard Classes.tsx) —— */
+  .ds-class-card {
+    background-color: var(--ds-neutral-row);
+    color: inherit;
+  }
+
+  .ds-class-card:hover {
+    background-color: var(--ds-neutral-row-hover);
+  }
+
+  /* —— Messages split layout —— */
+  /* Плоская вёрстка как Figmadasboard Messages.tsx (без рамки вокруг всего чата) */
+  .ds-messages-shell {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 0;
+    background-color: var(--ds-surface);
+    border: none;
+    box-shadow: none;
+  }
+
+  /** Мобильный чат: занимаем оставшуюся высоту вьюпорта под плавающим баром */
+  @media (max-width: 1023px) {
+    .ds-figma-shell-main-scroll:has(.ds-messages-page) {
+      overflow-y: hidden;
+    }
+
+    .ds-messages-page {
+      flex: 1 1 auto;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow-x: hidden;
+      min-height: calc(var(--visual-viewport-height, 100dvh) - var(--ds-mobile-messages-offset, 7.5rem));
+      height: calc(var(--visual-viewport-height, 100dvh) - var(--ds-mobile-messages-offset, 7.5rem));
+    }
+
+    .ds-messages-page__frame {
+      display: flex;
+      min-height: 0;
+      min-width: 0;
+      flex: 1;
+      flex-direction: column;
+      max-width: 100%;
+      overflow-x: hidden;
+      height: 100%;
+    }
+
+    .ds-messages-shell {
+      height: 100%;
+      min-height: 0;
+    }
+
+    .ds-messages-sidebar {
+      max-height: min(36dvh, 300px);
+      min-width: 0;
+    }
+
+    .ds-messages-chat-panel {
+      display: flex;
+      min-height: 0;
+      min-width: 0;
+      flex: 1;
+      flex-direction: column;
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+      height: 100%;
+    }
+  }
+
+  .ds-messages-sidebar {
+    display: flex;
+    width: 100%;
+    flex-shrink: 0;
+    flex-direction: column;
+    border-bottom: 1px solid #e8e8e8;
+    border-right: none;
+  }
+
+  @media (min-width: 1024px) {
+    .ds-messages-sidebar {
+      width: 300px;
+      max-height: none;
+      border-bottom: none;
+      border-right: 1px solid #e8e8e8;
+    }
+
+    .ds-messages-page {
+      min-height: 0;
+      height: auto;
+    }
+
+    .ds-messages-page__frame {
+      min-height: 0;
+      height: auto;
+      max-height: none;
+    }
+  }
+
+  .dark .ds-messages-sidebar {
+    border-color: #333333;
+  }
+
+  .dark .ds-messages-search-wrap {
+    border-bottom-color: #333333;
+  }
+
+  .dark .ds-messages-search-glass {
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .ds-messages-search {
+    display: flex;
+    align-items: center;
+    gap: var(--ds-space-2);
+    border-radius: var(--ds-radius-md);
+    background-color: var(--ds-surface-pill);
+    padding: 8px 12px;
+  }
+
+  .ds-messages-search input {
+    min-width: 0;
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: var(--ds-text-body-sm);
+    color: var(--ds-text-primary);
+    outline: none;
+  }
+
+  .ds-messages-search input::placeholder {
+    color: var(--ds-text-placeholder);
+  }
+
+  .ds-msg-bubble-them {
+    background-color: var(--ds-surface-pill);
+    color: var(--ds-text-primary);
+  }
+
+  .ds-msg-bubble-me {
+    background-color: var(--ds-ink);
+    color: #ffffff;
+  }
+
+  .dark .ds-msg-bubble-them {
+    background-color: #262626;
+    color: #e8e8e8;
+    border: 1px solid rgb(255 255 255 / 0.08);
+  }
+
+  .dark .ds-msg-bubble-me {
+    background-color: #e8e8e8;
+    color: #141414;
+  }
+}

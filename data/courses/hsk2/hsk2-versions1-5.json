@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "slug": "hsk2-versions1-5",
+  "courseId": "hsk2",
+  "kind": "final_test",
+  "contentStatus": "pending_extraction",
+  "source": {
+    "note": "Интерактивный тест: извлечь вопросы и аудио из HTML-блоков и репозитория материалов.",
+    "htmlBlocks": [
+      "HSK2: исходные блоки финального теста из базы HSK Lessons and Tests (импорт по аналогии с HSK1 Final Test Updated)"
+    ]
+  },
+  "heroMedia": [],
+  "data": null,
+  "catalogTitle": "Варианты HSK2 1–5"
+}

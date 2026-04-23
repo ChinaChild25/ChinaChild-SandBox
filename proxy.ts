@@ -1,0 +1,15 @@
+import type { NextRequest } from "next/server"
+import { updateSupabaseSession } from "@/lib/supabase/middleware"
+
+export async function proxy(request: NextRequest) {
+  return updateSupabaseSession(request)
+}
+
+export const config = {
+  matcher: [
+    /*
+     * Исключаем статику и изображения — см. документацию Supabase + Next.js.
+     */
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"
+  ]
+}

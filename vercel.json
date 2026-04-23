@@ -1,0 +1,3 @@
+{
+  "installCommand": "npx pnpm install --no-frozen-lockfile"
+}

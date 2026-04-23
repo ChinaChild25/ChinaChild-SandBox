@@ -1,0 +1,180 @@
+@import "tailwindcss";
+@custom-variant dark (&:is(.dark *));
+@import "tw-animate-css";
+
+/* ВАЖНО: сначала токены */
+@import "../styles/ds-figma-tokens.css";
+
+/* затем темы */
+@import "./figma-theme.css";
+
+/* затем твоя дизайн-система */
+@import "../styles/cc-design-system.css";
+
+/* базовые слои Tailwind */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  /**
+   * Перенос текста: опираемся на lang="ru" у <html> и словари браузера (hyphens: auto).
+   * Не используем overflow-wrap: anywhere / word-break: break-all в базе — иначе рвутся слова не по слогам.
+   * Длинные URL и строки без пробелов могут ломаться по символам там, где задано overflow-wrap: break-word на контейнере.
+   */
+  html {
+    hyphens: auto;
+    -webkit-hyphens: auto;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+}
+
+@layer utilities {
+  /** Явный перенос по слогам (для вложенных блоков с min-w-0 во flex/grid) */
+  .ds-hyphenate {
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  /**
+   * Текст + при необходимости аварийный перенос длинных токенов (URL, хэши), после словарных переносов.
+   */
+  .ds-hyphenate-safe {
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+}
+
+/* подсветка после поиска: кольцо через spread box-shadow (повторяет border-radius элемента; outline в Chrome даёт «чужие» скругления) */
+@keyframes schedule-lesson-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.95);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.82);
+  }
+}
+
+.dark .schedule-lesson-search-pulse {
+  animation: schedule-lesson-pulse-dark 1s ease-in-out 3 forwards;
+}
+
+@keyframes schedule-lesson-pulse-dark {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgba(138, 180, 248, 0.95);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(138, 180, 248, 0.88);
+  }
+}
+
+.schedule-lesson-search-pulse {
+  animation: schedule-lesson-pulse 1s ease-in-out 3 forwards;
+  position: relative;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .schedule-lesson-search-pulse {
+    animation: none;
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.92);
+  }
+
+  .dark .schedule-lesson-search-pulse {
+    animation: none;
+    box-shadow: 0 0 0 2px rgba(138, 180, 248, 0.92);
+  }
+}
+
+/* анимации */
+@keyframes ds-auth-float {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-8px) scale(1.01);
+  }
+}
+
+.ds-auth-marketing__brand.ds-auth-marketing__float {
+  animation: ds-auth-float 7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-auth-marketing__brand.ds-auth-marketing__float {
+    animation: none;
+  }
+}
+
+/* компоненты */
+@layer components {
+  .ek-auth-title {
+    @apply text-[2rem] font-semibold leading-none tracking-[-0.03em] text-foreground;
+  }
+
+  .ek-brand-logo {
+    @apply font-bold leading-none tracking-tight text-ds-ink;
+  }
+
+  .ek-brand-logo span,
+  .ek-brand-logo p {
+    @apply block;
+  }
+
+  .ek-surface {
+    border-radius: var(--ds-radius-xl);
+    transition:
+      transform 0.2s ease,
+      box-shadow 0.2s ease,
+      background-color 0.15s ease;
+  }
+
+  .figma-nav-link {
+    @apply relative flex items-center gap-3 px-4 py-3 text-ds-body font-medium text-ds-ink no-underline transition-colors;
+    border-radius: var(--ds-radius-md);
+  }
+
+  .figma-nav-link:hover {
+    background-color: #d8d8d8;
+  }
+
+  .dark .figma-nav-link:hover {
+    background-color: #2f2f2f;
+  }
+
+  .figma-nav-link--active {
+    background-color: var(--ds-ink);
+    @apply text-white;
+  }
+
+  .figma-nav-link--active:hover {
+    background-color: var(--ds-ink);
+    @apply text-white;
+  }
+
+  .dark .figma-nav-link--active,
+  .dark .figma-nav-link--active:hover {
+    background-color: #e8e8e8;
+    color: #141414;
+  }
+
+  .figma-nav-link--compact {
+    @apply px-2 py-2.5;
+  }
+
+  .figma-nav-link--drawer-list {
+    @apply px-3 py-2.5 text-left;
+  }
+}

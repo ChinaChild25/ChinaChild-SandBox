@@ -1,0 +1,80 @@
+/**
+ * Копирайт и данные как на https://chinachild.figma.site/ (светлый макет).
+ */
+
+import { APP_REFERENCE_DAY } from "@/lib/app-time"
+
+/** Фото ученицы Яны (локальный ассет) */
+export const FIGMA_STUDENT_AVATAR = "/students/yana.png" as const
+
+export const FIGMA_TEACHERS = [
+  {
+    slug: "eo-mi-ran" as const,
+    name: "Денис Гасенко",
+    role: "куратор группы",
+    photo: "/staff/denis-gasenko-curator.png"
+  },
+  {
+    slug: "zhao-li" as const,
+    name: "Чжао Ли",
+    role: "преподаватель",
+    photo: "/staff/zhao-li.png"
+  }
+] as const
+
+export const FIGMA_UPCOMING_LESSONS = [
+  {
+    id: "figma-1",
+    date: 7,
+    time: "19:00–20:00",
+    description: "Числа на китайском. Как использовать 是.",
+    href: "/hsk1-tema10" as const
+  },
+  {
+    id: "figma-2",
+    date: 11,
+    time: "19:00–20:00",
+    description: "Повседневный распорядок и время суток.",
+    href: "/hsk1-tema11" as const
+  },
+  {
+    id: "figma-3",
+    date: 14,
+    time: "19:00–20:00",
+    description: "Транспорт и дорога до школы.",
+    href: "/hsk1-tema12" as const
+  },
+  {
+    id: "figma-4",
+    date: 18,
+    time: "19:00–20:00",
+    description: "Цвета и простые описания.",
+    href: "/hsk1-tema13" as const
+  },
+  {
+    id: "figma-5",
+    date: 21,
+    time: "19:00–20:00",
+    description: "Одежда и погода.",
+    href: "/hsk1-tema14" as const
+  }
+] as const
+
+export const FIGMA_CALENDAR = {
+  monthTitle: "апрель",
+  year: 2026,
+  startOffset: 3,
+  /** Пн/пт с занятиями в апреле */
+  eventDays: [3, 7, 10, 14, 17, 21, 24, 28] as const,
+  /** Синхронно с lib/app-time «сегодня» в апреле 2026 */
+  today: APP_REFERENCE_DAY
+} as const
+
+/** Первые 4 пункта в блоке «Предстоящие занятия» на главной */
+export const FIGMA_DASHBOARD_LESSONS = FIGMA_UPCOMING_LESSONS.slice(0, 4)
+
+export const FIGMA_CONTINUE_LESSON = {
+  title: "HSK1 — Тема №8: Самопрезентация",
+  subtitle: "Продолжить с того места, где остановились",
+  href: "/hsk1-tema8" as const
+} as const

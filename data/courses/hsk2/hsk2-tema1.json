@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "slug": "hsk2-tema1",
+  "courseId": "hsk2",
+  "kind": "lesson",
+  "contentStatus": "pending_extraction",
+  "source": {
+    "note": "Контент импортируется из презентаций курса «轻松学中文» и учебников Easy Step to Chinese (PDF) по пайплайну PPTX/PDF; не заполнять выдуманными фразами.",
+    "markdown": [
+      "Playground/hsk1_lesson_skeleton.md (структурный эталон для уроков)"
+    ],
+    "htmlBlocks": [
+      "Playground/hsk1_lesson1_blocks/ — эталон структуры интерактивного урока (применить к теме после извлечения PPTX)"
+    ]
+  },
+  "heroMedia": [],
+  "data": null,
+  "catalogTitle": "Тема №1 — Страны и языки (国家、语言)",
+  "catalogTopicNumber": 1
+}

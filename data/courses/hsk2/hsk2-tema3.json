@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "slug": "hsk2-tema3",
+  "courseId": "hsk2",
+  "kind": "lesson",
+  "contentStatus": "pending_extraction",
+  "source": {
+    "note": "Контент импортируется из презентаций курса «轻松学中文» и учебников Easy Step to Chinese (PDF) по пайплайну PPTX/PDF; не заполнять выдуманными фразами.",
+    "markdown": [
+      "Playground/hsk1_lesson_skeleton.md (структурный эталон для уроков)"
+    ],
+    "htmlBlocks": [
+      "Playground/hsk1_lesson1_blocks/ — эталон структуры интерактивного урока (применить к теме после извлечения PPTX)"
+    ]
+  },
+  "heroMedia": [],
+  "data": null,
+  "catalogTitle": "Тема №3 — Совершение телефонных звонков (打电话)",
+  "catalogTopicNumber": 3
+}

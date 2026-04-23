@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "slug": "hsk-1",
+  "courseId": "hsk1",
+  "kind": "final_test",
+  "contentStatus": "pending_extraction",
+  "source": {
+    "note": "Интерактивный тест: извлечь вопросы и аудио из HTML-блоков и репозитория материалов.",
+    "htmlBlocks": [
+      "Playground/HSK1 Final Test Updated/ (block-01-core.html … — данные финального теста)"
+    ]
+  },
+  "heroMedia": [],
+  "data": null,
+  "catalogTitle": "Интерактивный диагностический тест HSK 1"
+}
