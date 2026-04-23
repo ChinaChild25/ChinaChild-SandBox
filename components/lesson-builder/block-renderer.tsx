@@ -1,707 +1,828 @@
 "use client"
 
-import { useMemo, useRef, useState } from "react"
+import { useMemo, useState } from "react"
+import { Download, ExternalLink, Mic, Play, Upload } from "lucide-react"
 import type { TeacherLessonBlock } from "@/lib/types"
+import {
+  asRecord,
+  asString,
+  asStringArray,
+  extractBracketAnswers,
+  normalizeTeacherLessonBlock,
+  type FlashcardItem,
+  type FillGapItem,
+  type MatchingPair,
+  type QuizMultiQuestion,
+  type QuizSingleQuestion,
+  type SentenceBuilderItem,
+  type TextBlockItem
+} from "@/lib/lesson-builder-blocks"
+import { BLOCK_ICON_REGISTRY, getBlockVariantBehavior, getBlockVariantId } from "@/components/lesson-builder/block-registry"
 import { blockTypeStudentTheme } from "@/components/lesson-builder/block-theme"
 import { InlineLessonVideo } from "@/components/lesson-builder/inline-lesson-video"
-import { LessonAudioPlayerRow } from "@/components/lesson-builder/lesson-audio-waveform"
-import { TrueFalseInlineSelect } from "@/components/lesson-builder/true-false-inline-select"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CardTitle } from "@/components/ui/card"
+import { cn } from "@/lib/utils"
 
-type Pair = { left: string; right: string }
-type TrueFalseQuestion = { prompt: string; answer: boolean }
-
-function asString(value: unknown): string {
-  return typeof value === "string" ? value : ""
+function hashString(input: string): number {
+  let hash = 2166136261
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash >>> 0
 }
 
-function asStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return []
-  return value.map((item) => String(item ?? ""))
+function seededShuffle<T>(items: T[], seedKey: string): T[] {
+  const next = [...items]
+  let seed = hashString(seedKey) || 1
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    seed = (seed * 1664525 + 1013904223) >>> 0
+    const swapIndex = seed % (index + 1)
+    ;[next[index], next[swapIndex]] = [next[swapIndex], next[index]]
+  }
+  return next
 }
 
-function asNumberArray(value: unknown): number[] {
-  if (!Array.isArray(value)) return []
-  return value.filter((x): x is number => typeof x === "number" && Number.isFinite(x))
-}
-
-function asPairs(value: unknown): Pair[] {
-  if (!Array.isArray(value)) return []
-  return value.map((item) => ({
-    left: asString((item as Record<string, unknown>)?.left),
-    right: asString((item as Record<string, unknown>)?.right)
-  }))
-}
-
-function asTrueFalseQuestions(value: unknown): TrueFalseQuestion[] {
-  if (!Array.isArray(value)) return []
-  return value
-    .map((item) => ({
-      prompt: asString((item as Record<string, unknown>)?.prompt).trim(),
-      answer: Boolean((item as Record<string, unknown>)?.answer)
-    }))
-    .filter((item) => item.prompt)
-}
-
-function parseFillGaps(text: string): { parts: string[]; answers: string[]; gaps: number } {
-  // Поддерживаем новый формат [слово], а также legacy [] и ___.
+function parseFillText(text: string) {
   const tokenRe = /\[([^[\]]*?)\]|___/g
   const parts: string[] = []
   const answers: string[] = []
   let lastIndex = 0
-  let m: RegExpExecArray | null
+  let match: RegExpExecArray | null
 
-  while ((m = tokenRe.exec(text)) !== null) {
-    parts.push(text.slice(lastIndex, m.index))
-    lastIndex = m.index + m[0].length
-    const bracketWord = (m[1] ?? "").trim()
-    answers.push(bracketWord)
+  while ((match = tokenRe.exec(text)) !== null) {
+    parts.push(text.slice(lastIndex, match.index))
+    lastIndex = match.index + match[0].length
+    answers.push((match[1] ?? "").trim())
   }
 
   parts.push(text.slice(lastIndex))
-  return { parts, answers, gaps: answers.length }
+  return { parts, answers }
 }
 
-function joinClasses(...parts: Array<string | false | null | undefined>): string {
-  return parts.filter(Boolean).join(" ")
+function studentCardShell(type: TeacherLessonBlock["type"]) {
+  return BLOCK_ICON_REGISTRY[type].cardClass
 }
 
-function hashString(input: string): number {
-  let h = 2166136261
-  for (let i = 0; i < input.length; i += 1) {
-    h ^= input.charCodeAt(i)
-    h = Math.imul(h, 16777619)
-  }
-  return h >>> 0
+function normalizeTextItems(value: unknown): TextBlockItem[] {
+  const items = Array.isArray(asRecord(value).items) ? (asRecord(value).items as unknown[]) : []
+  return items.map((item) => ({
+    content: asString(asRecord(item).content),
+    questions: Array.isArray(asRecord(item).questions)
+      ? (asRecord(item).questions as unknown[]).map((entry) => ({
+          prompt: asString(asRecord(entry).prompt),
+          answer: Boolean(asRecord(entry).answer)
+        }))
+      : []
+  }))
 }
 
-function seededShuffle<T>(items: T[], seedKey: string): T[] {
-  const out = [...items]
-  let seed = hashString(seedKey) || 1
-  for (let i = out.length - 1; i > 0; i -= 1) {
-    seed = (seed * 1664525 + 1013904223) >>> 0
-    const j = seed % (i + 1)
-    ;[out[i], out[j]] = [out[j], out[i]]
-  }
-  return out
+function normalizePairs(value: unknown): MatchingPair[] {
+  const pairs = Array.isArray(asRecord(value).pairs) ? (asRecord(value).pairs as unknown[]) : []
+  return pairs.map((item) => ({
+    left: asString(asRecord(item).left),
+    right: asString(asRecord(item).right)
+  }))
 }
 
-function blockGoalAndInstruction(type: TeacherLessonBlock["type"]): { goal: string; instruction: string } {
-  switch (type) {
-    case "text":
-      return {
-        goal: "Прочитать и понять материал",
-        instruction: "Внимательно прочитайте текст — он понадобится в следующих заданиях."
-      }
-    case "matching":
-      return {
-        goal: "Сопоставить пары",
-        instruction: "Сравните элементы слева и справа и найдите соответствия."
-      }
-    case "fill_gaps":
-      return {
-        goal: "Вставить слова в пропуски",
-        instruction:
-          "Перетащите слова из банка в пропуски (или нажмите слово, затем пропуск). Каждое слово можно использовать один раз."
-      }
-    case "quiz_single":
-      return {
-        goal: "Выбрать правильный ответ",
-        instruction: "Отметьте один вариант, который вы считаете правильным."
-      }
-    case "image":
-      return {
-        goal: "Рассмотреть изображение и понять смысл",
-        instruction: "Посмотрите на картинку и прочитайте подпись (если есть)."
-      }
-    case "video":
-      return {
-        goal: "Посмотреть видео и понять ключевые идеи",
-        instruction: "Просмотрите видео и обратите внимание на основные моменты."
-      }
-    case "audio":
-      return {
-        goal: "Прослушать аудио и понять смысл",
-        instruction: "Прослушайте запись. При необходимости ориентируйтесь на подпись/транскрипт."
-      }
-    case "note":
-      return {
-        goal: "Прочитать заметку",
-        instruction: "Ознакомьтесь с заметкой преподавателя перед выполнением следующих шагов."
-      }
-    case "link":
-      return {
-        goal: "Открыть внешний материал",
-        instruction: "Перейдите по ссылке и вернитесь в урок после изучения материала."
-      }
-    case "divider":
-      return {
-        goal: "Перейти к следующему разделу",
-        instruction: "Разделитель помогает структурировать урок по этапам."
-      }
-    default: {
-      const _never: never = type
-      return _never
-    }
-  }
+function normalizeFillGapItems(value: unknown): FillGapItem[] {
+  const items = Array.isArray(asRecord(value).items) ? (asRecord(value).items as unknown[]) : []
+  return items.map((item) => ({
+    text: asString(asRecord(item).text),
+    answers: asStringArray(asRecord(item).answers)
+  }))
 }
 
-const TASK_BADGE_COLORS: Record<
-  string,
-  { rgb: string; label: string; textRgb: string }
-> = {
-  blue: { rgb: "125 176 232", textRgb: "24 63 104", label: "Синий" },
-  pink: { rgb: "232 135 135", textRgb: "110 45 45", label: "Розовый" },
-  yellow: { rgb: "232 153 74", textRgb: "99 55 15", label: "Жёлтый" },
-  green: { rgb: "163 201 104", textRgb: "34 74 33", label: "Зелёный" },
-  purple: { rgb: "201 157 240", textRgb: "72 46 102", label: "Фиолетовый" },
-  red: { rgb: "240 120 120", textRgb: "112 35 35", label: "Красный" }
+function normalizeSingleQuestions(value: unknown): QuizSingleQuestion[] {
+  const questions = Array.isArray(asRecord(value).questions) ? (asRecord(value).questions as unknown[]) : []
+  return questions.map((item) => ({
+    prompt: asString(asRecord(item).prompt),
+    options: asStringArray(asRecord(item).options),
+    correctIndex: Number(asRecord(item).correctIndex ?? 0)
+  }))
 }
 
-function badgeColors(key: string | null | undefined) {
-  return TASK_BADGE_COLORS[key ?? ""] ?? TASK_BADGE_COLORS.blue
+function normalizeMultiQuestions(value: unknown): QuizMultiQuestion[] {
+  const questions = Array.isArray(asRecord(value).questions) ? (asRecord(value).questions as unknown[]) : []
+  return questions.map((item) => ({
+    prompt: asString(asRecord(item).prompt),
+    options: asStringArray(asRecord(item).options),
+    correctIndexes: Array.isArray(asRecord(item).correctIndexes)
+      ? (asRecord(item).correctIndexes as unknown[]).map((index) => Number(index)).filter((index) => Number.isInteger(index) && index >= 0)
+      : []
+  }))
 }
 
-export function BlockRenderer({ blocks, taskBadgeColor = "blue" }: { blocks: TeacherLessonBlock[]; taskBadgeColor?: string }) {
-  const [answers, setAnswers] = useState<Record<string, string>>({})
-  const ordered = useMemo(() => [...blocks].sort((a, b) => a.order - b.order), [blocks])
-  const matchingShuffleSeedRef = useRef(`${Date.now()}-${Math.random()}`)
-  const [activeBankWord, setActiveBankWord] = useState<{ blockId: string; word: string } | null>(null)
-  const [returnGapTarget, setReturnGapTarget] = useState<{ blockId: string; gapIndex: number } | null>(null)
-  const [dragOverGap, setDragOverGap] = useState<{ blockId: string; gapIndex: number } | null>(null)
-  const dragGhostRef = useRef<HTMLDivElement | null>(null)
+function normalizeSentenceItems(value: unknown): SentenceBuilderItem[] {
+  const items = Array.isArray(asRecord(value).sentences) ? (asRecord(value).sentences as unknown[]) : []
+  return items.map((item) => ({ source: asString(asRecord(item).source) }))
+}
 
-  function handleWordDragStart(e: React.DragEvent<HTMLElement>, word: string, blockId: string) {
-    e.dataTransfer.setData("application/x-fillgap-word", word)
-    e.dataTransfer.setData("application/x-fillgap-block", blockId)
-    e.dataTransfer.effectAllowed = "move"
-    const chipStyles = window.getComputedStyle(e.currentTarget)
+function normalizeFlashcards(value: unknown): FlashcardItem[] {
+  const cards = Array.isArray(asRecord(value).cards) ? (asRecord(value).cards as unknown[]) : []
+  return cards.map((item) => ({
+    front: asString(asRecord(item).front),
+    back: asString(asRecord(item).back),
+    example: asString(asRecord(item).example)
+  }))
+}
 
-    const ghost = document.createElement("div")
-    ghost.textContent = word
-    ghost.style.position = "fixed"
-    ghost.style.top = "-9999px"
-    ghost.style.left = "-9999px"
-    ghost.style.padding = "6px 12px"
-    ghost.style.borderRadius = "9999px"
-    ghost.style.background = chipStyles.backgroundColor || "rgb(255 243 226)"
-    ghost.style.color = chipStyles.color || "rgb(122 86 50)"
-    ghost.style.fontSize = "14px"
-    ghost.style.fontWeight = "600"
-    ghost.style.border = `1px solid ${chipStyles.borderColor || "rgb(248 223 190)"}`
-    ghost.style.boxShadow = chipStyles.boxShadow && chipStyles.boxShadow !== "none" ? chipStyles.boxShadow : "0 1px 2px rgba(0,0,0,0.1)"
-    ghost.style.pointerEvents = "none"
-    document.body.appendChild(ghost)
-    dragGhostRef.current = ghost
-    e.dataTransfer.setDragImage(ghost, 16, 12)
-  }
+const studentSelectTriggerClass =
+  "h-11 w-full rounded-[14px] border border-black/[0.06] bg-[var(--ds-surface)] px-3.5 text-[15px] text-ds-ink shadow-none outline-none transition-colors hover:bg-[var(--ds-neutral-row-hover)] focus-visible:ring-0 dark:border-white/[0.08]"
 
-  function handleWordDragEnd() {
-    setDragOverGap(null)
-    if (dragGhostRef.current) {
-      dragGhostRef.current.remove()
-      dragGhostRef.current = null
-    }
-  }
+const studentSelectContentClass =
+  "rounded-[16px] border border-black/[0.08] bg-[var(--ds-surface)] p-1 text-ds-ink shadow-[0_18px_40px_-30px_rgba(0,0,0,0.2)] dark:border-white/[0.08]"
 
-  const badge = badgeColors(taskBadgeColor)
-  const matchingOptionsByBlockId = useMemo(() => {
-    const byId: Record<string, string[]> = {}
-    for (const block of ordered) {
-      if (block.type !== "matching") continue
-      const pairs = asPairs(block.data?.pairs).filter((pair) => pair.left.trim() || pair.right.trim())
-      const options = pairs.map((pair) => pair.right).filter((value) => value.trim())
-      byId[block.id] = seededShuffle(options, `${block.id}:${matchingShuffleSeedRef.current}`)
-    }
-    return byId
-  }, [ordered])
+const studentMutedPanelClass = "rounded-[24px] border border-black/[0.06] bg-[var(--ds-surface-muted)] p-4 dark:border-white/[0.08]"
+const studentSoftFieldClass = "rounded-[18px] border border-black/[0.06] bg-[var(--ds-surface)] px-5 py-4 text-ds-ink dark:border-white/[0.08]"
+const studentSelectedOptionClass =
+  "border-[color:var(--ds-sage-hover)] bg-[color:color-mix(in_srgb,var(--ds-sage)_72%,var(--ds-surface))] text-ds-ink dark:bg-[color:color-mix(in_srgb,var(--ds-sage)_24%,var(--ds-surface))]"
+const studentAnswerChipClass =
+  "rounded-full border border-[color:var(--ds-sage-hover)] bg-[color:color-mix(in_srgb,var(--ds-sage)_70%,var(--ds-surface))] px-3 py-1.5 text-[14px] font-medium text-ds-ink dark:bg-[color:color-mix(in_srgb,var(--ds-sage)_20%,var(--ds-surface))]"
+
+export function BlockRenderer({ blocks }: { blocks: TeacherLessonBlock[]; taskBadgeColor?: string }) {
+  const normalizedBlocks = useMemo(
+    () => [...blocks].map(normalizeTeacherLessonBlock).sort((left, right) => left.order - right.order),
+    [blocks]
+  )
+  const [singleAnswers, setSingleAnswers] = useState<Record<string, string>>({})
+  const [multiAnswers, setMultiAnswers] = useState<Record<string, number[]>>({})
+  const [matchAnswers, setMatchAnswers] = useState<Record<string, string>>({})
+  const [fillAnswers, setFillAnswers] = useState<Record<string, string>>({})
 
   return (
-    <div className="space-y-6">
-      {ordered.map((block, index) => {
-        const data = block.data ?? {}
-        const baseMeta = blockGoalAndInstruction(block.type)
-        const customGoal = asString((data as Record<string, unknown>)?.exercise_variant_label).trim()
-        const meta = {
-          goal: customGoal || baseMeta.goal,
-          instruction: baseMeta.instruction
-        }
-        const audioUrl = block.type === "audio" ? asString(data.url) : ""
-        const audioPeaks = block.type === "audio" ? asNumberArray(data.waveform_peaks) : []
-        const textQuestions = block.type === "text" ? asTrueFalseQuestions(data.questions) : []
-        const fillText = block.type === "fill_gaps" ? asString(data.text) : ""
-        const fillParse = block.type === "fill_gaps" ? parseFillGaps(fillText) : { parts: [""], answers: [], gaps: 0 }
-        const rawBankWords =
-          block.type === "fill_gaps"
-            ? (fillParse.answers.some(Boolean) ? fillParse.answers : asStringArray(data.answers))
-                .map((x) => x.trim())
-                .filter(Boolean)
-            : []
-        const bankWords = block.type === "fill_gaps" ? seededShuffle(rawBankWords, `${block.id}:${matchingShuffleSeedRef.current}:fill`) : []
-        const usedWords =
-          block.type === "fill_gaps"
-            ? new Set(
-                Array.from({ length: fillParse.gaps })
-                  .map((_, gapIndex) => answers[`${block.id}-gap-${gapIndex}`] ?? "")
-                  .map((x) => x.trim())
-                  .filter(Boolean)
-              )
-            : new Set<string>()
-        const availableWords = block.type === "fill_gaps" ? bankWords.filter((word) => !usedWords.has(word)) : []
-        const quizQuestion = block.type === "quiz_single" ? asString(data.question).trim() : ""
-        const quizOptions = block.type === "quiz_single" ? asStringArray(data.options).map((x) => x.trim()).filter(Boolean) : []
-        const imageUrl = block.type === "image" ? asString(data.url).trim() : ""
-        const imageAlt = block.type === "image" ? asString(data.alt) : ""
-        const imageCaption = block.type === "image" ? asString(data.caption) : ""
-        const videoUrl = block.type === "video" ? asString(data.url).trim() : ""
-        const videoCaption = block.type === "video" ? asString(data.caption) : ""
-        const noteTitle = block.type === "note" ? asString(data.title).trim() : ""
-        const noteContent = block.type === "note" ? asString(data.content).trim() : ""
-        const linkLabel = block.type === "link" ? asString(data.label).trim() : ""
-        const linkUrl = block.type === "link" ? asString(data.url).trim() : ""
-        const linkHint = block.type === "link" ? asString(data.hint).trim() : ""
-        const dividerLabel = block.type === "divider" ? asString(data.label).trim() : ""
+    <div className="space-y-5">
+      {normalizedBlocks.map((block, blockIndex) => {
+        const visual = BLOCK_ICON_REGISTRY[block.type]
         const theme = blockTypeStudentTheme[block.type]
+        const Icon = visual.icon
+        const data = asRecord(block.data)
+        const variantId = getBlockVariantId(data)
+        const variantBehavior = getBlockVariantBehavior({ type: block.type, data, variantId })
+        const meta = asRecord(data.meta)
+        const title = asString(meta.title).trim() || `Блок ${blockIndex + 1}`
+        const instruction = asString(meta.instruction).trim()
+
         return (
-          <div key={block.id} className="flex items-start gap-3">
-            <div className="pt-1">
-              <div
-                className="flex h-9 w-9 items-center justify-center rounded-[14px] backdrop-blur-md"
-                style={{
-                  backgroundColor: `rgb(${badge.rgb} / 0.22)`,
-                  boxShadow:
-                    "0px 0px 0px 0px rgba(0, 0, 0, 0), 0px 0px 0px 0px rgba(0, 0, 0, 0), 0px 0px 0px 0px rgba(0, 0, 0, 0), 0px 1px 3px 0px rgba(0, 0, 0, 0.1), 0px 1px 2px -1px rgba(0, 0, 0, 0.1)"
-                }}
-                aria-label={`Задание ${index + 1}`}
-                title={`Задание ${index + 1} • ${badge.label}`}
-              >
-                <span className="text-sm font-semibold" style={{ color: `rgb(${badge.textRgb} / 0.95)` }}>
-                  {index + 1}
-                </span>
+          <section
+            key={block.id}
+            className={cn(
+              "overflow-hidden border bg-[var(--ds-surface)] shadow-[0_20px_50px_-30px_rgba(0,0,0,0.18)] dark:border-white/[0.08]",
+              theme.panel,
+              studentCardShell(block.type)
+            )}
+          >
+            <div className="flex items-center gap-4 px-5 py-5 sm:px-7">
+              <div className={cn("flex h-16 w-16 shrink-0 items-center justify-center rounded-full", visual.circleClass)}>
+                <Icon className={cn("h-7 w-7", visual.iconClass)} strokeWidth={1.9} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] font-semibold uppercase tracking-[0.12em] text-ds-text-tertiary">
+                  Блок {blockIndex + 1}
+                </div>
+                <h2 className="mt-1 text-[24px] font-semibold leading-none tracking-[-0.03em] text-ds-ink sm:text-[28px]">
+                  {title}
+                </h2>
+                {instruction ? <p className="mt-2 text-[15px] leading-6 text-ds-text-secondary">{instruction}</p> : null}
               </div>
             </div>
 
-            <div className="min-w-0 flex-1">
-              <CardTitle className="!text-[24px] font-semibold tracking-tight whitespace-normal break-words sm:whitespace-nowrap sm:overflow-hidden sm:text-ellipsis sm:!leading-[30px] sm:!h-[30px]">
-                {meta.goal}
-              </CardTitle>
-
-              <div className="mt-3 space-y-3 text-sm">
-              {block.type === "text" && (
-                <div className="space-y-3">
-                  <p>{asString(data.content)}</p>
-                  {textQuestions.length > 0 ? (
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">Ответьте на вопросы по тексту</p>
-                      {textQuestions.map((question, questionIndex) => {
-                        const answerKey = `${block.id}-text-tf-${questionIndex}`
-                        const selectedValue = answers[answerKey] ?? ""
-                        return (
-                          <div key={answerKey} className="grid gap-2 rounded-lg border border-border/70 bg-background/50 p-3 md:grid-cols-[minmax(0,1fr)_11rem]">
-                            <p className="text-sm">{question.prompt}</p>
-                            <div className="min-w-0 w-full">
-                              <TrueFalseInlineSelect
-                                allowEmpty
-                                value={
-                                  selectedValue === "true" ? true : selectedValue === "false" ? false : null
-                                }
-                                onChange={(next) =>
-                                  setAnswers((prev) => ({
+            <div className="border-t border-black/[0.06] px-5 py-5 dark:border-white/[0.08] sm:px-7 sm:py-6">
+              {block.type === "text" ? (
+                <div className="space-y-5">
+                  {normalizeTextItems(data.text).map((item, itemIndex) => (
+                    <article key={`${block.id}-text-${itemIndex}`} className="space-y-4">
+                      {item.content ? (
+                        <div className={cn(studentMutedPanelClass, "px-5 py-4 text-[18px] leading-8 text-ds-ink")}>
+                          {item.content}
+                        </div>
+                      ) : null}
+                      {item.questions.length > 0 ? (
+                        <div className="space-y-3">
+                          {item.questions.map((question, questionIndex) => (
+                            <div
+                              key={`${block.id}-text-q-${questionIndex}`}
+                              className="flex items-center justify-between gap-4 rounded-[20px] border border-black/[0.06] bg-[var(--ds-surface)] px-4 py-3 dark:border-white/[0.08]"
+                            >
+                              <span className="text-[16px] leading-6 text-ds-ink">{question.prompt}</span>
+                              <Select
+                                value={singleAnswers[`${block.id}-text-${itemIndex}-${questionIndex}`] || undefined}
+                                onValueChange={(value) =>
+                                  setSingleAnswers((prev) => ({
                                     ...prev,
-                                    [answerKey]: next === null ? "" : next ? "true" : "false"
+                                    [`${block.id}-text-${itemIndex}-${questionIndex}`]: value
                                   }))
                                 }
-                                triggerAriaLabel={`Ответ на вопрос: ${question.prompt}`}
-                                listboxAriaLabel={`Ответ на вопрос: ${question.prompt}`}
-                                triggerClassName={selectedValue ? theme.text : "text-muted-foreground"}
-                              />
+                              >
+                                <SelectTrigger className={cn(studentSelectTriggerClass, "min-w-[152px]")}>
+                                  <SelectValue placeholder="Выберите" />
+                                </SelectTrigger>
+                                <SelectContent className={studentSelectContentClass}>
+                                  <SelectItem value="true">Да</SelectItem>
+                                  <SelectItem value="false">Нет</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </article>
+                  ))}
+                </div>
+              ) : null}
+
+              {block.type === "matching" ? (
+                <div className="space-y-3">
+                  {(() => {
+                    const pairs = normalizePairs(data.matching)
+                    const options = seededShuffle(pairs.map((pair) => pair.right).filter(Boolean), block.id)
+                    const categories = [...new Set(pairs.map((pair) => pair.right).filter(Boolean))]
+                    const leftColumnTitle = asString(asRecord(data.matching).leftColumnTitle).trim() || "Колонка 1"
+                    const rightColumnTitle = asString(asRecord(data.matching).rightColumnTitle).trim() || "Колонка 2"
+                    return pairs.map((pair, pairIndex) => {
+                      const answerKey = `${block.id}-match-${pairIndex}`
+                      return (
+                        <div
+                          key={answerKey}
+                          className="grid gap-3 rounded-[22px] border border-black/[0.06] bg-[var(--ds-surface-muted)] px-4 py-4 dark:border-white/[0.08] md:grid-cols-[minmax(0,1fr)_minmax(16rem,1fr)]"
+                        >
+                          <div className="space-y-2">
+                            {variantBehavior.matchingMode === "columns" ? (
+                              <div className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.1em] text-ds-text-tertiary">
+                                <span>{leftColumnTitle}</span>
+                                <span className="h-px flex-1 bg-black/[0.08] dark:bg-white/[0.08]" />
+                              </div>
+                            ) : null}
+                            <div className="rounded-[16px] border border-black/[0.06] bg-[var(--ds-surface)] px-4 py-3 text-[18px] text-ds-ink dark:border-white/[0.08]">
+                              {pair.left || "—"}
                             </div>
                           </div>
-                        )
-                      })}
-                    </div>
-                  ) : null}
-                </div>
-              )}
-
-              {block.type === "matching" && (
-                <div className="space-y-2">
-                  {(() => {
-                    const matchingPairs = asPairs(data.pairs).filter((pair) => pair.left.trim() || pair.right.trim())
-                    const matchingOptions = matchingOptionsByBlockId[block.id] ?? []
-                    const selectedRightValues = matchingPairs
-                      .map((_, rowIndex) => answers[`${block.id}-match-${rowIndex}`] ?? "")
-                      .filter(Boolean)
-
-                    return matchingPairs.length > 0 ? (
-                      <>
-                        {matchingPairs.map((pair, rowIndex) => {
-                          const answerKey = `${block.id}-match-${rowIndex}`
-                          const selectedValue = answers[answerKey] ?? ""
-                          const usedElsewhere = new Set(selectedRightValues.filter((value) => value && value !== selectedValue))
-
-                          return (
-                            <div key={`${block.id}-pair-${rowIndex}`} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(14rem,1fr)]">
-                              <div className="rounded-md border border-border bg-background px-3 py-2">{pair.left || "..."}</div>
-                              <div
-                                className={joinClasses(
-                                  "rounded-md border px-3 py-2 transition-colors",
-                                  selectedValue ? theme.soft : "border-border bg-background"
-                                )}
-                              >
-                                <label className="sr-only" htmlFor={`${block.id}-match-select-${rowIndex}`}>
-                                  Выберите соответствие для {pair.left || `пары ${rowIndex + 1}`}
-                                </label>
-                                <Select
-                                  value={selectedValue}
-                                  onValueChange={(value) =>
-                                    setAnswers((prev) => ({
-                                      ...prev,
-                                      [answerKey]: value === "__empty__" ? "" : value
-                                    }))
-                                  }
-                                >
-                                  <SelectTrigger
-                                    id={`${block.id}-match-select-${rowIndex}`}
-                                    className={joinClasses(
-                                      "h-auto w-full border-0 bg-transparent px-0 py-0 text-left text-sm shadow-none focus-visible:ring-0 dark:bg-transparent dark:hover:bg-transparent",
-                                      selectedValue ? theme.text : "text-muted-foreground"
-                                    )}
-                                    aria-label={`Выберите соответствие для ${pair.left || `пары ${rowIndex + 1}`}`}
-                                  >
-                                    <SelectValue placeholder="Выберите соответствие" />
-                                  </SelectTrigger>
-                                  <SelectContent className="border-border bg-popover">
-                                    <SelectItem value="__empty__">Выберите соответствие</SelectItem>
-                                    {matchingOptions.map((option, optionIndex) => (
-                                      <SelectItem
-                                      key={`${block.id}-match-option-${optionIndex}`}
-                                      value={option}
-                                      disabled={usedElsewhere.has(option)}
-                                    >
-                                      {option}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                          )
-                        })}
-
-                        <div className="flex flex-wrap gap-2 pt-1">
-                          <button
-                            type="button"
-                            className="rounded-[10px] bg-background px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted"
-                            onClick={() =>
-                              setAnswers((prev) => {
-                                const next = { ...prev }
-                                matchingPairs.forEach((_, rowIndex) => {
-                                  delete next[`${block.id}-match-${rowIndex}`]
-                                })
-                                return next
-                              })
+                          <Select
+                            value={matchAnswers[answerKey] || undefined}
+                            onValueChange={(value) =>
+                              setMatchAnswers((prev) => ({
+                                ...prev,
+                                [answerKey]: value
+                              }))
                             }
                           >
-                            Сбросить ответы
-                          </button>
+                            <SelectTrigger className={cn(studentSelectTriggerClass, "h-12 rounded-[16px]")}>
+                              <SelectValue placeholder="Выберите вариант" />
+                            </SelectTrigger>
+                            <SelectContent className={studentSelectContentClass}>
+                              {(variantBehavior.matchingMode === "columns" ? categories : options).map((option, optionIndex) => (
+                                <SelectItem key={`${answerKey}-option-${optionIndex}`} value={option}>
+                                  {option}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {variantBehavior.matchingMode === "columns" ? (
+                            <div className="md:col-span-2">
+                              <div className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.1em] text-ds-text-tertiary">
+                                <span>{rightColumnTitle}</span>
+                                <span className="h-px flex-1 bg-black/[0.08] dark:bg-white/[0.08]" />
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
-                      </>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">Пары для сопоставления пока не заполнены.</p>
-                    )
+                      )
+                    })
                   })()}
                 </div>
-              )}
+              ) : null}
 
-              {block.type === "fill_gaps" && (
-                <div className="space-y-2">
-                  {fillParse.gaps === 0 ? (
-                    <p className="text-xs text-muted-foreground">
-                      Пропуски не найдены. Пропуски обозначайте как `[]` в тексте (или `___` для старого формата).
-                    </p>
-                  ) : (
-                    <>
-                      <div className="rounded-lg border border-border bg-background/40 p-3 leading-7 text-[var(--cc-color-on-surface)] dark:text-foreground">
-                        {fillParse.parts.map((part, partIndex) => {
-                          const gapIndex = partIndex
-                          const hasGapAfter = gapIndex < fillParse.gaps
-                          const selected = answers[`${block.id}-gap-${gapIndex}`] ?? ""
-
-                          return (
-                            <span key={`${block.id}-fill-part-${partIndex}`}>
-                              {part}
-                              {hasGapAfter ? (
-                                <span
-                                  className="mx-1 inline-flex align-middle"
-                                  onDragOver={(e) => {
-                                    e.preventDefault()
-                                    setDragOverGap({ blockId: block.id, gapIndex })
-                                  }}
-                                  onDrop={(e) => {
-                                    e.preventDefault()
-                                    const droppedBlockId = e.dataTransfer.getData("application/x-fillgap-block")
-                                    if (droppedBlockId !== block.id) return
-                                    const word = e.dataTransfer.getData("application/x-fillgap-word")
-                                    if (!word) return
-                                    const sourceGapRaw = e.dataTransfer.getData("application/x-fillgap-source-gap")
-                                    const sourceGapIndex = sourceGapRaw ? Number(sourceGapRaw) : null
-                                    const current = answers[`${block.id}-gap-${gapIndex}`] ?? ""
-                                    if (sourceGapIndex !== null && Number.isInteger(sourceGapIndex) && sourceGapIndex >= 0) {
-                                      setAnswers((prev) => {
-                                        const next = { ...prev }
-                                        if (sourceGapIndex !== gapIndex) next[`${block.id}-gap-${sourceGapIndex}`] = ""
-                                        next[`${block.id}-gap-${gapIndex}`] = word
-                                        return next
-                                      })
-                                      setActiveBankWord(null)
-                                      setReturnGapTarget(null)
-                                      return
-                                    }
-                                    if (word !== current && usedWords.has(word)) return
-                                    setAnswers((prev) => ({ ...prev, [`${block.id}-gap-${gapIndex}`]: word }))
-                                    setActiveBankWord(null)
-                                    setReturnGapTarget(null)
-                                    setDragOverGap(null)
-                                  }}
-                                  onClick={() => {
-                                    const current = answers[`${block.id}-gap-${gapIndex}`] ?? ""
-                                    if (current) {
-                                      // Выбор слова для возврата в банк по клику на область банка.
-                                      setReturnGapTarget((prev) =>
-                                        prev?.blockId === block.id && prev.gapIndex === gapIndex ? null : { blockId: block.id, gapIndex }
+              {block.type === "fill_gaps" ? (
+                <div className="space-y-4">
+                  {normalizeFillGapItems(data.fill_gaps).map((item, itemIndex) => {
+                    const parsed = parseFillText(item.text)
+                    const answers = parsed.answers.length > 0 ? parsed.answers : item.answers
+                    const isChoiceVariant = variantBehavior.fillMode === "choose_form" || variantBehavior.fillMode === "image_form"
+                    const isImageVariant = variantBehavior.fillMode?.startsWith("image_")
+                    return (
+                      <div key={`${block.id}-fill-${itemIndex}`} className="rounded-[24px] border border-black/[0.06] bg-[var(--ds-surface-muted)] p-4 dark:border-white/[0.08]">
+                        {isImageVariant ? (
+                          <div className="space-y-4">
+                            {item.imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={item.imageUrl} alt={item.text || `Карточка ${itemIndex + 1}`} className="aspect-square w-full rounded-[22px] object-cover sm:max-w-[220px]" />
+                            ) : (
+                              <div className="flex aspect-square w-full max-w-[220px] items-center justify-center rounded-[22px] bg-[var(--ds-surface)] text-ds-text-secondary">
+                                Изображение
+                              </div>
+                            )}
+                            {isChoiceVariant ? (
+                              <Select
+                                value={fillAnswers[`${block.id}-${itemIndex}-image`] || undefined}
+                                onValueChange={(value) =>
+                                  setFillAnswers((prev) => ({
+                                    ...prev,
+                                    [`${block.id}-${itemIndex}-image`]: value
+                                  }))
+                                }
+                              >
+                                <SelectTrigger className={studentSelectTriggerClass}>
+                                  <SelectValue placeholder="Выберите слово" />
+                                </SelectTrigger>
+                                <SelectContent className={studentSelectContentClass}>
+                                  {answers.map((answer, answerIndex) => (
+                                    <SelectItem key={`${block.id}-image-answer-${itemIndex}-${answerIndex}`} value={answer}>
+                                      {answer}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <input
+                                value={fillAnswers[`${block.id}-${itemIndex}-image`] ?? ""}
+                                onChange={(event) =>
+                                  setFillAnswers((prev) => ({
+                                    ...prev,
+                                    [`${block.id}-${itemIndex}-image`]: event.target.value
+                                  }))
+                                }
+                                className="inline-flex h-11 w-full max-w-[240px] rounded-[14px] border border-black/[0.08] bg-[var(--ds-surface)] px-3 text-[16px] text-ds-ink outline-none dark:border-white/[0.08]"
+                                placeholder="Введите слово"
+                              />
+                            )}
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex flex-wrap items-center gap-2 text-[18px] leading-8 text-ds-ink">
+                              {parsed.parts.map((part, partIndex) => {
+                                const gapIndex = partIndex
+                                const hasGapAfter = gapIndex < answers.length
+                                return (
+                                  <span key={`${block.id}-fill-part-${itemIndex}-${partIndex}`}>
+                                    {part}
+                                    {hasGapAfter ? (
+                                      isChoiceVariant ? (
+                                        <span className="mx-2 inline-flex w-48 align-middle">
+                                          <Select
+                                            value={fillAnswers[`${block.id}-${itemIndex}-${gapIndex}`] || undefined}
+                                            onValueChange={(value) =>
+                                              setFillAnswers((prev) => ({
+                                                ...prev,
+                                                [`${block.id}-${itemIndex}-${gapIndex}`]: value
+                                              }))
+                                            }
+                                          >
+                                            <SelectTrigger className={cn(studentSelectTriggerClass, "h-11 rounded-[14px]")}>
+                                              <SelectValue placeholder="Выберите форму" />
+                                            </SelectTrigger>
+                                            <SelectContent className={studentSelectContentClass}>
+                                              {answers.map((answer, answerIndex) => (
+                                                <SelectItem key={`${block.id}-choice-${itemIndex}-${answerIndex}`} value={answer}>
+                                                  {answer}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        </span>
+                                      ) : (
+                                        <input
+                                          value={fillAnswers[`${block.id}-${itemIndex}-${gapIndex}`] ?? ""}
+                                          onChange={(event) =>
+                                            setFillAnswers((prev) => ({
+                                              ...prev,
+                                              [`${block.id}-${itemIndex}-${gapIndex}`]: event.target.value
+                                            }))
+                                          }
+                                          className="mx-2 inline-flex h-11 w-40 rounded-[14px] border border-black/[0.08] bg-[var(--ds-surface)] px-3 text-[16px] text-ds-ink outline-none dark:border-white/[0.08]"
+                                        />
                                       )
-                                      return
-                                    }
-                                    if (!activeBankWord) return
-                                    if (activeBankWord.blockId !== block.id) return
-                                    if (usedWords.has(activeBankWord.word)) return
-                                    setAnswers((prev) => ({ ...prev, [`${block.id}-gap-${gapIndex}`]: activeBankWord.word }))
-                                    setActiveBankWord(null)
-                                    setReturnGapTarget(null)
-                                  }}
-                                  role="button"
-                                  tabIndex={0}
-                                >
-                                  <span
-                                    className={joinClasses(
-                                      "my-1 inline-flex min-h-[2rem] min-w-[4.5rem] items-center justify-center rounded-full border px-3 py-1 text-sm font-medium transition-colors",
-                                      selected ? joinClasses(theme.active, "shadow-sm") : "border-border bg-muted/20 text-muted-foreground",
-                                      dragOverGap?.blockId === block.id && dragOverGap.gapIndex === gapIndex ? joinClasses("ring-2", theme.ring) : ""
-                                    )}
-                                    draggable={Boolean(selected)}
-                                    onDragStart={(e) => {
-                                      if (!selected) return
-                                      handleWordDragStart(e, selected, block.id)
-                                      e.dataTransfer.setData("application/x-fillgap-source-gap", String(gapIndex))
-                                    }}
-                                    onDragEnd={handleWordDragEnd}
-                                  >
-                                    {selected ? selected : <span aria-hidden>&nbsp;</span>}
+                                    ) : null}
                                   </span>
-                                </span>
-                              ) : null}
-                            </span>
-                          )
-                        })}
+                                )
+                              })}
+                            </div>
+                            {!isChoiceVariant && answers.length > 0 ? (
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                {seededShuffle(answers, `${block.id}-${itemIndex}-bank`).map((answer, answerIndex) => (
+                                  <span
+                                    key={`${block.id}-answer-${itemIndex}-${answerIndex}`}
+                                    className={studentAnswerChipClass}
+                                  >
+                                    {answer}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : null}
+                          </>
+                        )}
                       </div>
+                    )
+                  })}
+                </div>
+              ) : null}
 
-                      <div
-                        className={[
-                          "space-y-2 rounded-lg border border-dashed p-3 transition-colors",
-                          theme.panel
-                        ].join(" ")}
-                        onDragOver={(e) => {
-                          e.preventDefault()
-                        }}
-                        onDrop={(e) => {
-                          e.preventDefault()
-                          const droppedBlockId = e.dataTransfer.getData("application/x-fillgap-block")
-                          if (droppedBlockId !== block.id) return
-                          const sourceGapRaw = e.dataTransfer.getData("application/x-fillgap-source-gap")
-                          const sourceGapIndex = sourceGapRaw ? Number(sourceGapRaw) : null
-                          if (sourceGapIndex !== null && Number.isInteger(sourceGapIndex) && sourceGapIndex >= 0) {
-                            setAnswers((prev) => ({ ...prev, [`${block.id}-gap-${sourceGapIndex}`]: "" }))
-                            setReturnGapTarget(null)
-                          }
-                          setActiveBankWord(null)
-                        }}
-                        onClick={() => {
-                          if (!returnGapTarget || returnGapTarget.blockId !== block.id) return
-                          setAnswers((prev) => ({ ...prev, [`${block.id}-gap-${returnGapTarget.gapIndex}`]: "" }))
-                          setReturnGapTarget(null)
-                          setActiveBankWord(null)
-                        }}
-                      >
-                        {returnGapTarget?.blockId === block.id ? (
-                          <p className={joinClasses("text-xs", theme.text)}>
-                            Слово выбрано для возврата. Нажмите на эту область банка слов, чтобы вернуть его обратно.
-                          </p>
-                        ) : null}
-                        {availableWords.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {availableWords.map((word, wIndex) => (
-                              <button
-                                key={`${block.id}-bank-chip-${wIndex}`}
-                                type="button"
-                                className={[
-                                  "rounded-full px-3 py-1.5 text-sm font-medium transition-colors shadow-sm",
-                                  "border",
-                                  theme.active,
-                                  theme.hover,
-                                  activeBankWord?.blockId === block.id && activeBankWord.word === word
-                                    ? joinClasses("ring-2", theme.ring)
-                                    : ""
-                                ].join(" ")}
-                                draggable
-                                onDragStart={(e) => handleWordDragStart(e, word, block.id)}
-                                onDragEnd={handleWordDragEnd}
-                                onClick={() => {
-                                  setActiveBankWord({ blockId: block.id, word })
-                                }}
+              {block.type === "sentence_builder" ? (
+                <div className="space-y-4">
+                  {normalizeSentenceItems(data.sentence_builder).map((item, itemIndex) => {
+                    const sentenceMode = variantBehavior.sentenceMode ?? "sentence"
+                    const words =
+                      sentenceMode === "letters"
+                        ? seededShuffle(Array.from(item.source.replace(/\s+/g, "")), `${block.id}-${itemIndex}-letters`)
+                        : item.source.split(/\s+/).filter(Boolean)
+                    return (
+                      <div key={`${block.id}-sentence-${itemIndex}`} className="rounded-[24px] border border-black/[0.06] bg-[var(--ds-surface-muted)] p-4 dark:border-white/[0.08]">
+                        <div className="text-[14px] font-semibold uppercase tracking-[0.12em] text-ds-text-tertiary">
+                          {sentenceMode === "letters" ? `Слово ${itemIndex + 1}` : sentenceMode === "text_order" ? `Фрагмент ${itemIndex + 1}` : `Предложение ${itemIndex + 1}`}
+                        </div>
+                        <p className="mt-3 rounded-[16px] border border-black/[0.06] bg-[var(--ds-surface)] px-4 py-3 text-[20px] leading-8 text-ds-ink dark:border-white/[0.08]">
+                          {item.source || "Введите предложение в редакторе"}
+                        </p>
+                        <p className="mt-4 text-[14px] text-ds-text-tertiary">Так его увидит ученик:</p>
+                        {sentenceMode === "text_order" ? (
+                          <div className="mt-3 space-y-2">
+                            {seededShuffle(words, `${block.id}-${itemIndex}-chips`).map((word, wordIndex) => (
+                              <div
+                                key={`${block.id}-chip-${itemIndex}-${wordIndex}`}
+                                className="rounded-[14px] border border-black/[0.08] bg-[var(--ds-surface)] px-4 py-2 text-[16px] text-ds-text-secondary dark:border-white/[0.08]"
                               >
                                 {word}
-                              </button>
+                              </div>
                             ))}
                           </div>
                         ) : (
-                          <p className="text-xs text-muted-foreground">
-                            {bankWords.length > 0 ? "Все слова уже использованы. Кликните по слову в пропуске, чтобы вернуть его в банк." : "Слова банка пока не добавлены."}
-                          </p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {seededShuffle(words, `${block.id}-${itemIndex}-chips`).map((word, wordIndex) => (
+                              <span
+                                key={`${block.id}-chip-${itemIndex}-${wordIndex}`}
+                                className="rounded-[14px] border border-black/[0.08] bg-[var(--ds-surface)] px-4 py-2 text-[16px] text-ds-text-secondary dark:border-white/[0.08]"
+                              >
+                                {word}
+                              </span>
+                            ))}
+                            {sentenceMode === "letters"
+                              ? Array.from({ length: words.length }).map((_, slotIndex) => (
+                                  <span key={`${block.id}-letter-slot-${itemIndex}-${slotIndex}`} className="h-10 w-10 rounded-[12px] border border-dashed border-black/[0.08] bg-[var(--ds-surface)] dark:border-white/[0.08]" />
+                                ))
+                              : null}
+                          </div>
                         )}
                       </div>
-                    </>
-                  )}
+                    )
+                  })}
                 </div>
-              )}
+              ) : null}
 
-              {block.type === "quiz_single" && (
-                <div className="space-y-2">
-                  <p className="mt-2 font-medium">{quizQuestion || "Вопрос пока не заполнен."}</p>
-                  {quizOptions.map((option, optionIndex) => (
-                    <label
-                      key={`${block.id}-opt-${optionIndex}`}
-                      className={joinClasses(
-                        "flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors",
-                        answers[block.id] === String(optionIndex) ? theme.active : "border-border/70 bg-background/60 hover:bg-muted/30"
-                      )}
+              {block.type === "flashcards" ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {normalizeFlashcards(data.flashcards).map((card, cardIndex) => (
+                    <article
+                      key={`${block.id}-flashcard-${cardIndex}`}
+                      className="overflow-hidden rounded-[26px] border border-black/[0.08] bg-[var(--ds-surface)] dark:border-white/[0.08]"
                     >
-                      <input
-                        type="radio"
-                        className={joinClasses("h-5 w-5 cursor-pointer", theme.accent)}
-                        name={`quiz-${block.id}`}
-                        checked={answers[block.id] === String(optionIndex)}
-                        onChange={() => setAnswers((prev) => ({ ...prev, [block.id]: String(optionIndex) }))}
-                      />
-                      <span className={answers[block.id] === String(optionIndex) ? theme.text : ""}>{option}</span>
-                    </label>
+                      <div className="bg-[linear-gradient(135deg,color-mix(in_srgb,var(--ds-sage)_78%,#ffffff),color-mix(in_srgb,var(--ds-sage)_58%,#ffffff))] px-5 py-5">
+                        <div className="text-[13px] font-semibold uppercase tracking-[0.12em] text-ds-text-tertiary">
+                          Лицевая
+                        </div>
+                        <div className="mt-3 text-[34px] font-semibold text-ds-ink">{card.front || "—"}</div>
+                      </div>
+                      <div className="space-y-3 px-5 py-5">
+                        <div>
+                          <div className="text-[13px] font-semibold uppercase tracking-[0.12em] text-ds-text-tertiary">
+                            Обратная
+                          </div>
+                          <div className="mt-2 text-[18px] text-ds-ink">{card.back || "—"}</div>
+                        </div>
+                        <div>
+                          <div className="text-[13px] font-semibold uppercase tracking-[0.12em] text-ds-text-tertiary">
+                            Пример
+                          </div>
+                          <div className="mt-2 rounded-[14px] bg-[var(--ds-surface-muted)] px-3 py-2 text-[15px] text-ds-text-secondary">
+                            {card.example || "Пример не добавлен"}
+                          </div>
+                        </div>
+                      </div>
+                    </article>
                   ))}
-                  {quizOptions.length === 0 ? <p className="text-xs text-muted-foreground">Варианты ответа пока не заполнены.</p> : null}
                 </div>
-              )}
+              ) : null}
 
-              {block.type === "image" && (
-                <div className="space-y-2">
-                  {imageUrl ? (
-                    <>
-                      {/* eslint-disable-next-line @next/next/no-img-element -- URL от преподавателя */}
-                      <img
-                        src={imageUrl}
-                        alt={imageAlt || "Иллюстрация к уроку"}
-                        loading="lazy"
-                        className="max-h-96 w-auto max-w-full rounded-lg border border-border object-contain"
+              {block.type === "quiz_single" ? (
+                <div className="space-y-5">
+                  {variantBehavior.timedQuiz && Number(meta.timerMinutes ?? 0) > 0 ? (
+                    <div className="flex items-center justify-between rounded-[20px] bg-[color:color-mix(in_srgb,var(--ds-sage)_48%,var(--ds-surface))] px-4 py-3 text-[14px] font-semibold text-ds-ink dark:bg-[color:color-mix(in_srgb,var(--ds-sage)_18%,var(--ds-surface))]">
+                      <span>Тест начат</span>
+                      <span>{String(meta.timerMinutes).padStart(2, "0")}:00</span>
+                    </div>
+                  ) : null}
+                  {normalizeSingleQuestions(data.quiz_single).map((question, questionIndex) => (
+                    <article key={`${block.id}-single-${questionIndex}`} className="rounded-[24px] border border-black/[0.06] bg-[var(--ds-surface-muted)] p-4 dark:border-white/[0.08]">
+                      <div className="text-[14px] font-semibold uppercase tracking-[0.12em] text-ds-text-tertiary">
+                        Вопрос {questionIndex + 1} · один ответ
+                      </div>
+                      <p className={cn(studentSoftFieldClass, "mt-3 text-[20px] leading-8")}>
+                        {question.prompt || "Введите вопрос в редакторе"}
+                      </p>
+                      <div className="mt-4 space-y-3">
+                        {question.options.map((option, optionIndex) => (
+                          <label
+                            key={`${block.id}-single-option-${questionIndex}-${optionIndex}`}
+                            className={cn(
+                              "flex items-center gap-3 rounded-[18px] border px-4 py-3 transition-colors",
+                              singleAnswers[`${block.id}-single-${questionIndex}`] === String(optionIndex)
+                                ? studentSelectedOptionClass
+                                : "border-black/[0.06] bg-[var(--ds-surface)] dark:border-white/[0.08]"
+                              )}
+                            >
+                            <input
+                              type="radio"
+                              name={`${block.id}-single-${questionIndex}`}
+                              checked={singleAnswers[`${block.id}-single-${questionIndex}`] === String(optionIndex)}
+                              onChange={() =>
+                                setSingleAnswers((prev) => ({
+                                  ...prev,
+                                  [`${block.id}-single-${questionIndex}`]: String(optionIndex)
+                                }))
+                              }
+                              className="h-5 w-5 accent-ds-ink"
+                            />
+                            <span className="text-[18px] text-ds-ink">{option || `Вариант ${optionIndex + 1}`}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : null}
+
+              {block.type === "quiz_multi" ? (
+                <div className="space-y-5">
+                  {normalizeMultiQuestions(data.quiz_multi).map((question, questionIndex) => {
+                    const key = `${block.id}-multi-${questionIndex}`
+                    const selected = multiAnswers[key] ?? []
+                    return (
+                      <article key={key} className="rounded-[24px] border border-black/[0.06] bg-[var(--ds-surface-muted)] p-4 dark:border-white/[0.08]">
+                        <div className="text-[14px] font-semibold uppercase tracking-[0.12em] text-ds-text-tertiary">
+                          Вопрос {questionIndex + 1} · несколько ответов
+                        </div>
+                        <p className={cn(studentSoftFieldClass, "mt-3 text-[20px] leading-8")}>
+                          {question.prompt || "Введите вопрос в редакторе"}
+                        </p>
+                        <div className="mt-4 space-y-3">
+                          {question.options.map((option, optionIndex) => (
+                            <label
+                              key={`${key}-option-${optionIndex}`}
+                              className={cn(
+                                "flex items-center gap-3 rounded-[18px] border px-4 py-3 transition-colors",
+                                selected.includes(optionIndex)
+                                  ? studentSelectedOptionClass
+                                  : "border-black/[0.06] bg-[var(--ds-surface)] dark:border-white/[0.08]"
+                              )}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selected.includes(optionIndex)}
+                                onChange={() =>
+                                  setMultiAnswers((prev) => {
+                                    const current = prev[key] ?? []
+                                    return {
+                                      ...prev,
+                                      [key]: current.includes(optionIndex)
+                                        ? current.filter((value) => value !== optionIndex)
+                                        : [...current, optionIndex]
+                                    }
+                                  })
+                                }
+                                className="h-5 w-5 accent-ds-ink"
+                              />
+                              <span className="text-[18px] text-ds-ink">{option || `Вариант ${optionIndex + 1}`}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </article>
+                    )
+                  })}
+                </div>
+              ) : null}
+
+              {block.type === "video" ? (
+                <div className="space-y-5">
+                  {(Array.isArray(asRecord(data.video).items) ? (asRecord(data.video).items as unknown[]) : []).map((item, itemIndex) => {
+                    const video = asRecord(item)
+                    const videoUrl = asString(video.url).trim()
+                    const videoTitle = asString(video.title).trim()
+                    const caption = asString(video.caption).trim()
+                    const thumbnailUrl = asString(video.thumbnailUrl).trim()
+                    return (
+                      <article key={`${block.id}-video-${itemIndex}`} className="space-y-4">
+                        {thumbnailUrl && !videoUrl ? (
+                          <div className="relative overflow-hidden rounded-[28px] border border-black/[0.06] dark:border-white/[0.08]">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={thumbnailUrl} alt={videoTitle || "Видео"} className="h-auto w-full object-cover" />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[var(--ds-surface)]/90 shadow-lg">
+                                <Play className="h-8 w-8 fill-current text-ds-ink" />
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+                        {videoUrl ? <InlineLessonVideo url={videoUrl} className="!max-w-none rounded-[28px]" /> : null}
+                        {videoTitle ? <h3 className="text-[22px] font-semibold text-ds-ink">{videoTitle}</h3> : null}
+                        {caption ? <p className="text-[16px] leading-7 text-ds-text-secondary">{caption}</p> : null}
+                      </article>
+                    )
+                  })}
+                </div>
+              ) : null}
+
+              {block.type === "image" ? (
+                <div className={cn("grid gap-4", variantBehavior.imageMode === "stack" ? "md:grid-cols-2" : "grid-cols-1")}>
+                  {(variantBehavior.imageMode === "carousel"
+                    ? (Array.isArray(asRecord(data.image).items) ? (asRecord(data.image).items as unknown[]) : []).slice(0, 1)
+                    : Array.isArray(asRecord(data.image).items)
+                      ? (asRecord(data.image).items as unknown[])
+                      : []
+                  ).map((item, itemIndex) => {
+                    const image = asRecord(item)
+                    return (
+                      <article key={`${block.id}-image-${itemIndex}`} className="relative space-y-3 rounded-[24px] border border-black/[0.06] bg-[var(--ds-surface-muted)] p-4 dark:border-white/[0.08]">
+                        {asString(image.url).trim() ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={asString(image.url).trim()}
+                            alt={asString(image.title).trim() || "Изображение"}
+                            className={cn(
+                              "w-full rounded-[20px] object-cover",
+                              variantBehavior.imageMode === "gif" ? "aspect-video" : "aspect-[4/3]"
+                            )}
+                          />
+                        ) : null}
+                        {variantBehavior.imageMode === "gif" ? (
+                          <div className="absolute left-7 top-7 rounded-[12px] bg-[var(--ds-surface)]/88 px-3 py-1 text-[13px] font-semibold text-ds-ink shadow-[0_10px_24px_-18px_rgba(0,0,0,0.35)]">
+                            GIF
+                          </div>
+                        ) : null}
+                        {variantBehavior.imageMode === "carousel" ? (
+                          <div className="absolute inset-y-0 left-6 flex items-center">
+                            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--ds-surface)]/88 text-ds-text-secondary shadow-[0_10px_24px_-18px_rgba(0,0,0,0.35)]">‹</span>
+                          </div>
+                        ) : null}
+                        {variantBehavior.imageMode === "carousel" ? (
+                          <div className="absolute inset-y-0 right-6 flex items-center">
+                            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--ds-surface)]/88 text-ds-text-secondary shadow-[0_10px_24px_-18px_rgba(0,0,0,0.35)]">›</span>
+                          </div>
+                        ) : null}
+                        {asString(image.title).trim() ? <h3 className="text-[18px] font-semibold text-ds-ink">{asString(image.title)}</h3> : null}
+                        {asString(image.caption).trim() ? <p className="text-[15px] leading-6 text-ds-text-secondary">{asString(image.caption)}</p> : null}
+                      </article>
+                    )
+                  })}
+                </div>
+              ) : null}
+
+              {block.type === "audio" ? (
+                <div className="space-y-4">
+                  {(Array.isArray(asRecord(data.audio).items) ? (asRecord(data.audio).items as unknown[]) : []).map((item, itemIndex) => {
+                    const audio = asRecord(item)
+                    return (
+                      <article key={`${block.id}-audio-${itemIndex}`} className="rounded-[24px] border border-black/[0.06] bg-[var(--ds-surface-muted)] p-4 dark:border-white/[0.08]">
+                        {asString(audio.title).trim() ? <h3 className="text-[20px] font-semibold text-ds-ink">{asString(audio.title)}</h3> : null}
+                        {asString(audio.url).trim() ? (
+                          <audio src={asString(audio.url).trim()} controls className="mt-4 w-full" preload="metadata" />
+                        ) : (
+                          <p className="mt-4 text-[15px] text-ds-text-secondary">Аудио пока не добавлено.</p>
+                        )}
+                        {asString(audio.transcript).trim() ? (
+                          <p className="mt-4 text-[16px] leading-7 text-ds-text-secondary">{asString(audio.transcript)}</p>
+                        ) : null}
+                      </article>
+                    )
+                  })}
+                </div>
+              ) : null}
+
+              {block.type === "homework" ? (
+                <article className="space-y-5 rounded-[24px] border border-black/[0.06] bg-[var(--ds-surface-muted)] p-4 dark:border-white/[0.08]">
+                  <div>
+                    <div className="text-[14px] font-semibold uppercase tracking-[0.12em] text-ds-text-tertiary">Задание</div>
+                    <p className={cn(studentSoftFieldClass, "mt-3 text-[18px] leading-8")}>
+                      {asString(asRecord(data.homework).prompt).trim() || "Задание появится после настройки блока"}
+                    </p>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="text-[14px] font-semibold uppercase tracking-[0.12em] text-ds-text-tertiary">Ответ ученика</div>
+                    {(asRecord(data.homework).responseMode === "text" || asRecord(data.homework).responseMode === "text_file") ? (
+                      <textarea
+                        className="min-h-[140px] w-full rounded-[18px] border border-black/[0.08] bg-[var(--ds-surface)] px-4 py-3 text-[16px] text-ds-ink outline-none dark:border-white/[0.08]"
+                        placeholder="Введите ответ"
                       />
-                      {imageCaption ? <p className="text-muted-foreground">{imageCaption}</p> : null}
-                    </>
-                  ) : (
-                    <p className="text-muted-foreground">Картинка не указана.</p>
-                  )}
-                </div>
-              )}
+                    ) : null}
+                    {(asRecord(data.homework).responseMode === "file" || asRecord(data.homework).responseMode === "text_file") ? (
+                      <label className="inline-flex h-12 cursor-pointer items-center gap-2 rounded-[16px] border border-black/[0.08] bg-[var(--ds-surface)] px-4 text-[15px] font-medium text-ds-ink dark:border-white/[0.08]">
+                        <Upload className="h-4 w-4" />
+                        Прикрепить файл
+                        <input type="file" className="sr-only" />
+                      </label>
+                    ) : null}
+                  </div>
+                </article>
+              ) : null}
 
-              {block.type === "video" && (
-                <div className="space-y-2">
-                  {videoUrl ? (
-                    <>
-                      <InlineLessonVideo url={videoUrl} />
-                      {videoCaption ? <p className="text-muted-foreground">{videoCaption}</p> : null}
-                    </>
-                  ) : (
-                    <p className="text-muted-foreground">Видео не указано.</p>
-                  )}
+              {block.type === "pdf" ? (
+                <div className="space-y-4">
+                  {(Array.isArray(asRecord(data.pdf).items) ? (asRecord(data.pdf).items as unknown[]) : []).map((item, itemIndex) => {
+                    const pdf = asRecord(item)
+                    const url = asString(pdf.url).trim()
+                    return (
+                      <article key={`${block.id}-pdf-${itemIndex}`} className="rounded-[24px] border border-black/[0.06] bg-[var(--ds-surface-muted)] p-4 dark:border-white/[0.08]">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <h3 className="text-[20px] font-semibold text-ds-ink">{asString(pdf.title).trim() || "PDF материал"}</h3>
+                            {asString(pdf.description).trim() ? (
+                              <p className="mt-2 text-[15px] leading-6 text-ds-text-secondary">{asString(pdf.description)}</p>
+                            ) : null}
+                          </div>
+                          {url ? (
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex h-12 items-center gap-2 rounded-[16px] bg-ds-ink px-5 text-[15px] font-semibold text-[var(--ds-surface)]"
+                            >
+                              <Download className="h-4 w-4" />
+                              Открыть PDF
+                            </a>
+                          ) : null}
+                        </div>
+                      </article>
+                    )
+                  })}
                 </div>
-              )}
+              ) : null}
 
-              {block.type === "audio" && (
-                <div className="space-y-2">
-                  {audioUrl && !audioUrl.startsWith("blob:") ? (
-                    <LessonAudioPlayerRow
-                      src={audioUrl}
-                      peaks={audioPeaks.length > 0 ? audioPeaks : null}
-                      containerClassName={theme.panel}
-                      buttonClassName={joinClasses(theme.active, theme.hover)}
-                      playedBarClassName="bg-[#7f3c4f] dark:bg-[#ffd9e4]"
-                      idleBarClassName="bg-muted-foreground/25 dark:bg-muted-foreground/30"
-                      liveActiveBarClassName="bg-[#7f3c4f]/90 dark:bg-[#ffd9e4]/90"
-                      liveIdleBarClassName="bg-muted-foreground/35 dark:bg-muted-foreground/40"
-                      timeClassName={theme.text}
-                    />
-                  ) : audioUrl.startsWith("blob:") ? (
-                    <p className="my-2 text-muted-foreground">Аудио было записано как временная локальная ссылка и больше недоступно.</p>
-                  ) : (
-                    <p className="text-muted-foreground">Аудио не добавлено.</p>
-                  )}
-                  {asString(data.transcript) ? <p className="text-muted-foreground">{asString(data.transcript)}</p> : null}
+              {block.type === "speaking" ? (
+                <div className="space-y-4">
+                  {(Array.isArray(asRecord(data.speaking).items) ? (asRecord(data.speaking).items as unknown[]) : []).map((item, itemIndex) => {
+                    const speaking = asRecord(item)
+                    return (
+                      <article key={`${block.id}-speaking-${itemIndex}`} className="rounded-[24px] border border-black/[0.06] bg-[var(--ds-surface-muted)] p-4 dark:border-white/[0.08]">
+                        <h3 className="text-[20px] font-semibold text-ds-ink">{asString(speaking.prompt).trim() || "Запишите голосовой ответ"}</h3>
+                        {asString(speaking.helper).trim() ? (
+                          <p className="mt-3 text-[15px] leading-6 text-ds-text-secondary">{asString(speaking.helper)}</p>
+                        ) : null}
+                        <label className="mt-5 inline-flex h-12 cursor-pointer items-center gap-2 rounded-[16px] bg-ds-ink px-5 text-[15px] font-semibold text-[var(--ds-surface)]">
+                          <Mic className="h-4 w-4" />
+                          Загрузить ответ
+                          <input type="file" accept="audio/*" className="sr-only" />
+                        </label>
+                      </article>
+                    )
+                  })}
                 </div>
-              )}
+              ) : null}
 
-              {block.type === "note" && (
-                <div className={joinClasses("rounded-xl border p-4", theme.panel)}>
-                  {noteTitle ? <p className={joinClasses("text-sm font-semibold", theme.text)}>{noteTitle}</p> : null}
-                  <p className="mt-1">{noteContent || "Заметка пока не заполнена."}</p>
-                </div>
-              )}
+              {block.type === "note" ? (
+                <article className="rounded-[24px] border border-black/[0.06] bg-[var(--ds-surface-muted)] p-4 dark:border-white/[0.08]">
+                  <h3 className="text-[20px] font-semibold text-ds-ink">{asString(asRecord(data.note).title).trim() || "Заметка"}</h3>
+                  <p className="mt-3 text-[16px] leading-7 text-ds-text-secondary">
+                    {asString(asRecord(data.note).content).trim() || "Содержимое заметки не заполнено."}
+                  </p>
+                </article>
+              ) : null}
 
-              {block.type === "link" && (
-                <div className={joinClasses("space-y-2 rounded-xl border p-4", theme.panel)}>
-                  {linkHint ? <p className={joinClasses("text-xs", theme.text)}>{linkHint}</p> : null}
-                  {linkUrl ? (
+              {block.type === "link" ? (
+                <article className="rounded-[24px] border border-black/[0.06] bg-[var(--ds-surface-muted)] p-4 dark:border-white/[0.08]">
+                  <h3 className="text-[20px] font-semibold text-ds-ink">{asString(asRecord(data.link).label).trim() || "Материал"}</h3>
+                  {asString(asRecord(data.link).hint).trim() ? (
+                    <p className="mt-3 text-[16px] leading-7 text-ds-text-secondary">{asString(asRecord(data.link).hint)}</p>
+                  ) : null}
+                  {asString(asRecord(data.link).url).trim() ? (
                     <a
-                      href={linkUrl}
+                      href={asString(asRecord(data.link).url).trim()}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center rounded-full bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-black/85 dark:bg-white dark:text-black dark:hover:bg-white/90"
+                      className="mt-5 inline-flex h-12 items-center gap-2 rounded-[16px] bg-ds-ink px-5 text-[15px] font-semibold text-[var(--ds-surface)]"
                     >
-                      {linkLabel || "Открыть материал"}
+                      <ExternalLink className="h-4 w-4" />
+                      Открыть ссылку
                     </a>
-                  ) : (
-                    <p className="text-muted-foreground">Ссылка пока не добавлена.</p>
-                  )}
-                </div>
-              )}
+                  ) : null}
+                </article>
+              ) : null}
 
-              {block.type === "divider" && (
-                <div className={joinClasses("rounded-xl border p-4", theme.panel)}>
-                  <div className="flex items-center gap-3">
-                    <div className="h-px flex-1 bg-black/10 dark:bg-white/15" />
-                    <span className={joinClasses("text-xs font-semibold uppercase tracking-wide", theme.text)}>
-                      {dividerLabel || "Следующий этап"}
+              {block.type === "divider" ? (
+                <div className="flex items-center gap-4 py-3">
+                  <div className="h-px flex-1 bg-black/[0.08] dark:bg-white/[0.08]" />
+                    <span className="text-[13px] font-semibold uppercase tracking-[0.12em] text-ds-text-tertiary">
+                      {asString(asRecord(data.divider).label).trim() || "Следующий этап"}
                     </span>
-                    <div className="h-px flex-1 bg-black/10 dark:bg-white/15" />
-                  </div>
+                  <div className="h-px flex-1 bg-black/[0.08] dark:bg-white/[0.08]" />
                 </div>
-              )}
-
-              <p className="pt-1 text-xs text-muted-foreground">{meta.instruction}</p>
-              </div>
+              ) : null}
             </div>
-          </div>
+          </section>
         )
       })}
-      {ordered.length === 0 && (
-        <div className="rounded-lg bg-muted/20 p-6 text-sm text-muted-foreground">В уроке пока нет блоков.</div>
-      )}
+
+      {normalizedBlocks.length === 0 ? (
+        <div className="rounded-[32px] border border-dashed border-black/[0.08] bg-[var(--ds-surface)] px-6 py-12 text-center text-[16px] text-ds-text-secondary dark:border-white/[0.08]">
+          В этом уроке пока нет блоков.
+        </div>
+      ) : null}
     </div>
   )
 }

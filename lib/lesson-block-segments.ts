@@ -34,12 +34,24 @@ export function createDefaultSegmentPayload(type: LessonBlockType): Record<strin
       return { text: "[]", answers: [""] }
     case "quiz_single":
       return { question: "", options: ["", "", ""], correct: 0 }
+    case "quiz_multi":
+      return { prompt: "", options: ["", "", ""], correctIndexes: [0] }
+    case "sentence_builder":
+      return { source: "" }
+    case "flashcards":
+      return { front: "", back: "", example: "" }
+    case "homework":
+      return { prompt: "", responseMode: "text", deadline: "" }
     case "image":
       return { url: "", alt: "", caption: "" }
     case "video":
       return { url: "", caption: "" }
     case "audio":
       return { url: "", transcript: "" }
+    case "pdf":
+      return { url: "", title: "", description: "" }
+    case "speaking":
+      return { prompt: "", helper: "" }
     case "note":
       return { title: "", content: "" }
     case "link":

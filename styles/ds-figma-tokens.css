@@ -892,14 +892,29 @@ html.dark[data-ui-accent="orange"] {
   box-shadow: none;
 }
 
-/* Название урока — единственное поле с рамкой в шапке редактора (остальные .ds-input-field в странице без бордера). */
+.ds-lesson-editor-page .ds-lesson-editor-control-field.ds-input-field,
+.ds-lesson-editor-page [data-slot="select-trigger"].ds-lesson-editor-control-field {
+  background-color: var(--ds-surface-muted);
+  border: 1px solid transparent;
+  border-image: none;
+  box-shadow: none;
+}
+
+.ds-lesson-editor-page .ds-lesson-editor-control-field.ds-input-field:focus-visible,
+.ds-lesson-editor-page [data-slot="select-trigger"].ds-lesson-editor-control-field:focus-visible {
+  background-color: var(--ds-neutral-row-hover);
+  border: 1px solid transparent;
+  border-image: none;
+  box-shadow: none;
+}
+
 .ds-lesson-editor-page .ds-lesson-editor-title-field.ds-input-field {
-  border: 1px solid rgba(227, 227, 227, 1);
+  border: none;
   border-image: none;
 }
 
 .ds-lesson-editor-page .ds-lesson-editor-title-field.ds-input-field:focus-visible {
-  border: 1px solid rgba(227, 227, 227, 1);
+  border: none;
   border-image: none;
   box-shadow: none;
 }

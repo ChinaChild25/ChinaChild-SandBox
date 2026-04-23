@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { getStudentBalanceState } from "@/lib/billing-server"
 import { reconcileStudentScheduleFireAndForget } from "@/lib/schedule/reconcile-student-schedule"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
@@ -35,6 +36,14 @@ export async function POST(req: Request) {
     .maybeSingle<ProfileLite>()
   if (meErr || !me || me.role !== "student" || me.assigned_teacher_id !== teacherId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+
+  const balanceState = await getStudentBalanceState(supabase, me.id)
+  if (balanceState.blocked) {
+    return NextResponse.json(
+      { error: "Баланс занятий исчерпан. Пополните баланс, чтобы записаться на урок." },
+      { status: 402 }
+    )
   }
 
   const { data, error } = await supabase

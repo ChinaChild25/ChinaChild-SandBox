@@ -256,7 +256,7 @@ export default function TeacherDashboardPage() {
           Сетка: на lg первая строка — два заголовка (ровно по верху), вторая — список и календарь
           (верх первой карточки = верх сетки дат). На мобиле порядок: ближайшие → список → календарь → виджет.
         */}
-        <div className="grid grid-cols-1 gap-y-5 lg:grid-cols-[minmax(0,24rem)_300px] lg:items-stretch lg:gap-x-8 lg:gap-y-3">
+        <div className="grid grid-cols-1 gap-y-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-stretch lg:gap-x-8 lg:gap-y-3">
           <h2 className="order-1 m-0 shrink-0 text-[17px] font-semibold leading-none text-ds-ink lg:order-none lg:col-start-1 lg:row-start-1">
             Ближайшие занятия
           </h2>
@@ -264,7 +264,7 @@ export default function TeacherDashboardPage() {
             Календарь
           </h2>
 
-          <div className="order-2 flex min-h-0 w-full min-w-0 max-w-md flex-col self-stretch lg:order-none lg:col-start-1 lg:row-start-2 lg:max-w-sm">
+          <div className="order-2 flex min-h-0 w-full min-w-0 max-w-md flex-col self-stretch lg:order-none lg:col-start-1 lg:row-start-2 lg:max-w-none">
             <div className="flex min-h-0 flex-1 flex-col">
               {scheduleLoading ? (
                 <div className="rounded-[var(--ds-radius-lg)] bg-[var(--ds-neutral-row)] px-3 py-4 text-[13px] text-[#666] dark:text-[var(--ds-text-secondary)]">
@@ -321,7 +321,7 @@ export default function TeacherDashboardPage() {
             </div>
           </div>
 
-          <div className="order-4 flex w-full max-w-[300px] flex-col self-start rounded-[var(--ds-radius-xl)] border border-black/[0.08] bg-ds-surface p-3 dark:border-white/10 lg:order-none lg:col-start-2 lg:row-start-2 lg:w-full lg:max-w-[300px] lg:justify-self-stretch">
+          <div className="order-4 flex w-full max-w-sm flex-col self-start rounded-[var(--ds-radius-xl)] border border-black/[0.08] bg-ds-surface p-3 dark:border-white/10 lg:order-none lg:col-start-2 lg:row-start-2 lg:w-full lg:max-w-full lg:justify-self-stretch">
             <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
               <div className="min-w-0">
                 <p className="m-0 text-[15px] font-semibold capitalize leading-tight text-ds-ink">
@@ -355,7 +355,7 @@ export default function TeacherDashboardPage() {
                   <Link
                     key={item.day}
                     href="/teacher/schedule"
-                    className={`flex min-h-[32px] flex-col items-center justify-center rounded-md py-0.5 text-center no-underline focus-visible:ring-2 focus-visible:ring-ds-ink/20 ${
+                    className={`flex min-h-[44px] flex-col items-center justify-center rounded-md py-0.5 text-center no-underline focus-visible:ring-2 focus-visible:ring-ds-ink/20 ${
                       item.isToday ? "bg-ds-sage" : "hover:bg-black/[0.05] dark:hover:bg-white/[0.06]"
                     }`}
                   >

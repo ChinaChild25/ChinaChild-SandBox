@@ -9,7 +9,7 @@ type Body = {
     student_id?: string
     title?: string
   }
-  status?: "lesson" | "completed" | "charged_absence"
+  status?: "lesson" | "completed" | "charged_absence" | "late_cancel"
 }
 
 type ProfileLite = { id: string; role: "teacher" | "curator" | "student"; full_name?: string | null }
@@ -17,7 +17,7 @@ type ProfileLite = { id: string; role: "teacher" | "curator" | "student"; full_n
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as Body | null
   const lesson = body?.lesson
-  const status = body?.status
+  const status = body?.status === "late_cancel" ? "charged_absence" : body?.status
   if (!lesson?.slot_at || !lesson.student_id || !status) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 })
   }

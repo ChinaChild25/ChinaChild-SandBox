@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm /Users/denisgasencenko/Documents/Playground/v0-chinese-language-school-1/supabase/migrations/20260422130000_teacher_feed_lessons_by_name.sql)",
+      "Bash(rm /Users/denisgasencenko/Documents/Playground/v0-chinese-language-school-1/middleware.ts)",
+      "Bash(git -C /Users/denisgasencenko/Documents/Playground/v0-chinese-language-school-1 status --short)",
+      "Bash(git -C /Users/denisgasencenko/Documents/Playground/v0-chinese-language-school-1 diff --name-only)"
+    ]
+  }
+}

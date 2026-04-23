@@ -2,8 +2,9 @@
 
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { BookOpenCheck, CalendarCheck2, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Ellipsis, MessageSquare, Repeat, Star, UserRound, X } from "lucide-react"
+import { AlertTriangle, BookOpenCheck, CalendarCheck2, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Ellipsis, MessageSquare, Repeat, Star, UserRound, X } from "lucide-react"
 import { TOOLTIP_CHIP_SURFACE_CLASS } from "@/components/ui/tooltip"
+import { useStudentBillingSummary } from "@/hooks/use-student-billing-summary"
 import { useAuth } from "@/lib/auth-context"
 import { getAppNow, getAppTodayStart } from "@/lib/app-time"
 import { SCHEDULE_WALL_CLOCK_TIMEZONE, wallClockFromDateInSchoolTz, wallClockFromSlotAt } from "@/lib/schedule-display-tz"
@@ -62,6 +63,14 @@ const SCHEDULE_UPCOMING_LIST_MAX = 2
 const STUDENT_DESKTOP_CALENDAR_HOUR_PX = 56
 type CancelSuccessInfo = { lesson: ScheduledLesson; scope: "single" | "following" }
 
+function ruLessonWord(n: number) {
+  const d10 = n % 10
+  const d100 = n % 100
+  if (d10 === 1 && d100 !== 11) return "урок"
+  if (d10 >= 2 && d10 <= 4 && (d100 < 12 || d100 > 14)) return "урока"
+  return "уроков"
+}
+
 function lessonStartMs(dateKey: string, time: string): number {
   const slotAt = wallClockSlotAtIso(dateKey, normalizeScheduleSlotTime(time), SCHEDULE_WALL_CLOCK_TIMEZONE)
   return new Date(slotAt).getTime()
@@ -76,6 +85,7 @@ function dayDiffByDateKey(aDateKey: string, bDateKey: string): number {
 
 export function StudentSchedulePage() {
   const { user } = useAuth()
+  const { summary: billingSummary } = useStudentBillingSummary({ enabled: user?.role === "student" })
   const [lessons, setLessons] = useState<ScheduledLesson[]>([])
   const [selectedLesson, setSelectedLesson] = useState<ScheduledLesson | null>(null)
   const [flowStep, setFlowStep] = useState<FlowStep>("menu")
@@ -421,6 +431,10 @@ export function StudentSchedulePage() {
     }
   }
   const openPlanLesson = async () => {
+    if (billingSummary?.blocked) {
+      setActionError("Баланс занятий исчерпан. Пополните пакет, чтобы снова бронировать уроки.")
+      return
+    }
     setPlanOpen(true)
     setPlanType("single")
     setPlanStep("type")
@@ -596,8 +610,37 @@ export function StudentSchedulePage() {
   return (
     <div className="mx-auto w-full max-w-[1500px] px-4 py-4 sm:px-6 md:px-8">
       <h1 className="mb-5 text-center text-3xl font-semibold text-ds-text-primary">Расписание</h1>
+      {billingSummary?.lowBalance ? (
+        <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-4 text-[14px] text-amber-950 dark:bg-amber-500/10 dark:text-amber-100">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+            <div>
+              <div className="font-semibold">
+                {billingSummary.blocked
+                  ? "Баланс занятий исчерпан"
+                  : `Осталось ${billingSummary.lessonsLeft} ${ruLessonWord(billingSummary.lessonsLeft)}`}
+              </div>
+              <div className="mt-1">
+                {billingSummary.blocked
+                  ? "Новые бронирования отключены, пока вы не пополните пакет."
+                  : "Когда баланс закончится, новые бронирования и подключение к урокам будут остановлены."}
+                {" "}
+                <Link href="/payment" className="font-semibold text-current underline underline-offset-2">
+                  Перейти к оплате
+                </Link>
+                .
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="mb-4 flex justify-center md:hidden">
-        <button className="rounded-lg bg-[var(--ds-sage)] px-4 py-2 text-sm font-medium text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)]" onClick={() => void openPlanLesson()}>
+        <button
+          className="rounded-lg bg-[var(--ds-sage)] px-4 py-2 text-sm font-medium text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={() => void openPlanLesson()}
+          disabled={Boolean(billingSummary?.blocked)}
+          title={billingSummary?.blocked ? "Пополните баланс, чтобы запланировать урок." : undefined}
+        >
           + Запланировать урок
         </button>
       </div>
@@ -605,7 +648,14 @@ export function StudentSchedulePage() {
       <div className="mb-5 hidden items-center justify-between md:flex">
         <h2 className="text-4xl font-semibold text-ds-text-primary">Мои уроки</h2>
         <div className="flex items-center gap-2">
-          <button className="rounded-lg bg-[var(--ds-sage)] px-4 py-2 text-sm font-medium text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)]" onClick={() => void openPlanLesson()}>+ Запланировать урок</button>
+          <button
+            className="rounded-lg bg-[var(--ds-sage)] px-4 py-2 text-sm font-medium text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => void openPlanLesson()}
+            disabled={Boolean(billingSummary?.blocked)}
+            title={billingSummary?.blocked ? "Пополните баланс, чтобы запланировать урок." : undefined}
+          >
+            + Запланировать урок
+          </button>
         </div>
       </div>
       <div className="mb-5 hidden items-center gap-6 border-b border-black/10 dark:border-white/10 pb-3 md:flex">

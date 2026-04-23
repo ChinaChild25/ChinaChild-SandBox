@@ -2,8 +2,9 @@
 
 import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
-import { ChevronRight, FileCheck, Video } from "lucide-react"
+import { AlertTriangle, ChevronRight, FileCheck, Video } from "lucide-react"
 
+import { useStudentBillingSummary } from "@/hooks/use-student-billing-summary"
 import {
   canJoinOnlineClass,
   classListItemsFromScheduledLessons,
@@ -15,6 +16,14 @@ import { resolveOnlineClassJoinUrl } from "@/lib/online-class-link"
 import type { ScheduledLesson } from "@/lib/schedule-lessons"
 
 const classTypes: Array<ClassDisplayType | "Все"> = ["Все", "Урок", "Тест"]
+
+function ruLessonWord(n: number) {
+  const d10 = n % 10
+  const d100 = n % 100
+  if (d10 === 1 && d100 !== 11) return "урок"
+  if (d10 >= 2 && d10 <= 4 && (d100 < 12 || d100 > 14)) return "урока"
+  return "уроков"
+}
 
 /** Сколько ближайших занятий показывать в блоке «Предстоящие» (полный список — в расписании). */
 const CLASSES_UPCOMING_PREVIEW_MAX = 2
@@ -36,6 +45,7 @@ export function ClassesPageContent({
   const [activeFilter, setActiveFilter] = useState<(typeof classTypes)[number]>("Все")
   const [allClasses, setAllClasses] = useState<ClassListItem[]>([])
   const [loadState, setLoadState] = useState<"loading" | "ok" | "error">("loading")
+  const { summary: billingSummary } = useStudentBillingSummary()
 
   const loadClasses = useCallback(async () => {
     setLoadState("loading")
@@ -86,6 +96,31 @@ export function ClassesPageContent({
           </div>
         ) : null}
 
+        {billingSummary?.lowBalance ? (
+          <section className="mb-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-5 py-4 text-[14px] text-amber-950 dark:bg-amber-500/10 dark:text-amber-100">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+              <div>
+                <div className="font-semibold">
+                  {billingSummary.blocked
+                    ? "Баланс занятий исчерпан"
+                    : `Осталось ${billingSummary.lessonsLeft} ${ruLessonWord(billingSummary.lessonsLeft)}`}
+                </div>
+                <div className="mt-1">
+                  {billingSummary.blocked
+                    ? "Подключение к уроку будет недоступно, пока вы не пополните пакет."
+                    : "Пополните пакет заранее, чтобы не потерять доступ к онлайн-подключению."}
+                  {" "}
+                  <Link href="/payment" className="font-semibold text-current underline underline-offset-2">
+                    Открыть оплату
+                  </Link>
+                  .
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         <div className="mb-6 flex flex-wrap gap-2 md:mb-7">
           {classTypes.map((ft) => (
             <button
@@ -121,7 +156,11 @@ export function ClassesPageContent({
             <ul className="space-y-3">
               {upcomingPreview.map((cls) => (
                 <li key={cls.id}>
-                  <ClassCard cls={cls} scheduleFallbackHref={scheduleFallbackHref} />
+                  <ClassCard
+                    cls={cls}
+                    scheduleFallbackHref={scheduleFallbackHref}
+                    joinBlockedByBalance={Boolean(billingSummary?.blocked)}
+                  />
                 </li>
               ))}
             </ul>
@@ -145,7 +184,7 @@ export function ClassesPageContent({
             <ul className="space-y-3">
               {completed.map((cls) => (
                 <li key={cls.id}>
-                  <ClassCard cls={cls} scheduleFallbackHref={scheduleFallbackHref} />
+                  <ClassCard cls={cls} scheduleFallbackHref={scheduleFallbackHref} joinBlockedByBalance={false} />
                 </li>
               ))}
             </ul>
@@ -158,17 +197,21 @@ export function ClassesPageContent({
 
 function ClassCard({
   cls,
-  scheduleFallbackHref
+  scheduleFallbackHref,
+  joinBlockedByBalance
 }: {
   cls: ClassListItem
   scheduleFallbackHref: "/schedule" | "/teacher/schedule"
+  joinBlockedByBalance: boolean
 }) {
   const href = cls.slug ? `/${cls.slug}` : scheduleFallbackHref
   const joinUrl = resolveOnlineClassJoinUrl(cls.joinUrl)
   const showJoin =
     cls.status === "upcoming" && cls.type === "Урок" && (cls.slug != null || cls.showOnlineConnect === true)
-  const joinActive = showJoin && canJoinOnlineClass(cls.isoDate, cls.timeRange)
-  const joinDisabledTitle = ONLINE_JOIN_UNAVAILABLE_TITLE
+  const joinActive = showJoin && !joinBlockedByBalance && canJoinOnlineClass(cls.isoDate, cls.timeRange)
+  const joinDisabledTitle = joinBlockedByBalance
+    ? "Баланс занятий исчерпан. Пополните пакет, чтобы подключиться к уроку."
+    : ONLINE_JOIN_UNAVAILABLE_TITLE
 
   return (
     <div className="ds-class-card group flex flex-col gap-3 rounded-2xl p-3 outline-offset-2 transition-colors focus-within:ring-2 focus-within:ring-ds-ink/25 sm:flex-row sm:items-center md:gap-4 md:p-4">

@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { ArrowRight, ChevronRight, ClipboardList, Star, TrendingUp } from "lucide-react"
+import { AlertTriangle, ArrowRight, ChevronRight, ClipboardList, Star, TrendingUp } from "lucide-react"
 
+import { useStudentBillingSummary } from "@/hooks/use-student-billing-summary"
 import { useAuth } from "@/lib/auth-context"
 import {
   readNotificationPreferences,
@@ -28,9 +29,18 @@ type DashboardLesson = {
 /** Блок «ближайшие уроки» на главной — не перегружать карточку длинным списком. */
 const DASHBOARD_UPCOMING_LESSONS_MAX = 4
 
+function ruLessonWord(n: number) {
+  const d10 = n % 10
+  const d100 = n % 100
+  if (d10 === 1 && d100 !== 11) return "урок"
+  if (d10 >= 2 && d10 <= 4 && (d100 < 12 || d100 > 14)) return "урока"
+  return "уроков"
+}
+
 export default function DashboardPage() {
   const { user } = useAuth()
   const { t, locale } = useUiLocale()
+  const { summary: billingSummary } = useStudentBillingSummary({ enabled: user?.role === "student" })
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(readNotificationPreferences)
   const [upcomingLessons, setUpcomingLessons] = useState<DashboardLesson[]>([])
   const [calendarLessonDateKeys, setCalendarLessonDateKeys] = useState<string[]>([])
@@ -139,6 +149,31 @@ export default function DashboardPage() {
   return (
     <div className="ds-figma-page">
       <div className="ds-dashboard-page flex flex-col">
+        {billingSummary?.lowBalance ? (
+          <aside className="mb-4 rounded-[var(--ds-radius-xl)] border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-[14px] text-amber-950 dark:bg-amber-500/10 dark:text-amber-100">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+              <div>
+                <div className="font-semibold">
+                  {billingSummary.blocked
+                    ? "Баланс занятий закончился"
+                    : `Осталось ${billingSummary.lessonsLeft} ${ruLessonWord(billingSummary.lessonsLeft)}`}
+                </div>
+                <div className="mt-1">
+                  {billingSummary.blocked
+                    ? "Пополните пакет, чтобы снова подключаться и записываться на занятия."
+                    : "Проверьте раздел оплаты и пополните пакет заранее, чтобы не прерывать занятия."}
+                  {" "}
+                  <Link href="/payment" className="font-semibold underline underline-offset-2">
+                    Перейти к оплате
+                  </Link>
+                  .
+                </div>
+              </div>
+            </div>
+          </aside>
+        ) : null}
+
         {notifPrefs.news ? (
           <aside className="mb-6 rounded-[var(--ds-radius-xl)] border border-black/[0.06] bg-ds-sage/35 px-4 py-3 text-[14px] text-ds-ink dark:border-white/10 dark:bg-ds-sage/20 dark:text-white">
             <span className="font-semibold">{t("dashboard.newsTitle")}</span>{" "}

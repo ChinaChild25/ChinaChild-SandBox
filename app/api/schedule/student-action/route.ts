@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { getStudentBalanceState } from "@/lib/billing-server"
 import { addDaysToDateKey } from "@/lib/schedule/calendar-ymd"
 import {
   matchesFollowingSeriesSlot,
@@ -169,6 +170,14 @@ export async function POST(req: Request) {
   let mutated = false
   try {
     if (body.action === "book") {
+      const balanceState = await getStudentBalanceState(supabase, me.id)
+      if (balanceState.blocked) {
+        return NextResponse.json(
+          { error: "Баланс занятий исчерпан. Пополните баланс, чтобы записаться на урок." },
+          { status: 402 }
+        )
+      }
+
       const toDateKeyValue = body.to_date_key
       const toHour = Number(body.to_hour)
       if (!toDateKeyValue || Number.isNaN(toHour)) {
