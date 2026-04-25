@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react"
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react"
 import { ArrowRight, BookOpen, Check, ChevronLeft, ChevronRight, Headphones, ImageIcon, Sparkles } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import type { TeacherLessonBlock } from "@/lib/types"
@@ -32,6 +32,7 @@ type Props = {
   backHref: string
   backLabel: string
   blocks: TeacherLessonBlock[]
+  heroActions?: ReactNode
 }
 
 type LessonSection = {
@@ -220,7 +221,8 @@ export function CustomInteractiveLesson({
   courseCoverImageUrl,
   backHref,
   backLabel,
-  blocks
+  blocks,
+  heroActions
 }: Props) {
   const router = useRouter()
   const { resolvedTheme } = useTheme()
@@ -872,11 +874,16 @@ export function CustomInteractiveLesson({
                 <p className="cc-hsk-hero-module">{moduleLabel}</p>
                 <h1 className="cc-hsk-hero-title">{lessonTitle}</h1>
                 {heroLead ? <p className="cc-hsk-hero-lead">{heroLead}</p> : null}
-                {sections[0] ? (
-                  <button type="button" className="cc-hsk-hero-cta" onClick={() => setActiveId(sections[0]!.id)}>
-                    Начать урок
-                    <ArrowRight className="cc-hsk-hero-cta-arrow" aria-hidden />
-                  </button>
+                {sections[0] || heroActions ? (
+                  <div className="mt-6 flex flex-wrap items-center gap-3">
+                    {sections[0] ? (
+                      <button type="button" className="cc-hsk-hero-cta" onClick={() => setActiveId(sections[0]!.id)}>
+                        Начать урок
+                        <ArrowRight className="cc-hsk-hero-cta-arrow" aria-hidden />
+                      </button>
+                    ) : null}
+                    {heroActions}
+                  </div>
                 ) : null}
               </div>
 

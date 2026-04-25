@@ -24,6 +24,8 @@ import {
   Video,
   VideoOff,
 } from "lucide-react"
+import { humanizeDailyError } from "@/lib/daily/errors"
+import { useUiLocale } from "@/lib/ui-locale"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -55,9 +57,121 @@ function isTrackEnabled(track: DailyTrackStateLike | undefined): boolean {
 }
 
 function prettifyMeetingState(meetingState: string): string {
-  if (meetingState === "loading" || meetingState === "joining-meeting") return "Connecting to the lesson room..."
-  if (meetingState === "error") return "The lesson call ran into an error."
-  return "Preparing the lesson room..."
+  if (meetingState === "loading" || meetingState === "joining-meeting") return "connecting"
+  if (meetingState === "error") return "error"
+  return "preparing"
+}
+
+function useVideoRoomCopy() {
+  const { locale } = useUiLocale()
+
+  return useMemo(() => {
+    if (locale === "en") {
+      return {
+        fallbackCourseTitle: "Live lesson",
+        fallbackGuest: "Guest",
+        fallbackCameraOff: "Camera is off",
+        localBadge: "You",
+        leaveLesson: "Leave lesson",
+        loadingConnecting: "Connecting to the call...",
+        loadingPreparing: "Preparing the call room...",
+        loadingError: "The call ran into an error.",
+        keepTabOpen: "Please keep this tab open while we connect the call.",
+        errorEyebrow: "Lesson call unavailable",
+        errorTitle: "We couldn't open the call room.",
+        retry: "Retry",
+        back: "Back",
+        callStatus: "Call status",
+        liveNow: "Live now",
+        participantSingle: "participant connected",
+        participantPlural: "participants connected",
+        youLabel: "You",
+        micOn: "Mic on",
+        micOff: "Mic off",
+        cameraOn: "Camera on",
+        cameraOff: "Camera off",
+        screenSharing: "Sharing screen",
+        screenIdle: "Screen idle",
+        mute: "Mute",
+        unmute: "Unmute",
+        stopVideo: "Stop video",
+        startVideo: "Start video",
+        stopScreenShare: "Stop screen share",
+        startScreenShare: "Share screen",
+        defaultJoinError: "Unable to join the call.",
+      }
+    }
+
+    if (locale === "zh") {
+      return {
+        fallbackCourseTitle: "直播课堂",
+        fallbackGuest: "访客",
+        fallbackCameraOff: "摄像头已关闭",
+        localBadge: "你",
+        leaveLesson: "离开课堂",
+        loadingConnecting: "正在连接通话...",
+        loadingPreparing: "正在准备通话教室...",
+        loadingError: "通话出现错误。",
+        keepTabOpen: "连接通话期间请保持此页面打开。",
+        errorEyebrow: "课堂通话不可用",
+        errorTitle: "无法打开通话教室。",
+        retry: "重试",
+        back: "返回",
+        callStatus: "通话状态",
+        liveNow: "通话中",
+        participantSingle: "位参与者在线",
+        participantPlural: "位参与者在线",
+        youLabel: "你",
+        micOn: "麦克风开启",
+        micOff: "麦克风关闭",
+        cameraOn: "摄像头开启",
+        cameraOff: "摄像头关闭",
+        screenSharing: "正在共享屏幕",
+        screenIdle: "未共享屏幕",
+        mute: "静音",
+        unmute: "取消静音",
+        stopVideo: "关闭视频",
+        startVideo: "开启视频",
+        stopScreenShare: "停止共享",
+        startScreenShare: "共享屏幕",
+        defaultJoinError: "无法加入通话。",
+      }
+    }
+
+    return {
+      fallbackCourseTitle: "Онлайн-занятие",
+      fallbackGuest: "Гость",
+      fallbackCameraOff: "Камера выключена",
+      localBadge: "Вы",
+      leaveLesson: "Выйти из урока",
+      loadingConnecting: "Подключаем звонок...",
+      loadingPreparing: "Готовим комнату звонка...",
+      loadingError: "Во время подключения произошла ошибка.",
+      keepTabOpen: "Не закрывайте вкладку, пока подключается звонок.",
+      errorEyebrow: "Звонок недоступен",
+      errorTitle: "Не удалось открыть комнату звонка.",
+      retry: "Повторить",
+      back: "Назад к уроку",
+      callStatus: "Статус звонка",
+      liveNow: "Идет занятие",
+      participantSingle: "участник в комнате",
+      participantPlural: "участников в комнате",
+      youLabel: "Вы",
+      micOn: "Микрофон включен",
+      micOff: "Микрофон выключен",
+      cameraOn: "Камера включена",
+      cameraOff: "Камера выключена",
+      screenSharing: "Экран транслируется",
+      screenIdle: "Экран не транслируется",
+      mute: "Выключить микрофон",
+      unmute: "Включить микрофон",
+      stopVideo: "Выключить камеру",
+      startVideo: "Включить камеру",
+      stopScreenShare: "Остановить показ экрана",
+      startScreenShare: "Показать экран",
+      defaultJoinError: "Не удалось подключиться к звонку.",
+    }
+  }, [locale])
 }
 
 function ParticipantTile({
@@ -72,6 +186,7 @@ function ParticipantTile({
   labelClassName?: string
 }) {
   const participant = (useParticipant(sessionId) as DailyParticipantLike | undefined) ?? undefined
+  const copy = useVideoRoomCopy()
   const isVideoEnabled =
     type === "screenVideo"
       ? isTrackEnabled(participant?.tracks?.screenVideo)
@@ -98,7 +213,7 @@ function ParticipantTile({
             <div className="flex h-16 w-16 items-center justify-center rounded-full border border-white/15 bg-white/10">
               <Users className="h-7 w-7" aria-hidden />
             </div>
-            <p className="text-sm font-medium">Camera is off</p>
+            <p className="text-sm font-medium">{copy.fallbackCameraOff}</p>
           </div>
         </div>
       ) : null}
@@ -108,10 +223,10 @@ function ParticipantTile({
           labelClassName
         )}
       >
-        <span className="truncate font-medium">{participant?.user_name?.trim() || "Guest"}</span>
+        <span className="truncate font-medium">{participant?.user_name?.trim() || copy.fallbackGuest}</span>
         {participant?.local ? (
           <span className="rounded-full border border-white/15 bg-white/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]">
-            You
+            {copy.localBadge}
           </span>
         ) : null}
       </div>
@@ -128,6 +243,8 @@ function VideoRoomInner({
   onLeave
 }: VideoRoomProps) {
   const daily = useDaily()
+  const { locale } = useUiLocale()
+  const copy = useVideoRoomCopy()
   const meetingState = useMeetingState()
   const localSessionId = useLocalSessionId()
   const localParticipant = useLocalParticipant() as DailyParticipantLike | undefined
@@ -142,6 +259,11 @@ function VideoRoomInner({
     const call = daily
 
     let cancelled = false
+    const handleError = (event: unknown) => {
+      if (!cancelled) {
+        setJoinError(humanizeDailyError(event, locale, copy.defaultJoinError))
+      }
+    }
 
     async function joinRoom() {
       setJoinError(null)
@@ -153,18 +275,24 @@ function VideoRoomInner({
         })
       } catch (error) {
         if (!cancelled) {
-          setJoinError(error instanceof Error ? error.message : "Unable to join the lesson call.")
+          setJoinError(humanizeDailyError(error, locale, copy.defaultJoinError))
         }
       }
     }
 
+    call.on("error", handleError)
+    call.on("camera-error", handleError)
+    call.on("nonfatal-error", handleError)
     void joinRoom()
 
     return () => {
       cancelled = true
+      call.off("error", handleError)
+      call.off("camera-error", handleError)
+      call.off("nonfatal-error", handleError)
       void call.leave().catch(() => undefined)
     }
-  }, [daily, displayName, joinAttempt, meetingToken, roomUrl])
+  }, [copy.defaultJoinError, daily, displayName, joinAttempt, locale, meetingToken, roomUrl])
 
   const orderedParticipantIds = useMemo(() => {
     const ids = [...participantIds].filter((value): value is string => typeof value === "string" && value.length > 0)
@@ -187,7 +315,7 @@ function VideoRoomInner({
     try {
       await Promise.resolve(action())
     } catch (error) {
-      setJoinError(error instanceof Error ? error.message : "Unable to update the lesson call.")
+      setJoinError(humanizeDailyError(error, locale, copy.defaultJoinError))
     } finally {
       setIsBusy(false)
     }
@@ -222,6 +350,14 @@ function VideoRoomInner({
   const showLoading =
     meetingState !== "joined-meeting" && meetingState !== "left-meeting" && joinError == null
   const effectiveMeetingState = meetingState ?? "new"
+  const meetingStateLabel =
+    prettifyMeetingState(effectiveMeetingState) === "connecting"
+      ? copy.loadingConnecting
+      : prettifyMeetingState(effectiveMeetingState) === "error"
+        ? copy.loadingError
+        : copy.loadingPreparing
+  const participantCountLabel =
+    orderedParticipantIds.length === 1 ? copy.participantSingle : copy.participantPlural
 
   return (
     <div className="min-h-screen bg-[#050816] text-white">
@@ -232,7 +368,7 @@ function VideoRoomInner({
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
               <p className="truncate text-sm uppercase tracking-[0.24em] text-white/45">
-                {courseTitle?.trim() || "Live Lesson"}
+                {courseTitle?.trim() || copy.fallbackCourseTitle}
               </p>
               <h1 className="truncate text-xl font-semibold text-white lg:text-2xl">{lessonTitle}</h1>
             </div>
@@ -245,7 +381,7 @@ function VideoRoomInner({
               disabled={isBusy}
             >
               <PhoneOff aria-hidden />
-              Leave lesson
+              {copy.leaveLesson}
             </Button>
           </div>
         </header>
@@ -256,8 +392,8 @@ function VideoRoomInner({
               <div className="flex flex-col items-center gap-4 text-center">
                 <LoaderCircle className="h-10 w-10 animate-spin text-white/85" aria-hidden />
                 <div className="space-y-1">
-                  <p className="text-lg font-medium">{prettifyMeetingState(effectiveMeetingState)}</p>
-                  <p className="text-sm text-white/55">Please keep this tab open while we connect the call.</p>
+                  <p className="text-lg font-medium">{meetingStateLabel}</p>
+                  <p className="text-sm text-white/55">{copy.keepTabOpen}</p>
                 </div>
               </div>
             </div>
@@ -266,15 +402,15 @@ function VideoRoomInner({
           {joinError ? (
             <div className="mx-auto flex h-[calc(100vh-11rem)] max-w-xl items-center justify-center">
               <div className="w-full rounded-[32px] border border-[#8f4355] bg-[#2a1520] p-6 text-left shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
-                <p className="text-sm uppercase tracking-[0.22em] text-[#ff9db1]">Lesson call unavailable</p>
-                <h2 className="mt-3 text-2xl font-semibold text-white">We couldn&apos;t open the Daily room.</h2>
+                <p className="text-sm uppercase tracking-[0.22em] text-[#ff9db1]">{copy.errorEyebrow}</p>
+                <h2 className="mt-3 text-2xl font-semibold text-white">{copy.errorTitle}</h2>
                 <p className="mt-3 text-sm leading-6 text-white/70">{joinError}</p>
                 <div className="mt-6 flex flex-wrap gap-3">
                   <Button type="button" onClick={() => setJoinAttempt((value) => value + 1)}>
-                    Retry
+                    {copy.retry}
                   </Button>
                   <Button type="button" variant="outline" onClick={() => onLeave?.()}>
-                    Back to lesson
+                    {copy.back}
                   </Button>
                 </div>
               </div>
@@ -316,27 +452,27 @@ function VideoRoomInner({
               <aside className="flex flex-col justify-between gap-4 rounded-[32px] border border-white/10 bg-white/[0.04] p-4 lg:p-5">
                 <div className="space-y-4">
                   <div className="rounded-[24px] border border-white/8 bg-black/20 p-4">
-                    <p className="text-xs uppercase tracking-[0.22em] text-white/45">Call status</p>
+                    <p className="text-xs uppercase tracking-[0.22em] text-white/45">{copy.callStatus}</p>
                     <p className="mt-2 text-lg font-medium text-white">
-                      {effectiveMeetingState === "joined-meeting" ? "Live now" : prettifyMeetingState(effectiveMeetingState)}
+                      {effectiveMeetingState === "joined-meeting" ? copy.liveNow : meetingStateLabel}
                     </p>
                     <p className="mt-2 text-sm leading-6 text-white/60">
-                      {orderedParticipantIds.length} participant{orderedParticipantIds.length === 1 ? "" : "s"} connected
+                      {orderedParticipantIds.length} {participantCountLabel}
                     </p>
                   </div>
 
                   <div className="rounded-[24px] border border-white/8 bg-black/20 p-4">
-                    <p className="text-xs uppercase tracking-[0.22em] text-white/45">You</p>
-                    <p className="mt-2 truncate text-lg font-medium text-white">{displayName?.trim() || "Guest"}</p>
+                    <p className="text-xs uppercase tracking-[0.22em] text-white/45">{copy.youLabel}</p>
+                    <p className="mt-2 truncate text-lg font-medium text-white">{displayName?.trim() || copy.fallbackGuest}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium text-white/80">
-                        {isMicEnabled ? "Mic on" : "Mic off"}
+                        {isMicEnabled ? copy.micOn : copy.micOff}
                       </span>
                       <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium text-white/80">
-                        {isCameraEnabled ? "Camera on" : "Camera off"}
+                        {isCameraEnabled ? copy.cameraOn : copy.cameraOff}
                       </span>
                       <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium text-white/80">
-                        {isSharingScreen ? "Sharing screen" : "Screen idle"}
+                        {isSharingScreen ? copy.screenSharing : copy.screenIdle}
                       </span>
                     </div>
                   </div>
@@ -345,15 +481,15 @@ function VideoRoomInner({
                 <div className="grid grid-cols-2 gap-3">
                   <Button type="button" variant={isMicEnabled ? "secondary" : "destructive"} onClick={handleToggleAudio} disabled={isBusy}>
                     {isMicEnabled ? <Mic aria-hidden /> : <MicOff aria-hidden />}
-                    {isMicEnabled ? "Mute" : "Unmute"}
+                    {isMicEnabled ? copy.mute : copy.unmute}
                   </Button>
                   <Button type="button" variant={isCameraEnabled ? "secondary" : "destructive"} onClick={handleToggleVideo} disabled={isBusy}>
                     {isCameraEnabled ? <Video aria-hidden /> : <VideoOff aria-hidden />}
-                    {isCameraEnabled ? "Stop video" : "Start video"}
+                    {isCameraEnabled ? copy.stopVideo : copy.startVideo}
                   </Button>
                   <Button type="button" variant={isSharingScreen ? "default" : "outline"} onClick={handleToggleScreenShare} disabled={isBusy} className="col-span-2">
                     <MonitorUp aria-hidden />
-                    {isSharingScreen ? "Stop screen share" : "Share screen"}
+                    {isSharingScreen ? copy.stopScreenShare : copy.startScreenShare}
                   </Button>
                 </div>
               </aside>

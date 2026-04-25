@@ -13,6 +13,7 @@ import {
   type ClassDisplayType,
   type ClassListItem
 } from "@/lib/classes-mock"
+import { buildScheduleCallHref } from "@/lib/daily/links"
 import { resolveOnlineClassJoinUrl } from "@/lib/online-class-link"
 import type { ScheduledLesson } from "@/lib/schedule-lessons"
 
@@ -208,7 +209,8 @@ function ClassCard({
   joinBlockedByBalance: boolean
 }) {
   const href = cls.slug ? `/${cls.slug}` : scheduleFallbackHref
-  const joinUrl = resolveOnlineClassJoinUrl(cls.joinUrl)
+  const joinUrl = cls.joinUrl ? resolveOnlineClassJoinUrl(cls.joinUrl) : null
+  const scheduleJoinHref = cls.scheduleSlotId ? buildScheduleCallHref(cls.scheduleSlotId, "/classes") : null
   const showJoin =
     cls.status === "upcoming" && cls.type === "Урок" && (cls.slug != null || cls.showOnlineConnect === true)
   const joinActive = showJoin && !joinBlockedByBalance && canJoinOnlineClass(cls.isoDate, cls.timeRange)
@@ -254,16 +256,37 @@ function ClassCard({
 
       {showJoin ? (
         joinActive ? (
-          <a
-            href={joinUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex w-full shrink-0 items-center justify-center gap-2 rounded-[var(--ds-radius-md)] bg-[#2d8cff] px-4 py-3.5 text-[15px] font-semibold text-white shadow-md transition-colors hover:bg-[#2171d8] sm:w-auto sm:min-w-[11.5rem] sm:py-3 dark:bg-[#0b5cff] dark:hover:bg-[#0a4ed6]"
-            aria-label="Подключиться к онлайн-занятию (Zoom или VooV)"
-          >
-            <Video className="h-5 w-5 shrink-0 opacity-95" aria-hidden />
-            Подключиться
-          </a>
+          scheduleJoinHref ? (
+            <Link
+              href={scheduleJoinHref}
+              className="flex w-full shrink-0 items-center justify-center gap-2 rounded-[var(--ds-radius-md)] bg-[#2d8cff] px-4 py-3.5 text-[15px] font-semibold text-white shadow-md transition-colors hover:bg-[#2171d8] sm:w-auto sm:min-w-[11.5rem] sm:py-3 dark:bg-[#0b5cff] dark:hover:bg-[#0a4ed6]"
+              aria-label="Открыть встроенный звонок занятия"
+            >
+              <Video className="h-5 w-5 shrink-0 opacity-95" aria-hidden />
+              Подключиться
+            </Link>
+          ) : joinUrl ? (
+            <a
+              href={joinUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-full shrink-0 items-center justify-center gap-2 rounded-[var(--ds-radius-md)] bg-[#2d8cff] px-4 py-3.5 text-[15px] font-semibold text-white shadow-md transition-colors hover:bg-[#2171d8] sm:w-auto sm:min-w-[11.5rem] sm:py-3 dark:bg-[#0b5cff] dark:hover:bg-[#0a4ed6]"
+              aria-label="Подключиться к онлайн-занятию"
+            >
+              <Video className="h-5 w-5 shrink-0 opacity-95" aria-hidden />
+              Подключиться
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              title="Для этого занятия пока нет связанного звонка."
+              className="flex w-full shrink-0 cursor-not-allowed items-center justify-center gap-2 rounded-[var(--ds-radius-md)] bg-[#b8c5d6] px-4 py-3.5 text-[15px] font-semibold text-white/95 sm:w-auto sm:min-w-[11.5rem] sm:py-3 dark:bg-zinc-600 dark:text-zinc-200"
+            >
+              <Video className="h-5 w-5 shrink-0 opacity-80" aria-hidden />
+              Подключиться
+            </button>
+          )
         ) : (
           <button
             type="button"

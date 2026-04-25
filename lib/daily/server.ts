@@ -89,14 +89,22 @@ export function shouldEnforceTeacherStart(): boolean {
   return raw === "1" || raw === "true" || raw === "yes"
 }
 
-export function createDailyLessonRoomName(lessonId: string): string {
-  const normalized = lessonId
+function createDailyScopedRoomName(scope: "lesson" | "schedule", id: string): string {
+  const normalized = id
     .trim()
     .replace(/[^A-Za-z0-9_-]/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
 
-  return `lesson-${normalized}`.slice(0, 128)
+  return `${scope}-${normalized}`.slice(0, 128)
+}
+
+export function createDailyLessonRoomName(lessonId: string): string {
+  return createDailyScopedRoomName("lesson", lessonId)
+}
+
+export function createDailyScheduleSlotRoomName(scheduleSlotId: string): string {
+  return createDailyScopedRoomName("schedule", scheduleSlotId)
 }
 
 export function getDailyRoomNameFromUrl(roomUrl: string | null | undefined): string | null {
@@ -130,8 +138,14 @@ export async function getDailyRoomByName(roomName: string): Promise<{ name: stri
 }
 
 export async function createOrGetDailyLessonRoom(lessonId: string): Promise<{ name: string; url: string }> {
-  const roomName = createDailyLessonRoomName(lessonId)
+  return createOrGetDailyRoomByName(createDailyLessonRoomName(lessonId))
+}
 
+export async function createOrGetDailyScheduleSlotRoom(scheduleSlotId: string): Promise<{ name: string; url: string }> {
+  return createOrGetDailyRoomByName(createDailyScheduleSlotRoomName(scheduleSlotId))
+}
+
+async function createOrGetDailyRoomByName(roomName: string): Promise<{ name: string; url: string }> {
   try {
     const room = await dailyApiRequest<DailyRoomResponse>("/rooms", {
       method: "POST",

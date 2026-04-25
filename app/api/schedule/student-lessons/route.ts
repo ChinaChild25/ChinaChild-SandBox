@@ -89,7 +89,7 @@ export async function GET() {
 
   const { data: teacherBookedRows, error: bookedErr } = await supabase
     .from("teacher_schedule_slots")
-    .select("teacher_id, slot_at")
+    .select("id, teacher_id, slot_at")
     .eq("booked_student_id", me.id)
     .eq("status", "booked")
     .order("slot_at", { ascending: true })
@@ -161,7 +161,7 @@ export async function GET() {
   }
 
   const inferred = (teacherBookedRows ?? []).map((r) => {
-    const row = r as { teacher_id?: string | null; slot_at: string }
+    const row = r as { id: string; teacher_id?: string | null; slot_at: string }
     const { dateKey, time } = wallClockFromSlotAt(row.slot_at)
     const timeNorm = normalizeScheduleSlotTime(time)
     const inferredTeacherName = row.teacher_id ? teacherNameById.get(row.teacher_id) : teacherName
@@ -170,6 +170,7 @@ export async function GET() {
       (tid ? teacherMeetingUrlById.get(tid) : undefined) ?? effectiveTeacherMeetingUrl
     return {
       id: `slot-${me.id}-${dateKey}-${timeNorm}`,
+      scheduleSlotId: row.id,
       dateKey,
       time: timeNorm,
       title: "Занятие",
@@ -189,6 +190,7 @@ export async function GET() {
     string,
     {
       id: string
+      scheduleSlotId?: string
       dateKey: string
       time: string
       title: string

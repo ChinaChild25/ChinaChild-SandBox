@@ -13,6 +13,7 @@ export type ClassDisplayType = "Урок" | "Тест"
 
 export type ClassListItem = {
   id: string
+  scheduleSlotId?: string
   /** YYYY-MM-DD — для логики «сегодня» и сортировки */
   isoDate: string
   /** Время начала урока для сортировки */
@@ -152,6 +153,7 @@ export function classListItemsFromScheduledLessons(lessons: ScheduledLesson[]): 
 
     items.push({
       id: l.id,
+      scheduleSlotId: l.scheduleSlotId,
       isoDate: l.dateKey,
       sortKey,
       dateLineRu: formatClassDateRu(l.dateKey),

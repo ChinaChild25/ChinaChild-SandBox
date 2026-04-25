@@ -3,12 +3,9 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { LoaderCircle, Video } from "lucide-react"
+import { buildLessonCallHref } from "@/lib/daily/links"
+import { useUiLocale } from "@/lib/ui-locale"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
-
-type JoinRoomResponse = {
-  error?: string
-}
 
 type Props = {
   lessonId: string
@@ -20,51 +17,29 @@ type Props = {
 
 export function JoinLessonButton({
   lessonId,
-  label = "Join Lesson",
+  label,
   className,
   variant = "default",
   size = "default"
 }: Props) {
   const router = useRouter()
-  const [isJoining, setIsJoining] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { locale } = useUiLocale()
+  const [isOpening, setIsOpening] = useState(false)
 
-  async function handleJoin() {
-    if (isJoining) return
+  const resolvedLabel =
+    label ??
+    (locale === "en" ? "Join lesson" : locale === "zh" ? "进入课堂" : "Подключиться")
 
-    setIsJoining(true)
-    setError(null)
-
-    try {
-      const response = await fetch("/api/create-room", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ lessonId })
-      })
-
-      const payload = (await response.json().catch(() => null)) as JoinRoomResponse | null
-      if (!response.ok) {
-        setError(payload?.error ?? "Unable to open the lesson call right now.")
-        setIsJoining(false)
-        return
-      }
-
-      router.push(`/lesson/${lessonId}?join=1`)
-    } catch {
-      setError("Unable to open the lesson call right now.")
-      setIsJoining(false)
-    }
+  function handleJoin() {
+    if (isOpening) return
+    setIsOpening(true)
+    router.push(buildLessonCallHref(lessonId))
   }
 
   return (
-    <div className={cn("space-y-2", className)}>
-      <Button type="button" variant={variant} size={size} onClick={handleJoin} disabled={isJoining}>
-        {isJoining ? <LoaderCircle className="animate-spin" aria-hidden /> : <Video aria-hidden />}
-        {label}
-      </Button>
-      {error ? <p className="text-xs text-[#b9495f] dark:text-[#ff9bb0]">{error}</p> : null}
-    </div>
+    <Button type="button" className={className} variant={variant} size={size} onClick={handleJoin} disabled={isOpening}>
+      {isOpening ? <LoaderCircle className="animate-spin" aria-hidden /> : <Video aria-hidden />}
+      {resolvedLabel}
+    </Button>
   )
 }

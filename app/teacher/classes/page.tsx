@@ -5,9 +5,9 @@ import { useEffect, useMemo, useState } from "react"
 import { PlayCircle, UserRound } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { getAppNow } from "@/lib/app-time"
+import { buildScheduleCallHref } from "@/lib/daily/links"
 import { lessonWallClockEpochMs } from "@/lib/schedule-lessons"
 import { canJoinOnlineClassFromScheduleSlot, ONLINE_JOIN_UNAVAILABLE_TITLE } from "@/lib/classes-mock"
-import { resolveOnlineClassJoinUrl } from "@/lib/online-class-link"
 import { getLessonsForTeacherView } from "@/lib/teacher-student-lessons"
 import { TEACHER_STUDENTS_ACTIVE } from "@/lib/teacher-students-mock"
 import { type ApiScheduleLessonRow } from "@/lib/teacher-schedule-display"
@@ -77,6 +77,7 @@ export default function TeacherClassesPage() {
         studentName: s.name,
         lesson: {
           id: l.id,
+          scheduleSlotId: l.scheduleSlotId,
           dateKey: l.dateKey,
           time: l.time,
           title: l.title,
@@ -146,7 +147,12 @@ export default function TeacherClassesPage() {
             </p>
           ) : (
             <ul className="space-y-3">
-              {upcoming.map(({ studentId, studentName, lesson, start }) => (
+              {upcoming.map(({ studentId, studentName, lesson, start }) => {
+                const callHref = lesson.scheduleSlotId
+                  ? buildScheduleCallHref(lesson.scheduleSlotId, "/teacher/classes")
+                  : null
+
+                return (
                 <li key={`${lesson.id}-${studentId}`}>
                   <article className="rounded-2xl bg-[var(--ds-neutral-row)] p-4">
                     <div className="mb-1 text-[13px] text-ds-text-secondary">
@@ -162,14 +168,23 @@ export default function TeacherClassesPage() {
                         <UserRound className="h-4 w-4 shrink-0" aria-hidden /> {studentName}
                       </Link>
                       {canJoinOnlineClassFromScheduleSlot(lesson.dateKey, lesson.time) ? (
-                        <a
-                          href={resolveOnlineClassJoinUrl(lesson.onlineMeetingUrl)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 rounded-[var(--ds-radius-md)] bg-ds-ink px-3 py-2 text-[13px] font-semibold text-white no-underline transition-opacity hover:opacity-90 dark:bg-white dark:text-[#1a1a1a] dark:hover:opacity-95"
-                        >
-                          <PlayCircle className="h-4 w-4 shrink-0" aria-hidden /> Начать занятие
-                        </a>
+                        callHref ? (
+                          <Link
+                            href={callHref}
+                            className="inline-flex items-center gap-1.5 rounded-[var(--ds-radius-md)] bg-ds-ink px-3 py-2 text-[13px] font-semibold text-white no-underline transition-opacity hover:opacity-90 dark:bg-white dark:text-[#1a1a1a] dark:hover:opacity-95"
+                          >
+                            <PlayCircle className="h-4 w-4 shrink-0" aria-hidden /> Начать занятие
+                          </Link>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            title="Для этого занятия пока нет связанного Daily-слота."
+                            className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-[var(--ds-radius-md)] bg-[#b8c5d6] px-3 py-2 text-[13px] font-semibold text-white/95 dark:bg-zinc-600 dark:text-zinc-200"
+                          >
+                            <PlayCircle className="h-4 w-4 shrink-0 opacity-80" aria-hidden /> Начать занятие
+                          </button>
+                        )
                       ) : (
                         <button
                           type="button"
@@ -184,7 +199,8 @@ export default function TeacherClassesPage() {
                     </div>
                   </article>
                 </li>
-              ))}
+                )
+              })}
             </ul>
           )}
           {upcomingRestCount > 0 ? (

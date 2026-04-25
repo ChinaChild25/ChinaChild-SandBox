@@ -34,7 +34,7 @@ export default function StudentLessonPage() {
   const searchParams = useSearchParams()
   const lessonId = params.lessonId
   const { user, isAuthenticated, authReady } = useAuth()
-  const { t } = useUiLocale()
+  const { locale, t } = useUiLocale()
   const isLiveMode = searchParams.get("join") === "1"
 
   const [lessonTitle, setLessonTitle] = useState("Урок")
@@ -83,6 +83,18 @@ export default function StudentLessonPage() {
   const isTeacher = user?.role === "teacher" || user?.role === "curator"
   const backHref = isTeacher ? `/teacher/lessons/${lessonId}` : courseId ? `/courses/${courseId}` : "/courses"
   const backLabel = isTeacher ? "Редактор" : (courseTitle?.trim() || "Курс")
+  const callButtonLabel =
+    roomUrl
+      ? locale === "en"
+        ? "Rejoin call"
+        : locale === "zh"
+          ? "返回通话"
+          : "Вернуться в звонок"
+      : locale === "en"
+        ? "Open call"
+        : locale === "zh"
+          ? "进入通话"
+          : "Открыть звонок"
 
   if (!authReady || !isAuthenticated) {
     return (
@@ -110,34 +122,25 @@ export default function StudentLessonPage() {
               {error}
             </div>
           ) : (
-            <div className="space-y-4">
-              <section className="rounded-[28px] border border-black/8 bg-white px-5 py-5 shadow-[0_16px_48px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-[#111827]">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ds-text-tertiary">Daily lesson room</p>
-                    <h2 className="text-xl font-semibold text-ds-ink dark:text-white">
-                      {roomUrl ? "The live room is ready when you are." : "Start the lesson call inside the platform."}
-                    </h2>
-                    <p className="text-sm leading-6 text-ds-text-secondary dark:text-white/65">
-                      Open the embedded Daily call with chat, camera, audio, and screen sharing directly from this lesson.
-                    </p>
-                  </div>
-                  <JoinLessonButton lessonId={lessonId} label={roomUrl ? "Rejoin Lesson" : "Join Lesson"} />
-                </div>
-              </section>
-
-              <CustomInteractiveLesson
-                lessonId={lessonId}
-                lessonTitle={lessonTitle}
-                courseTitle={courseTitle}
-                courseCoverColor={courseCoverColor}
-                courseCoverStyle={courseCoverStyle}
-                courseCoverImageUrl={courseCoverImageUrl}
-                backHref={backHref}
-                backLabel={backLabel}
-                blocks={blocks}
-              />
-            </div>
+            <CustomInteractiveLesson
+              lessonId={lessonId}
+              lessonTitle={lessonTitle}
+              courseTitle={courseTitle}
+              courseCoverColor={courseCoverColor}
+              courseCoverStyle={courseCoverStyle}
+              courseCoverImageUrl={courseCoverImageUrl}
+              backHref={backHref}
+              backLabel={backLabel}
+              blocks={blocks}
+              heroActions={
+                <JoinLessonButton
+                  lessonId={lessonId}
+                  label={callButtonLabel}
+                  variant="secondary"
+                  className="h-12 rounded-[18px] px-5 text-[15px] font-semibold"
+                />
+              }
+            />
           )}
         </SchoolLessonShell>
       )}

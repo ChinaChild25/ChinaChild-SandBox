@@ -12,6 +12,7 @@ export type UpcomingLessonDisplay = {
 /** Ответ GET /api/schedule/teacher-student-lessons и аналогичных merge-endpoints. */
 export type ApiScheduleLessonRow = {
   id: string
+  scheduleSlotId?: string
   dateKey: string
   time: string
   title: string
@@ -25,6 +26,7 @@ export type ApiScheduleLessonRow = {
 export function scheduledLessonsFromApiRows(rows: ApiScheduleLessonRow[]): ScheduledLesson[] {
   return rows.map((l) => ({
     id: l.id,
+    scheduleSlotId: l.scheduleSlotId,
     dateKey: l.dateKey,
     time: l.time,
     title: l.title,

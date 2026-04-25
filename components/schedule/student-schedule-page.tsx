@@ -7,11 +7,16 @@ import { TOOLTIP_CHIP_SURFACE_CLASS } from "@/components/ui/tooltip"
 import { useStudentBillingSummary } from "@/hooks/use-student-billing-summary"
 import { useAuth } from "@/lib/auth-context"
 import { getAppNow, getAppTodayStart } from "@/lib/app-time"
+import { buildScheduleCallHref } from "@/lib/daily/links"
 import { SCHEDULE_WALL_CLOCK_TIMEZONE, wallClockFromDateInSchoolTz, wallClockFromSlotAt } from "@/lib/schedule-display-tz"
 import { calendarWeekdayFromDateKey, mondayDateKeyOfWeekContaining } from "@/lib/schedule/calendar-ymd"
 import { minDateKeyForFollowingRescheduleWeekdayPicker } from "@/lib/schedule/following-series"
 import { addOneDayYmd } from "@/lib/schedule/date-ymd"
 import { normalizeScheduleSlotTime, wallClockSlotAtIso } from "@/lib/schedule/slot-time"
+import {
+  ONLINE_JOIN_UNAVAILABLE_TITLE,
+  canJoinOnlineClassFromScheduleSlot,
+} from "@/lib/classes-mock"
 import {
   canRescheduleLesson,
   dateKeyFromDate,
@@ -846,14 +851,37 @@ export function StudentSchedulePage() {
                   <div className="text-sm text-ds-text-muted">{l.teacher ?? "Преподаватель"}, {l.title}</div>
                 </div>
               </button>
-              <button
-                type="button"
-                className="rounded-md p-1 text-ds-text-primary hover:bg-ds-surface-hover dark:hover:bg-white/10"
-                aria-label="Меню урока"
-                onClick={(e) => setDesktopMenu({ x: e.clientX, y: e.clientY, lesson: l })}
-              >
-                <Ellipsis size={20} />
-              </button>
+              <div className="ml-3 flex items-center gap-2">
+                {l.scheduleSlotId ? (
+                  canJoinOnlineClassFromScheduleSlot(l.dateKey, l.time) ? (
+                    <Link
+                      href={buildScheduleCallHref(l.scheduleSlotId, "/schedule")}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-ds-ink px-3 py-2 text-sm font-semibold text-white no-underline transition-opacity hover:opacity-90 dark:bg-white dark:text-[#1a1a1a] dark:hover:opacity-95"
+                    >
+                      <MessageSquare className="h-4 w-4 shrink-0" aria-hidden />
+                      Войти в звонок
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      title={ONLINE_JOIN_UNAVAILABLE_TITLE}
+                      className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg bg-[#b8c5d6] px-3 py-2 text-sm font-semibold text-white/95 dark:bg-zinc-600 dark:text-zinc-200"
+                    >
+                      <MessageSquare className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                      Войти в звонок
+                    </button>
+                  )
+                ) : null}
+                <button
+                  type="button"
+                  className="rounded-md p-1 text-ds-text-primary hover:bg-ds-surface-hover dark:hover:bg-white/10"
+                  aria-label="Меню урока"
+                  onClick={(e) => setDesktopMenu({ x: e.clientX, y: e.clientY, lesson: l })}
+                >
+                  <Ellipsis size={20} />
+                </button>
+              </div>
             </div>
           ))}
         </Section>
@@ -1478,22 +1506,49 @@ function LessonCard({ lesson, onClick }: { lesson: ScheduledLesson; onClick: () 
     .toUpperCase()
   const day = anchor.getUTCDate()
   const weekday = formatSchoolCalendarWeekdayLongRu(lesson.dateKey)
+  const callHref = lesson.scheduleSlotId ? buildScheduleCallHref(lesson.scheduleSlotId, "/schedule") : null
+  const canJoin = lesson.scheduleSlotId ? canJoinOnlineClassFromScheduleSlot(lesson.dateKey, lesson.time) : false
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex w-full items-center gap-4 rounded-xl bg-[var(--ds-neutral-row)] px-4 py-4 text-left text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)]"
-    >
-      <div className="w-14 text-center">
-        <div className="text-xs font-semibold text-ds-text-muted">{month}</div>
-        <div className="text-3xl font-semibold text-ds-text-primary">{day}</div>
-      </div>
-      <div className="flex-1">
-        <div className="text-xl font-semibold text-ds-text-primary">{capitalize(weekday)} в {lesson.time}</div>
-        <div className="text-sm text-ds-text-muted">{lesson.teacher ?? "Преподаватель"}, {lesson.title}</div>
-      </div>
-      <ChevronRight size={18} className="text-ds-text-muted" />
-    </button>
+    <div className="rounded-xl bg-[var(--ds-neutral-row)] px-4 py-4">
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex w-full items-center gap-4 text-left text-ds-text-primary hover:bg-[var(--ds-neutral-row-hover)]"
+      >
+        <div className="w-14 text-center">
+          <div className="text-xs font-semibold text-ds-text-muted">{month}</div>
+          <div className="text-3xl font-semibold text-ds-text-primary">{day}</div>
+        </div>
+        <div className="flex-1">
+          <div className="text-xl font-semibold text-ds-text-primary">{capitalize(weekday)} в {lesson.time}</div>
+          <div className="text-sm text-ds-text-muted">{lesson.teacher ?? "Преподаватель"}, {lesson.title}</div>
+        </div>
+        <ChevronRight size={18} className="text-ds-text-muted" />
+      </button>
+      {callHref ? (
+        <div className="mt-3 flex justify-end">
+          {canJoin ? (
+            <Link
+              href={callHref}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-ds-ink px-3 py-2 text-sm font-semibold text-white no-underline transition-opacity hover:opacity-90 dark:bg-white dark:text-[#1a1a1a] dark:hover:opacity-95"
+            >
+              <MessageSquare className="h-4 w-4 shrink-0" aria-hidden />
+              Войти в звонок
+            </Link>
+          ) : (
+            <button
+              type="button"
+              disabled
+              title={ONLINE_JOIN_UNAVAILABLE_TITLE}
+              className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg bg-[#b8c5d6] px-3 py-2 text-sm font-semibold text-white/95 dark:bg-zinc-600 dark:text-zinc-200"
+            >
+              <MessageSquare className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+              Войти в звонок
+            </button>
+          )}
+        </div>
+      ) : null}
+    </div>
   )
 }
 

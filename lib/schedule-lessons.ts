@@ -19,6 +19,8 @@ export const TEACHER_SCHEDULE_SLOT_TIMES: string[] = TEACHER_HOURLY_SLOTS
 
 export type ScheduledLesson = {
   id: string
+  /** UUID booked teacher slot for live-call room routing, when available. */
+  scheduleSlotId?: string
   /** Календарный день слота, локальная дата: YYYY-MM-DD */
   dateKey: string
   /** "HH:mm" */

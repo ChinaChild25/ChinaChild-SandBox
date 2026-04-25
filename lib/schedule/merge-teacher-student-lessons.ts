@@ -11,6 +11,7 @@ type ProfileLite = {
 
 export type TeacherStudentMergedLesson = {
   id: string
+  scheduleSlotId?: string
   dateKey: string
   time: string
   title: string
@@ -129,7 +130,7 @@ export async function mergeTeacherStudentLessonsFromDb(
 
   const { data: teacherBookedRows, error: bookedErr } = await supabase
     .from("teacher_schedule_slots")
-    .select("teacher_id, slot_at")
+    .select("id, teacher_id, slot_at")
     .eq("booked_student_id", studentId)
     .eq("teacher_id", teacherId)
     .eq("status", "booked")
@@ -164,12 +165,13 @@ export async function mergeTeacherStudentLessonsFromDb(
   }
 
   const inferred = (teacherBookedRows ?? []).map((r) => {
-    const row = r as { teacher_id?: string | null; slot_at: string }
+    const row = r as { id: string; teacher_id?: string | null; slot_at: string }
     const { dateKey, time } = wallClockFromSlotAt(row.slot_at)
     const timeNorm = normalizeScheduleSlotTime(time)
     const inferredTeacherName = row.teacher_id ? teacherNameById.get(row.teacher_id) : teacherName
     return {
       id: `slot-${studentId}-${dateKey}-${timeNorm}`,
+      scheduleSlotId: row.id,
       dateKey,
       time: timeNorm,
       title: "Занятие",
