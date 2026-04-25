@@ -12,12 +12,13 @@ export async function GET(_: Request, { params }: { params: Promise<{ lessonId: 
 
   const { data: lesson, error: lessonError } = await supabase
     .from("lessons")
-    .select("id, title, course_id, courses(title, cover_color, cover_style, cover_image_url)")
+    .select("id, title, course_id, room_url, courses(title, cover_color, cover_style, cover_image_url)")
     .eq("id", lessonId)
     .maybeSingle<{
       id: string
       title: string
       course_id: string
+      room_url: string | null
       courses: {
         title: string | null
         cover_color: string | null
@@ -40,6 +41,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ lessonId: 
       id: lesson.id,
       title: lesson.title,
       course_id: lesson.course_id,
+      room_url: lesson.room_url ?? null,
       course_title: lesson.courses?.title ?? null,
       course_cover_color: lesson.courses?.cover_color ?? null,
       course_cover_style: lesson.courses?.cover_style ?? null,

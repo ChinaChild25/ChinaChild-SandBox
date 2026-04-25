@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { useParams } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { SchoolLessonShell } from "@/layouts/school-lesson-shell"
 import { CustomInteractiveLesson } from "@/components/school/custom-interactive-lesson"
 import { FigmaAppShell } from "@/components/figma-app-shell"
 import { AppSidebar } from "@/components/app-sidebar"
 import { TeacherSidebar } from "@/components/teacher-sidebar"
+import { JoinLessonButton } from "@/components/lessons/join-lesson-button"
+import { LessonLiveSession } from "@/components/lessons/lesson-live-session"
 import { useAuth } from "@/lib/auth-context"
 import { useUiLocale } from "@/lib/ui-locale"
 import type { TeacherLessonBlock } from "@/lib/types"
@@ -17,6 +18,7 @@ type LessonResponse = {
     id: string
     title: string
     course_id: string
+    room_url?: string | null
     course_title?: string | null
     course_cover_color?: string | null
     course_cover_style?: string | null
@@ -29,12 +31,15 @@ type LessonResponse = {
 export default function StudentLessonPage() {
   const params = useParams<{ lessonId: string }>()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const lessonId = params.lessonId
   const { user, isAuthenticated, authReady } = useAuth()
   const { t } = useUiLocale()
+  const isLiveMode = searchParams.get("join") === "1"
 
   const [lessonTitle, setLessonTitle] = useState("Урок")
   const [courseId, setCourseId] = useState("")
+  const [roomUrl, setRoomUrl] = useState("")
   const [courseTitle, setCourseTitle] = useState<string | undefined>(undefined)
   const [courseCoverColor, setCourseCoverColor] = useState<string | undefined>(undefined)
   const [courseCoverStyle, setCourseCoverStyle] = useState<string | undefined>(undefined)
@@ -66,6 +71,7 @@ export default function StudentLessonPage() {
     setError(null)
     setLessonTitle(json.lesson.title)
     setCourseId(json.lesson.course_id ?? "")
+    setRoomUrl(json.lesson.room_url?.trim() || "")
     setCourseTitle(json.lesson.course_title ?? undefined)
     setCourseCoverColor(json.lesson.course_cover_color?.trim() || undefined)
     setCourseCoverStyle(json.lesson.course_cover_style?.trim() || undefined)
@@ -93,27 +99,48 @@ export default function StudentLessonPage() {
       logoHref={isTeacher ? "/teacher/dashboard" : "/dashboard"}
       renderSidebar={(props) => (isTeacher ? <TeacherSidebar variant={props.variant} /> : <AppSidebar variant={props.variant} />)}
     >
-      <SchoolLessonShell>
-        {isLoading ? (
-          <div className="flex min-h-[40vh] items-center justify-center text-[18px] text-ds-text-secondary">Загрузка урока...</div>
-        ) : error ? (
-          <div className="rounded-[28px] border border-[#d98b95]/35 bg-[#fff4f5] px-5 py-5 text-[15px] leading-7 text-[#9b3948] dark:border-[#7d3d49] dark:bg-[#2e1d21] dark:text-[#ffb8c4]">
-            {error}
-          </div>
-        ) : (
-          <CustomInteractiveLesson
-            lessonId={lessonId}
-            lessonTitle={lessonTitle}
-            courseTitle={courseTitle}
-            courseCoverColor={courseCoverColor}
-            courseCoverStyle={courseCoverStyle}
-            courseCoverImageUrl={courseCoverImageUrl}
-            backHref={backHref}
-            backLabel={backLabel}
-            blocks={blocks}
-          />
-        )}
-      </SchoolLessonShell>
+      {!isLoading && !error && isLiveMode ? (
+        <LessonLiveSession lessonId={lessonId} lessonTitle={lessonTitle} courseTitle={courseTitle} />
+      ) : (
+        <SchoolLessonShell>
+          {isLoading ? (
+            <div className="flex min-h-[40vh] items-center justify-center text-[18px] text-ds-text-secondary">Загрузка урока...</div>
+          ) : error ? (
+            <div className="rounded-[28px] border border-[#d98b95]/35 bg-[#fff4f5] px-5 py-5 text-[15px] leading-7 text-[#9b3948] dark:border-[#7d3d49] dark:bg-[#2e1d21] dark:text-[#ffb8c4]">
+              {error}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <section className="rounded-[28px] border border-black/8 bg-white px-5 py-5 shadow-[0_16px_48px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-[#111827]">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div className="space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ds-text-tertiary">Daily lesson room</p>
+                    <h2 className="text-xl font-semibold text-ds-ink dark:text-white">
+                      {roomUrl ? "The live room is ready when you are." : "Start the lesson call inside the platform."}
+                    </h2>
+                    <p className="text-sm leading-6 text-ds-text-secondary dark:text-white/65">
+                      Open the embedded Daily call with chat, camera, audio, and screen sharing directly from this lesson.
+                    </p>
+                  </div>
+                  <JoinLessonButton lessonId={lessonId} label={roomUrl ? "Rejoin Lesson" : "Join Lesson"} />
+                </div>
+              </section>
+
+              <CustomInteractiveLesson
+                lessonId={lessonId}
+                lessonTitle={lessonTitle}
+                courseTitle={courseTitle}
+                courseCoverColor={courseCoverColor}
+                courseCoverStyle={courseCoverStyle}
+                courseCoverImageUrl={courseCoverImageUrl}
+                backHref={backHref}
+                backLabel={backLabel}
+                blocks={blocks}
+              />
+            </div>
+          )}
+        </SchoolLessonShell>
+      )}
     </FigmaAppShell>
   )
 }

@@ -5,6 +5,7 @@ import Link from "next/link"
 import { BookOpen, CheckCircle, ChevronLeft, ChevronRight, Headphones, ImageIcon, PlayCircle, Sparkles } from "lucide-react"
 import { useTheme } from "next-themes"
 import { CourseArtworkSlot } from "@/components/courses/course-artwork-slot"
+import { JoinLessonButton } from "@/components/lessons/join-lesson-button"
 import type { TeacherCourseModule, TeacherCustomCourse, TeacherLesson } from "@/lib/types"
 import {
   courseAccentForTheme,
@@ -31,6 +32,7 @@ type LocaleCopy = {
   back: string
   loading: string
   openLesson: string
+  joinLesson: string
   authorCourse: string
   teacherRole: string
   lessons: string
@@ -52,6 +54,7 @@ const COPY: Record<"ru" | "en" | "zh", LocaleCopy> = {
     back: "Назад к курсам",
     loading: "Загрузка курса…",
     openLesson: "Откройте урок, чтобы перейти к заданиям.",
+    joinLesson: "Подключиться",
     authorCourse: "Авторский курс",
     teacherRole: "Преподаватель курса",
     lessons: "уроков",
@@ -71,6 +74,7 @@ const COPY: Record<"ru" | "en" | "zh", LocaleCopy> = {
     back: "Back to courses",
     loading: "Loading course…",
     openLesson: "Open a lesson to continue with the activities.",
+    joinLesson: "Join Lesson",
     authorCourse: "Teacher course",
     teacherRole: "Course teacher",
     lessons: "lessons",
@@ -90,6 +94,7 @@ const COPY: Record<"ru" | "en" | "zh", LocaleCopy> = {
     back: "返回课程",
     loading: "课程加载中…",
     openLesson: "打开课程进入任务。",
+    joinLesson: "进入课堂",
     authorCourse: "教师自定义课程",
     teacherRole: "授课老师",
     lessons: "课时",
@@ -526,75 +531,84 @@ export function StudentAssignedCourseContent({
                       : "cursor-pointer bg-[var(--ds-neutral-row)] hover:bg-[var(--ds-neutral-row-hover)]"
 
                   return (
-                    <Link
+                    <div
                       key={lesson.id}
-                      href={`/lesson/${lesson.id}`}
                       className={cn(
-                        "flex items-center gap-4 rounded-[var(--ds-radius-md)] p-4 no-underline transition-colors",
+                        "flex flex-col gap-3 rounded-[var(--ds-radius-md)] p-4 transition-colors sm:flex-row sm:items-center sm:justify-between",
                         rowClass
                       )}
                     >
-                      <div className="shrink-0">
-                        {done && scorePercent !== null ? (
-                          <div
-                            className="flex h-12 w-12 items-center justify-center rounded-full"
-                            style={{ backgroundColor: scoreBubble }}
-                          >
-                            <span className="text-[20px] font-bold leading-none tabular-nums" style={{ color: scoreColor }}>
-                              {scorePercent}
-                            </span>
-                          </div>
-                        ) : done ? (
-                          <div
-                            className="flex h-12 w-12 items-center justify-center rounded-full"
-                            style={{ backgroundColor: "color-mix(in srgb, var(--ds-sage-strong) 18%, transparent)" }}
-                          >
-                            <CheckCircle className="h-6 w-6 text-ds-sage-strong" aria-hidden />
-                          </div>
-                        ) : (
-                          <PlayCircle
+                      <Link href={`/lesson/${lesson.id}`} className="flex min-w-0 flex-1 items-center gap-4 no-underline">
+                        <div className="shrink-0">
+                          {done && scorePercent !== null ? (
+                            <div
+                              className="flex h-12 w-12 items-center justify-center rounded-full"
+                              style={{ backgroundColor: scoreBubble }}
+                            >
+                              <span className="text-[20px] font-bold leading-none tabular-nums" style={{ color: scoreColor }}>
+                                {scorePercent}
+                              </span>
+                            </div>
+                          ) : done ? (
+                            <div
+                              className="flex h-12 w-12 items-center justify-center rounded-full"
+                              style={{ backgroundColor: "color-mix(in srgb, var(--ds-sage-strong) 18%, transparent)" }}
+                            >
+                              <CheckCircle className="h-6 w-6 text-ds-sage-strong" aria-hidden />
+                            </div>
+                          ) : (
+                            <PlayCircle
+                              className={cn(
+                                "h-[24px] w-[24px]",
+                                active ? "text-white dark:text-[#1a1a1a]" : "text-ds-text-tertiary"
+                              )}
+                              aria-hidden
+                            />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className={cn("text-[18px] font-medium leading-tight", active ? "text-white dark:text-[#1a1a1a]" : "text-ds-ink")}>
+                            {lesson.title}
+                          </p>
+                          {done && scorePercent !== null ? (
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-[14px] text-ds-text-secondary">
+                              <span>{copy.result}</span>
+                              <span className="font-semibold text-ds-ink">{scorePercent}/100</span>
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-3">
+                          {done && scorePercent !== null ? (
+                            <div className="hidden min-w-[96px] text-right sm:block">
+                              <div
+                                className="ml-auto h-2 w-20 overflow-hidden rounded-full"
+                                style={{ backgroundColor: "var(--ds-neutral-chrome)" }}
+                              >
+                                <div
+                                  className="h-full rounded-full"
+                                  style={{ width: `${scorePercent}%`, backgroundColor: scoreColor }}
+                                />
+                              </div>
+                            </div>
+                          ) : null}
+                          <ChevronRight
                             className={cn(
-                              "h-[24px] w-[24px]",
-                              active ? "text-white dark:text-[#1a1a1a]" : "text-ds-text-tertiary"
+                              "h-5 w-5 shrink-0",
+                              active ? "text-white dark:text-[#1a1a1a]" : "text-ds-chevron"
                             )}
                             aria-hidden
                           />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className={cn("text-[18px] font-medium leading-tight", active ? "text-white dark:text-[#1a1a1a]" : "text-ds-ink")}>
-                          {lesson.title}
-                        </p>
-                        {done && scorePercent !== null ? (
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-[14px] text-ds-text-secondary">
-                            <span>{copy.result}</span>
-                            <span className="font-semibold text-ds-ink">{scorePercent}/100</span>
-                          </div>
-                        ) : null}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-3">
-                        {done && scorePercent !== null ? (
-                          <div className="hidden min-w-[96px] text-right sm:block">
-                            <div
-                              className="ml-auto h-2 w-20 overflow-hidden rounded-full"
-                              style={{ backgroundColor: "var(--ds-neutral-chrome)" }}
-                            >
-                              <div
-                                className="h-full rounded-full"
-                                style={{ width: `${scorePercent}%`, backgroundColor: scoreColor }}
-                              />
-                            </div>
-                          </div>
-                        ) : null}
-                        <ChevronRight
-                          className={cn(
-                            "h-5 w-5 shrink-0",
-                            active ? "text-white dark:text-[#1a1a1a]" : "text-ds-chevron"
-                          )}
-                          aria-hidden
-                        />
-                      </div>
-                    </Link>
+                        </div>
+                      </Link>
+
+                      <JoinLessonButton
+                        lessonId={lesson.id}
+                        label={copy.joinLesson}
+                        variant={active ? "outline" : "secondary"}
+                        size="sm"
+                        className="sm:w-auto"
+                      />
+                    </div>
                   )
                 })}
               </div>
