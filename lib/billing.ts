@@ -8,6 +8,15 @@ export type BillingPackage = {
   paidLessons: number
   bonusLessons: number
   totalLessons: number
+  noticeHours: number
+  isPersonal: boolean
+}
+
+export type StudentBillingTariffProfile = {
+  tariffName: string | null
+  modulePriceRub: number
+  moduleLessons: number
+  defaultNoticeHours: number
 }
 
 export type BillingLedgerItem = {
@@ -37,6 +46,7 @@ export type StudentBillingSummary = {
   lessonsLeft: number
   lowBalance: boolean
   blocked: boolean
+  tariffProfile: StudentBillingTariffProfile | null
   packages: BillingPackage[]
   ledger: BillingLedgerItem[]
   paymentOrders: BillingPaymentOrder[]
@@ -45,4 +55,3 @@ export type StudentBillingSummary = {
 export function formatRub(amount: number, locale = "ru-RU"): string {
   return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(amount)} ₽`
 }
-

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { assertOwnCustomCourse } from "@/lib/api/teacher-custom-course-server"
-import { isAllowedExternalCoverImageUrl, normalizeCoverImagePosition } from "@/lib/teacher-custom-course-form"
+import { isAllowedExternalCoverImageUrl, normalizeCoverImageFlip, normalizeCoverImagePosition } from "@/lib/teacher-custom-course-form"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 type ProfileRole = "student" | "teacher" | "curator"
@@ -54,7 +54,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ courseId: 
   const { data, error } = await supabase
     .from("courses")
     .select(
-      "id, title, description, level, is_custom, teacher_id, created_at, cover_color, cover_style, cover_image_url, cover_image_position, is_platform_course"
+      "id, title, description, level, is_custom, teacher_id, created_at, cover_color, cover_style, cover_image_url, cover_image_position, cover_image_scale, cover_image_flip_x, cover_image_flip_y, is_platform_course"
     )
     .eq("id", courseId)
     .maybeSingle<{
@@ -69,6 +69,9 @@ export async function GET(_: Request, { params }: { params: Promise<{ courseId: 
       cover_style: string | null
       cover_image_url: string | null
       cover_image_position: string | null
+      cover_image_scale: number | null
+      cover_image_flip_x: boolean | null
+      cover_image_flip_y: boolean | null
       is_platform_course: boolean
     }>()
 
@@ -118,12 +121,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
         coverStyle?: string
         coverImageUrl?: string | null
         coverImagePosition?: string | null
+        coverImageScale?: number | null
+        coverImageFlipX?: boolean | null
+        coverImageFlipY?: boolean | null
       }
     | null
 
   if (body == null) return NextResponse.json({ error: "Invalid JSON" }, { status: 400 })
 
-  const updates: Record<string, string | null> = {}
+  const updates: Record<string, string | number | boolean | null> = {}
 
   if (body.title !== undefined) {
     const title = body.title.trim()
@@ -161,6 +167,18 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
     updates.cover_image_position = normalizeCoverImagePosition(body.coverImagePosition)
   }
 
+  if (body.coverImageScale !== undefined) {
+    updates.cover_image_scale = Math.min(2.5, Math.max(1, Number(body.coverImageScale) || 1))
+  }
+
+  if (body.coverImageFlipX !== undefined) {
+    updates.cover_image_flip_x = normalizeCoverImageFlip(body.coverImageFlipX)
+  }
+
+  if (body.coverImageFlipY !== undefined) {
+    updates.cover_image_flip_y = normalizeCoverImageFlip(body.coverImageFlipY)
+  }
+
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 })
   }
@@ -170,7 +188,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
     .update(updates)
     .eq("id", courseId)
     .select(
-      "id, title, description, level, is_custom, is_platform_course, cover_color, cover_style, cover_image_url, cover_image_position, created_at"
+      "id, title, description, level, is_custom, is_platform_course, cover_color, cover_style, cover_image_url, cover_image_position, cover_image_scale, cover_image_flip_x, cover_image_flip_y, created_at"
     )
     .maybeSingle<{
       id: string
@@ -183,6 +201,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ course
       cover_style: string | null
       cover_image_url: string | null
       cover_image_position: string | null
+      cover_image_scale: number | null
+      cover_image_flip_x: boolean | null
+      cover_image_flip_y: boolean | null
       created_at: string
     }>()
 

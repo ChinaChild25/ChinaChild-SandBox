@@ -856,6 +856,11 @@ html.dark[data-ui-accent="orange"] {
 .ds-lesson-editor-page {
   --ds-surface-muted: #f8f8f8;
   --ds-panel-muted: #ebebeb;
+  --ds-sage: #d4e7b0;
+  --ds-sage-strong: #8ab84a;
+  --ds-sage-hover: #6f9738;
+  --ds-pink: #f4d2da;
+  --ds-pink-strong: #d26f87;
   /* Сильнее, чем в :root: карточки блоков на --input-background (#e8e8e8), иначе ghost-hover почти не виден */
   --ds-surface-hover: #dedee2;
   --muted: #f4f4f5;
@@ -864,11 +869,18 @@ html.dark[data-ui-accent="orange"] {
   --accent-foreground: #18181b;
   --secondary: #f4f4f5;
   --secondary-foreground: #18181b;
+  --sidebar-accent: #e4e4e7;
+  --sidebar-accent-foreground: #18181b;
 }
 
 .dark .ds-lesson-editor-page {
   --ds-surface-muted: #1e1e1e;
   --ds-panel-muted: #1a1a1a;
+  --ds-sage: #304323;
+  --ds-sage-strong: #9bc45c;
+  --ds-sage-hover: #b7dc75;
+  --ds-pink: #4a3037;
+  --ds-pink-strong: #e4889d;
   --ds-surface-hover: #3a3a3a;
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
@@ -876,6 +888,8 @@ html.dark[data-ui-accent="orange"] {
   --accent-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
 }
 
 /* Перекрываем глобальный .ds-input-field: в редакторе урока — фон как у страницы; без рамки (глобальный 1px иначе перебивает Tailwind border-0). */

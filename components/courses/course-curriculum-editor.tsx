@@ -15,7 +15,7 @@ import {
 } from "@dnd-kit/core"
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { GripVertical, Plus, Trash2, X } from "lucide-react"
+import { ChevronRight, GripVertical, Plus, Trash2, X } from "lucide-react"
 
 import type { TeacherCourseModule, TeacherLesson } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -168,11 +168,13 @@ async function patchCurriculum(
 function SortableLessonRow({
   id,
   lesson,
-  onDelete
+  onDelete,
+  indexLabel
 }: {
   id: UniqueIdentifier
   lesson: TeacherLesson
   onDelete: (lessonId: string) => void
+  indexLabel: number
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
   const style = { transform: CSS.Transform.toString(transform), transition }
@@ -182,17 +184,17 @@ function SortableLessonRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "relative z-0 flex items-center gap-2 rounded-[20px] p-4",
-        "bg-white dark:bg-ds-surface-pill",
+        "group relative z-0 flex items-center gap-3 rounded-[var(--ds-radius-md)] p-4",
+        "bg-[var(--ds-neutral-row)] dark:bg-ds-surface-pill",
         "transition-[transform,box-shadow] duration-200 ease-out",
         "hover:z-10 hover:-translate-y-0.5",
-        "hover:shadow-[0_10px_28px_-6px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_12px_36px_-4px_rgba(0,0,0,0.55)]",
+        "hover:shadow-[0_10px_28px_-6px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_12px_36px_-4px_rgba(0,0,0,0.45)]",
         isDragging && "z-20 opacity-80 ring-2 ring-ds-sage-strong/40"
       )}
     >
       <button
         type="button"
-        className="touch-none text-ds-text-tertiary hover:text-ds-ink"
+        className="shrink-0 touch-none text-ds-text-tertiary transition-colors hover:text-ds-ink"
         aria-label="Перетащить урок"
         {...attributes}
         {...listeners}
@@ -201,20 +203,29 @@ function SortableLessonRow({
       </button>
       <Link
         href={`/teacher/lessons/${lesson.id}`}
-        className="flex min-w-0 flex-1 cursor-pointer items-center gap-4 no-underline text-ds-body leading-tight text-ds-ink"
+        className="flex min-w-0 flex-1 cursor-pointer items-center gap-4 no-underline leading-tight text-ds-ink"
       >
-        <span className="truncate text-[18px]">{lesson.title}</span>
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-[13px] font-semibold text-ds-text-secondary shadow-[inset_0_0_0_1px_rgb(0_0_0/0.04)] dark:bg-zinc-900/70 dark:text-ds-text-tertiary dark:shadow-[inset_0_0_0_1px_rgb(255_255_255/0.06)]">
+          {indexLabel}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[18px] font-medium text-ds-ink">{lesson.title}</p>
+          <p className="mt-0.5 text-sm text-ds-text-tertiary">Открыть и редактировать урок</p>
+        </div>
       </Link>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="shrink-0 text-ds-text-tertiary hover:text-red-400"
-        aria-label={`Удалить урок «${lesson.title}»`}
-        onClick={() => onDelete(lesson.id)}
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      <div className="ml-auto flex shrink-0 items-center gap-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="shrink-0 text-ds-text-tertiary hover:text-red-400"
+          aria-label={`Удалить урок «${lesson.title}»`}
+          onClick={() => onDelete(lesson.id)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+        <ChevronRight className="h-5 w-5 shrink-0 text-ds-chevron transition-transform duration-200 group-hover:translate-x-0.5" />
+      </div>
     </div>
   )
 }
@@ -234,14 +245,24 @@ function LessonBucket({
   return (
     <div ref={setNodeRef}>
       <SortableContext items={items} strategy={verticalListSortingStrategy}>
-        <div className="flex min-h-[48px] flex-col gap-2 rounded-[16px] border border-dashed border-black/10 p-2 dark:border-white/10">
+        <div className="flex min-h-[48px] flex-col gap-2">
           {items.length === 0 ? (
-            <p className="px-2 py-3 text-center text-sm text-ds-text-tertiary">Перетащите сюда уроки</p>
+            <div className="rounded-[var(--ds-radius-md)] border border-dashed border-black/10 bg-[var(--ds-neutral-row)] px-5 py-5 text-center text-sm text-ds-text-tertiary dark:border-white/10 dark:bg-ds-surface-pill">
+              Перетащите сюда уроки или добавьте новый урок в этот раздел
+            </div>
           ) : null}
-          {items.map((lid) => {
+          {items.map((lid, index) => {
             const lesson = lessonsById.get(String(lid))
             if (!lesson) return null
-            return <SortableLessonRow key={lesson.id} id={lesson.id} lesson={lesson} onDelete={onDeleteLesson} />
+            return (
+              <SortableLessonRow
+                key={lesson.id}
+                id={lesson.id}
+                lesson={lesson}
+                onDelete={onDeleteLesson}
+                indexLabel={index + 1}
+              />
+            )
           })}
         </div>
       </SortableContext>
@@ -497,14 +518,14 @@ export function CourseCurriculumEditor({
       {error ? <p className="text-sm text-red-400">{error}</p> : null}
       {saving ? <p className="text-xs text-ds-text-tertiary">Сохранение порядка…</p> : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-ds-text-secondary">
-          Разделы можно переименовать, перетащить за ручку слева от названия или удалить. Уроки перетаскиваются между
-          разделами.
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="max-w-[720px] text-sm text-ds-text-secondary">
+          Здесь собирается структура курса: разделы можно переименовать и переставлять, а уроки свободно переносить
+          между разделами и редактировать отдельно.
         </p>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button type="button" variant="outline" size="sm" onClick={() => void addModule()}>
+            <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => void addModule()}>
               <Plus className="mr-1 h-4 w-4" />
               Добавить раздел
             </Button>
@@ -514,7 +535,7 @@ export function CourseCurriculumEditor({
       </div>
 
       <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={onDragEnd}>
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-7">
           {containerOrder.map((cid) => {
             const isUncat = cid === UNCATEGORIZED
             const mod = !isUncat ? modules.find((m) => m.id === cid) : null
@@ -524,7 +545,7 @@ export function CourseCurriculumEditor({
               <section key={cid} className="space-y-3">
                 <div
                   data-module-header-row=""
-                  className="flex min-w-0 max-w-full flex-nowrap items-center gap-2"
+                  className="flex min-w-0 max-w-full flex-nowrap items-center gap-3"
                   {...(!isUncat
                     ? {
                         onDragOver: (e: React.DragEvent) => e.preventDefault(),
@@ -533,7 +554,14 @@ export function CourseCurriculumEditor({
                     : {})}
                 >
                   {isUncat ? (
-                    <h3 className="min-w-0 flex-1 truncate text-[20px] font-semibold text-ds-ink">Без раздела</h3>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ds-text-tertiary">
+                        Без раздела
+                      </p>
+                      <h3 className="mt-1 min-w-0 truncate text-[26px] font-semibold tracking-[-0.02em] text-ds-ink">
+                        Уроки без раздела
+                      </h3>
+                    </div>
                   ) : (
                     <>
                       <button
@@ -541,16 +569,21 @@ export function CourseCurriculumEditor({
                         draggable
                         onDragStart={(e) => onModuleNativeDragStart(e, cid)}
                         onDragEnd={onModuleNativeDragEnd}
-                        className="shrink-0 touch-none cursor-grab text-ds-text-tertiary hover:text-ds-ink active:cursor-grabbing"
+                        className="shrink-0 touch-none cursor-grab rounded-full p-2 text-ds-text-tertiary transition-colors hover:bg-[var(--ds-neutral-row)] hover:text-ds-ink active:cursor-grabbing dark:hover:bg-ds-surface-pill"
                         aria-label="Перетащить раздел"
                       >
                         <GripVertical className="h-5 w-5" />
                       </button>
-                      <Input
-                        defaultValue={mod?.title ?? "Раздел"}
-                        className="min-w-0 flex-1 max-w-md border-0 bg-transparent px-1 !text-[20px] font-semibold text-ds-ink shadow-none outline-none focus-visible:!shadow-none focus-visible:ring-2 focus-visible:ring-ds-text-secondary/50 dark:focus-visible:ring-white/22"
-                        onBlur={(e) => void renameModule(cid, e.target.value)}
-                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ds-text-tertiary">
+                          Раздел
+                        </p>
+                        <Input
+                          defaultValue={mod?.title ?? "Раздел"}
+                          className="mt-1 h-auto min-w-0 max-w-xl border-0 bg-transparent px-0 py-0 !text-[26px] font-semibold tracking-[-0.02em] text-ds-ink shadow-none outline-none focus-visible:!shadow-none focus-visible:ring-0"
+                          onBlur={(e) => void renameModule(cid, e.target.value)}
+                        />
+                      </div>
                       <div className="ml-auto flex shrink-0 items-center gap-1">
                         <Tooltip>
                           <TooltipTrigger asChild>

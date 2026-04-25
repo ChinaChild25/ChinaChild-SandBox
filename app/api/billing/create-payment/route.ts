@@ -6,6 +6,7 @@ import { createYooKassaPayment } from "@/lib/yookassa"
 
 type Body = {
   package_id?: string
+  locale?: "ru" | "en" | "zh"
 }
 
 type ProfileLite = {
@@ -29,6 +30,7 @@ type PaymentOrderInsert = {
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as Body | null
   const packageId = body?.package_id?.trim() ?? ""
+  const confirmationLocale = body?.locale === "en" ? "en_US" : "ru_RU"
   if (!packageId) {
     return NextResponse.json({ error: "package_id is required" }, { status: 400 })
   }
@@ -85,8 +87,9 @@ export async function POST(req: Request) {
   try {
     const payment = await createYooKassaPayment({
       amountRub,
-      description: `${pkg.title} - ${lessonsToCredit} lessons`,
+      description: `${pkg.title} — ${lessonsToCredit} ${lessonsToCredit === 1 ? "урок" : lessonsToCredit < 5 ? "урока" : "уроков"}`,
       idempotenceKey: randomUUID(),
+      confirmationLocale,
       metadata: {
         internal_order_id: order.id,
         student_id: me.id,
@@ -133,4 +136,3 @@ export async function POST(req: Request) {
     )
   }
 }
-

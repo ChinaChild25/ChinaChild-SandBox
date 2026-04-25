@@ -3,11 +3,18 @@
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { BookOpen, CheckCircle, ChevronRight } from "lucide-react"
+import { useTheme } from "next-themes"
 import { TeacherCourseCard } from "@/components/courses/teacher-course-card"
 import { courseCatalog } from "@/lib/course-catalog"
 import { useAuth } from "@/lib/auth-context"
 import type { TeacherCustomCourse } from "@/lib/types"
-import { courseCoverSurfaceStyle } from "@/lib/teacher-custom-course-form"
+import {
+  courseBannerPalette,
+  courseAccentForTheme,
+  courseCardTextPaletteForTheme,
+  courseCoverSurfaceStyleForTheme,
+  mutedCoverColorForDarkTheme,
+} from "@/lib/teacher-custom-course-form"
 
 const courseVisual: Record<
   "hsk1" | "hsk2",
@@ -69,6 +76,10 @@ export function CoursesPageContent({
   activitySectionTitle?: string
 }) {
   const { user, usesSupabase, authReady } = useAuth()
+  const { resolvedTheme } = useTheme()
+  const isDark =
+    resolvedTheme === "dark" ||
+    (typeof document !== "undefined" && document.documentElement.classList.contains("dark"))
   const [assignedCourses, setAssignedCourses] = useState<TeacherCustomCourse[]>([])
   const [assignedLoading, setAssignedLoading] = useState(false)
 
@@ -136,66 +147,80 @@ export function CoursesPageContent({
         <div className="ds-course-grid">
           {courseCatalog.map((item) => {
             const ui = courseVisual[item.id]
-            const bg = item.id === "hsk1" ? "var(--ds-sage)" : "var(--ds-pink)"
+            const baseCover = item.coverColor
+            const bgStyle = courseCoverSurfaceStyleForTheme(baseCover, isDark)
             const totalTopics = item.lessons.length
+            const progressColor = courseAccentForTheme(item.accentColor, isDark)
+            const textPalette = courseCardTextPaletteForTheme(baseCover, isDark)
+            const textColor = textPalette.text
+            const metaColor = textPalette.meta
+            const helperColor = textPalette.helper
+            const coverForPalette = isDark ? (mutedCoverColorForDarkTheme(baseCover) ?? baseCover) : baseCover
+            const bannerPalette = courseBannerPalette(coverForPalette)
 
             return (
               <Link
                 key={item.id}
                 href={`${coursesBasePath}/${item.id}`}
-                className="ds-course-card block text-inherit no-underline outline-offset-2 focus-visible:outline focus-visible:ring-2 focus-visible:ring-[rgb(26_26_26/0.2)]"
-                style={{ backgroundColor: bg }}
+                className="ds-course-card relative overflow-hidden block text-inherit no-underline outline-offset-2 focus-visible:outline focus-visible:ring-2 focus-visible:ring-[rgb(26_26_26/0.2)]"
+                style={bgStyle}
               >
-                <div className="mb-5 flex items-start justify-between">
+                <div className="relative z-[1] mb-5 flex items-start justify-between">
                   <div>
-                    <p className="mb-1 text-[length:var(--ds-text-6xl)] font-bold leading-none text-ds-ink">
+                    <p className="mb-1 text-[length:var(--ds-text-6xl)] font-bold leading-none" style={{ color: textColor }}>
                       {ui.levelLine}
                     </p>
-                    <p className="text-[length:var(--ds-text-body-lg)] text-ds-text-quaternary">{ui.titleLine}</p>
+                    <p className="text-[length:var(--ds-text-body-lg)]" style={{ color: metaColor }}>
+                      {ui.titleLine}
+                    </p>
                   </div>
-                  <div className="ds-course-card__icon-wrap">
-                    <BookOpen className="h-[22px] w-[22px] text-ds-ink" aria-hidden />
+                  <div className="ds-course-card__icon-wrap" style={{ backgroundColor: textPalette.iconBg }}>
+                    <BookOpen className="h-[22px] w-[22px]" style={{ color: textColor }} aria-hidden />
                   </div>
                 </div>
 
-                <p className="mb-5 text-ds-body-sm leading-snug text-ds-text-quaternary">{item.description}</p>
+                <p className="relative z-[1] mb-5 text-ds-body-sm leading-snug" style={{ color: helperColor }}>
+                  {item.description}
+                </p>
 
-                <div className="mb-5 flex items-center gap-6">
+                <div className="relative z-[1] mb-5 flex items-center gap-6">
                   <div className="text-center">
-                    <p className="text-[length:var(--ds-text-2xl)] font-bold leading-none text-ds-ink">
+                    <p className="text-[length:var(--ds-text-2xl)] font-bold leading-none" style={{ color: textColor }}>
                       {ui.completed}
                     </p>
-                    <p className="text-ds-sm text-ds-text-secondary">пройдено</p>
+                    <p className="text-ds-sm" style={{ color: helperColor }}>пройдено</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-[length:var(--ds-text-2xl)] font-bold leading-none text-ds-ink">
+                    <p className="text-[length:var(--ds-text-2xl)] font-bold leading-none" style={{ color: textColor }}>
                       {totalTopics}
                     </p>
-                    <p className="text-ds-sm text-ds-text-secondary">тем всего</p>
+                    <p className="text-ds-sm" style={{ color: helperColor }}>тем всего</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-[length:var(--ds-text-2xl)] font-bold leading-none text-ds-ink">{ui.words}</p>
-                    <p className="text-ds-sm text-ds-text-secondary">словарный запас</p>
+                    <p className="text-[length:var(--ds-text-2xl)] font-bold leading-none" style={{ color: textColor }}>
+                      {ui.words}
+                    </p>
+                    <p className="text-ds-sm" style={{ color: helperColor }}>словарный запас</p>
                   </div>
                 </div>
 
-                <div className="mb-4">
+                <div className="relative z-[1] mb-4">
                   <div className="mb-1.5 flex justify-between">
-                    <span className="text-[13px] text-[#555555] dark:text-ds-text-tertiary">Прогресс</span>
-                    <span className="text-[13px] font-semibold text-ds-ink">{ui.progress}%</span>
+                    <span className="text-[13px]" style={{ color: helperColor }}>Прогресс</span>
+                    <span className="text-[13px] font-semibold" style={{ color: textColor }}>{ui.progress}%</span>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-white/60">
+                  <div className="h-2 overflow-hidden rounded-full" style={{ backgroundColor: bannerPalette.progressTrack }}>
                     <div
                       className="h-full rounded-full transition-all"
                       style={{
                         width: `${ui.progress}%`,
-                        backgroundColor: `var(${ui.accentVar})`
+                        backgroundColor: progressColor
                       }}
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-1 text-ds-body text-ds-ink">
+                <div className="relative z-[1] flex items-center justify-end gap-1 text-ds-body" style={{ color: textColor }}>
                   <span>Перейти к курсу</span>
                   <ChevronRight className="h-[18px] w-[18px]" aria-hidden />
                 </div>

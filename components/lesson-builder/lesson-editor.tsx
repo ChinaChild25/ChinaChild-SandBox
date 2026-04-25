@@ -12,13 +12,15 @@ import {
 } from "@dnd-kit/core"
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { ChevronDown, ChevronLeft, Clock3, Eye, GripVertical, Loader2, Medal, Pencil, Plus, Trash2 } from "lucide-react"
+import { ChevronDown, ChevronLeft, Clock3, Eye, GripVertical, Loader2, Medal, Pencil, Trash2 } from "lucide-react"
+import { useTheme } from "next-themes"
 import type { TeacherCustomCourse, TeacherLessonBlock } from "@/lib/types"
 import {
   asRecord,
   asString,
   createDefaultBlockData,
   createDefaultBlockMeta,
+  ensureLessonHasHeroBlock,
   getNormalizedBlockSubtitle,
   normalizeLessonBlockData,
   normalizeTeacherLessonBlock,
@@ -26,6 +28,7 @@ import {
   type LessonBlockMeta
 } from "@/lib/lesson-builder-blocks"
 import { BlockEditors } from "@/components/lesson-builder/block-editors"
+import { courseAccentForTheme, courseAccentFromCourse, hexForColorInput } from "@/lib/teacher-custom-course-form"
 import {
   type BuilderPaletteItem,
   getBlockVisual,
@@ -64,6 +67,19 @@ function snapshotForSave(blocks: TeacherLessonBlock[]) {
       data: block.data ?? {}
     }))
   )
+}
+
+function parseImagePosition(raw: string | null | undefined) {
+  const match = /^(\d{1,3})% (\d{1,3})%$/.exec((raw ?? "").trim())
+  if (!match) return { x: 72, y: 50 }
+  return {
+    x: Math.max(0, Math.min(100, Number(match[1] ?? 72))),
+    y: Math.max(0, Math.min(100, Number(match[2] ?? 50)))
+  }
+}
+
+function formatImagePosition(x: number, y: number) {
+  return `${Math.round(x)}% ${Math.round(y)}%`
 }
 
 function SettingsLabel({ children }: { children: React.ReactNode }) {
@@ -441,13 +457,13 @@ function PalettePreview({ item }: { item: BuilderPaletteItem }) {
     case "text-essay":
       return (
         <div className="space-y-3">
-          <div className={shellClass}>
-            <div className="mb-2 flex items-center justify-between text-[14px] font-medium text-[#b4b8ca]">
-              <span>My unforgettable journey</span>
+            <div className={shellClass}>
+              <div className="mb-2 flex items-center justify-between text-[14px] font-medium text-[#b4b8ca]">
+              <span>Моё незабываемое путешествие</span>
               <span>заметки</span>
             </div>
             <div className="min-h-[84px] rounded-[12px] border-2 border-[#39b9ff] bg-white p-3 text-[13px] leading-6 text-[#4e566b]">
-              Last summer, I went on a trip that changed the way I see the world...
+              Прошлым летом я отправилась в поездку, после которой стала совсем иначе смотреть на мир...
             </div>
           </div>
           <p className="text-[13px] leading-5 text-[#70788a]">Поле для развёрнутого письменного ответа ученика.</p>
@@ -471,8 +487,8 @@ function PalettePreview({ item }: { item: BuilderPaletteItem }) {
           <div className={shellClass}>
             <div className="space-y-2">
               {[
-                ["项目", "Project"],
-                ["系统", "System"]
+                ["项目", "проект"],
+                ["系统", "система"]
               ].map(([cnWord, enWord]) => (
                 <div key={cnWord} className="flex items-center justify-between rounded-[10px] bg-white px-3 py-2 text-[13px] text-[#4e566b]">
                   <span>{cnWord}</span>
@@ -546,6 +562,7 @@ function SortableBlockCard({
   block,
   selected,
   subtitle,
+  locked = false,
   onSelect,
   onDelete,
   children
@@ -553,6 +570,7 @@ function SortableBlockCard({
   block: TeacherLessonBlock
   selected: boolean
   subtitle: string
+  locked?: boolean
   onSelect: () => void
   onDelete: () => void
   children?: React.ReactNode
@@ -560,7 +578,10 @@ function SortableBlockCard({
   const variantId = asString(asRecord(block.data).exercise_variant_id).trim()
   const visual = getBlockVisual(block.type, variantId)
   const Icon = visual.icon
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: block.id,
+    disabled: locked
+  })
   const meta = asRecord(block.data).meta ? (asRecord(block.data).meta as LessonBlockMeta) : createDefaultBlockMeta(block.type)
   const style = { transform: CSS.Transform.toString(transform), transition }
 
@@ -579,10 +600,10 @@ function SortableBlockCard({
       <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
         <button
           type="button"
-          className={chromeIconButtonClass}
-          aria-label="Перетащить блок"
-          {...attributes}
-          {...listeners}
+          className={cn(chromeIconButtonClass, locked && "cursor-default opacity-45 hover:bg-transparent hover:text-ds-text-tertiary")}
+          aria-label={locked ? "Блок закреплён" : "Перетащить блок"}
+          {...(!locked ? attributes : {})}
+          {...(!locked ? listeners : {})}
         >
           <GripVertical className="h-[18px] w-[18px]" />
         </button>
@@ -596,14 +617,20 @@ function SortableBlockCard({
           </span>
         </button>
         <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={onDelete}
-            className={chromeIconButtonClass}
-            aria-label="Удалить блок"
-          >
-            <Trash2 className="h-[18px] w-[18px]" />
-          </button>
+          {locked ? (
+            <span className="rounded-full bg-[var(--ds-neutral-row)] px-3 py-1 text-[12px] font-semibold uppercase tracking-[0.08em] text-ds-text-secondary">
+              Закреплён
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={onDelete}
+              className={chromeIconButtonClass}
+              aria-label="Удалить блок"
+            >
+              <Trash2 className="h-[18px] w-[18px]" />
+            </button>
+          )}
           <button
             type="button"
             onClick={onSelect}
@@ -640,13 +667,26 @@ function BlockSettingsPanel({
   block,
   onMetaChange,
   onBlockChange,
-  onDelete
+  onDelete,
+  lessonTitle,
+  courseCoverColor,
+  courseCoverStyle,
+  courseCoverImageUrl
 }: {
   block: TeacherLessonBlock | null
   onMetaChange: (patch: Partial<LessonBlockMeta>) => void
   onBlockChange: (updater: (data: Record<string, unknown>) => Record<string, unknown>) => void
   onDelete: () => void
+  lessonTitle?: string
+  courseCoverColor?: string | null
+  courseCoverStyle?: string | null
+  courseCoverImageUrl?: string | null
 }) {
+  const { resolvedTheme } = useTheme()
+  const isDark =
+    resolvedTheme === "dark" ||
+    (typeof document !== "undefined" && document.documentElement.classList.contains("dark"))
+
   if (!block) {
     return (
       <aside className="overflow-hidden rounded-[32px] border border-black/[0.06] bg-[var(--ds-surface)] xl:sticky xl:top-3 dark:border-white/[0.08]">
@@ -669,6 +709,217 @@ function BlockSettingsPanel({
   const pdfFirstItem = asRecord(pdfItems[0])
   const speakingFirstItem = asRecord(speakingItems[0])
   const matchingData = asRecord(data.matching)
+
+  if (block.type === "hero") {
+    const heroData = asRecord(data.hero)
+    const useCustomAccent = heroData.useCustomAccent === true
+    const accentOverride = useCustomAccent ? asString(heroData.accentColor).trim() : ""
+    const courseAccent = courseAccentFromCourse({
+      cover_color: courseCoverColor ?? null,
+      cover_style: courseCoverStyle ?? null,
+      cover_image_url: courseCoverImageUrl ?? null
+    })
+    const accentColor = courseAccentForTheme(accentOverride || courseAccent, isDark)
+    const accentInputValue = hexForColorInput(accentOverride || courseCoverColor || "")
+    const imagePosition = asString(heroData.imagePosition).trim() || "72% 50%"
+    const imageScaleRaw = Number(heroData.imageScale)
+    const imageScale = Number.isFinite(imageScaleRaw) ? Math.max(0.5, Math.min(2, imageScaleRaw)) : 1
+    const imageFlipX = heroData.imageFlipX === true
+    const imageFlipY = heroData.imageFlipY === true
+    const focalPoint = parseImagePosition(imagePosition)
+
+    return (
+      <aside className="overflow-hidden rounded-[32px] border border-black/[0.06] bg-[var(--ds-surface)] xl:sticky xl:top-3 dark:border-white/[0.08]">
+        <div className="px-7 py-7">
+          <h2 className="text-[18px] font-semibold tracking-[-0.03em] text-ds-ink">Обложка урока</h2>
+          <div className="mt-4 space-y-6">
+            <p className="text-[14px] leading-6 text-ds-text-secondary">
+              Здесь настраивается только внешний вид первого экрана: акцент урока и положение обложки. Содержимое редактируется в карточке блока, полный результат смотрим через кнопку «Превью».
+            </p>
+
+            <div>
+              <SettingsLabel>Акцент урока</SettingsLabel>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <label className="inline-flex cursor-pointer items-center gap-3">
+                  <span
+                    className="h-6 w-6 rounded-full shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]"
+                    style={{ background: accentColor }}
+                  />
+                  <span className="text-ds-body font-medium text-ds-ink">Настроить</span>
+                  <input
+                    type="color"
+                    value={accentInputValue}
+                    onChange={(event) =>
+                      onBlockChange((current) => ({
+                        ...current,
+                        hero: {
+                          ...asRecord(current.hero),
+                          useCustomAccent: true,
+                          accentColor: event.target.value
+                        }
+                      }))
+                    }
+                    className="sr-only"
+                    aria-label="Настроить акцентный цвет урока"
+                  />
+                </label>
+                {useCustomAccent ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onBlockChange((current) => ({
+                        ...current,
+                        hero: {
+                          ...asRecord(current.hero),
+                          useCustomAccent: false,
+                          accentColor: ""
+                        }
+                      }))
+                    }
+                    className="inline-flex h-9 items-center justify-center rounded-[var(--ds-radius-md)] bg-[var(--ds-neutral-row)] px-3.5 text-[13px] font-medium text-ds-ink transition-colors hover:bg-[var(--ds-neutral-row-hover)]"
+                  >
+                    Вернуть цвет курса
+                  </button>
+                ) : null}
+              </div>
+              <p className="mt-3 text-[13px] leading-5 text-ds-text-secondary">
+                {useCustomAccent
+                  ? "Сейчас у урока свой акцентный цвет."
+                  : "Акцент не задан — автоматически используется цвет курса."}
+              </p>
+            </div>
+
+            <div>
+              <SettingsLabel>Позиция кадра</SettingsLabel>
+              <div className="mt-2 space-y-4">
+                <div>
+                  <div className="mb-2 flex items-center justify-between gap-3 text-[13px] font-medium text-ds-text-secondary">
+                    <span>По горизонтали</span>
+                    <span>{focalPoint.x}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={focalPoint.x}
+                    onChange={(event) => {
+                      const nextX = Number(event.target.value)
+                      onBlockChange((current) => ({
+                        ...current,
+                        hero: {
+                          ...asRecord(current.hero),
+                          imagePosition: formatImagePosition(nextX, focalPoint.y)
+                        }
+                      }))
+                    }}
+                    className="h-2 w-full cursor-pointer"
+                    style={{ accentColor }}
+                    aria-label="Положение изображения по горизонтали"
+                  />
+                </div>
+
+                <div>
+                  <div className="mb-2 flex items-center justify-between gap-3 text-[13px] font-medium text-ds-text-secondary">
+                    <span>По вертикали</span>
+                    <span>{focalPoint.y}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={focalPoint.y}
+                    onChange={(event) => {
+                      const nextY = Number(event.target.value)
+                      onBlockChange((current) => ({
+                        ...current,
+                        hero: {
+                          ...asRecord(current.hero),
+                          imagePosition: formatImagePosition(focalPoint.x, nextY)
+                        }
+                      }))
+                    }}
+                    className="h-2 w-full cursor-pointer"
+                    style={{ accentColor }}
+                    aria-label="Положение изображения по вертикали"
+                  />
+                </div>
+              </div>
+              <p className="mt-3 text-[13px] leading-5 text-ds-text-secondary">
+                Для «{lessonTitle?.trim() || "урока"}» фокус обложки сейчас стоит на {imagePosition}.
+              </p>
+            </div>
+
+            <div>
+              <SettingsLabel>Масштаб и отражение</SettingsLabel>
+              <div className="mt-2 space-y-4">
+                <div>
+                  <div className="mb-2 flex items-center justify-between gap-3 text-[13px] font-medium text-ds-text-secondary">
+                    <span>Масштаб</span>
+                    <span>{Math.round(imageScale * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0.8}
+                    max={1.8}
+                    step={0.01}
+                    value={imageScale}
+                    onChange={(event) => {
+                      const nextScale = Number(event.target.value)
+                      onBlockChange((current) => ({
+                        ...current,
+                        hero: {
+                          ...asRecord(current.hero),
+                          imageScale: nextScale
+                        }
+                      }))
+                    }}
+                    className="h-2 w-full cursor-pointer"
+                    style={{ accentColor }}
+                    aria-label="Масштаб изображения"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-3">
+                    <SettingsToggle
+                      checked={imageFlipX}
+                      onChange={(next) =>
+                        onBlockChange((current) => ({
+                          ...current,
+                          hero: {
+                            ...asRecord(current.hero),
+                            imageFlipX: next
+                          }
+                        }))
+                      }
+                    />
+                    <span className="text-[14px] font-medium text-ds-ink">Отразить по горизонтали</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <SettingsToggle
+                      checked={imageFlipY}
+                      onChange={(next) =>
+                        onBlockChange((current) => ({
+                          ...current,
+                          hero: {
+                            ...asRecord(current.hero),
+                            imageFlipY: next
+                          }
+                        }))
+                      }
+                    />
+                    <span className="text-[14px] font-medium text-ds-ink">Отразить по вертикали</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    )
+  }
 
   return (
     <aside className="overflow-hidden rounded-[32px] border border-black/[0.06] bg-[var(--ds-surface)] xl:sticky xl:top-3 dark:border-white/[0.08]">
@@ -963,6 +1214,9 @@ export function LessonEditor({ lessonId }: { lessonId: string }) {
   const [title, setTitle] = useState("Урок")
   const [courseTitle, setCourseTitle] = useState("Кастомный курс")
   const [courseId, setCourseId] = useState("")
+  const [courseCoverColor, setCourseCoverColor] = useState<string | null>(null)
+  const [courseCoverStyle, setCourseCoverStyle] = useState<string | null>(null)
+  const [courseCoverImageUrl, setCourseCoverImageUrl] = useState<string | null>(null)
   const [blocks, setBlocks] = useState<TeacherLessonBlock[]>([])
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -980,12 +1234,11 @@ export function LessonEditor({ lessonId }: { lessonId: string }) {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
   const normalizedBlocks = useMemo(
-    () => [...blocks].map(normalizeTeacherLessonBlock).sort((left, right) => left.order - right.order),
-    [blocks]
+    () => ensureLessonHasHeroBlock(blocks, lessonId),
+    [blocks, lessonId]
   )
 
   const selectedBlock = normalizedBlocks.find((block) => block.id === selectedBlockId) ?? null
-
   useEffect(() => {
     blocksRef.current = normalizedBlocks
   }, [normalizedBlocks])
@@ -1051,7 +1304,8 @@ export function LessonEditor({ lessonId }: { lessonId: string }) {
     setCourseId(lessonJson.lesson.course_id ?? "")
     lastSavedTitleRef.current = lessonJson.lesson.title
     const serverBlocks = (blocksJson?.blocks ?? []).map(normalizeTeacherLessonBlock).sort((left, right) => left.order - right.order)
-    setBlocks(serverBlocks)
+    const nextBlocks = ensureLessonHasHeroBlock(serverBlocks, lessonId)
+    setBlocks(nextBlocks)
     lastSavedSnapshotRef.current = snapshotForSave(serverBlocks)
     setSelectedBlockId(null)
     setIsLoading(false)
@@ -1060,6 +1314,9 @@ export function LessonEditor({ lessonId }: { lessonId: string }) {
       const courseRes = await fetch(`/api/teacher/courses/${lessonJson.lesson.course_id}`, { cache: "no-store" })
       const courseJson = (await courseRes.json().catch(() => null)) as { course?: TeacherCustomCourse } | null
       if (courseJson?.course?.title) setCourseTitle(courseJson.course.title)
+      setCourseCoverColor(courseJson?.course?.cover_color ?? null)
+      setCourseCoverStyle(courseJson?.course?.cover_style ?? null)
+      setCourseCoverImageUrl(courseJson?.course?.cover_image_url ?? null)
     }
   }
 
@@ -1138,17 +1395,18 @@ export function LessonEditor({ lessonId }: { lessonId: string }) {
   }
 
   async function openPreview() {
-    const previewWindow = window.open("", "_blank")
+    const previewWindow = window.open("about:blank", "_blank", "noopener,noreferrer")
     const success = await publishLesson()
     if (!success) {
       previewWindow?.close()
       return
     }
-    if (previewWindow) {
+    if (previewWindow && !previewWindow.closed) {
       previewWindow.location.href = `/lesson/${lessonId}`
+      previewWindow.focus?.()
       return
     }
-    window.open(`/lesson/${lessonId}`, "_blank")
+    window.location.assign(`/lesson/${lessonId}`)
   }
 
   function updateBlockData(blockId: string, updater: (current: Record<string, unknown>) => Record<string, unknown>) {
@@ -1210,6 +1468,8 @@ export function LessonEditor({ lessonId }: { lessonId: string }) {
   }
 
   function removeBlock(blockId: string) {
+    const targetBlock = normalizedBlocks.find((block) => block.id === blockId)
+    if (targetBlock?.type === "hero") return
     setBlocks((prev) => prev.filter((block) => block.id !== blockId).map((block, index) => ({ ...block, order: index })))
     setSelectedBlockId((current) => (current === blockId ? null : current))
   }
@@ -1224,6 +1484,10 @@ export function LessonEditor({ lessonId }: { lessonId: string }) {
     const oldIndex = normalizedBlocks.findIndex((block) => block.id === active.id)
     const newIndex = normalizedBlocks.findIndex((block) => block.id === over.id)
     if (oldIndex < 0 || newIndex < 0) return
+    const activeBlock = normalizedBlocks[oldIndex]
+    const overBlock = normalizedBlocks[newIndex]
+    if (!activeBlock || !overBlock) return
+    if (activeBlock.type === "hero" || overBlock.type === "hero") return
     setBlocks(arrayMove(normalizedBlocks, oldIndex, newIndex).map((block, index) => ({ ...block, order: index })))
   }
 
@@ -1285,7 +1549,9 @@ export function LessonEditor({ lessonId }: { lessonId: string }) {
   return (
     <div className="ds-figma-page ds-lesson-editor-page">
       <div className="w-full">
-        <div className="grid min-h-[calc(100dvh-5rem)] gap-4 md:grid-cols-[minmax(0,1fr)_264px] xl:grid-cols-[220px_minmax(0,1fr)_272px] 2xl:grid-cols-[228px_minmax(0,1fr)_288px]">
+        <div
+          className="grid min-h-[calc(100dvh-5rem)] gap-4 md:grid-cols-[minmax(0,1fr)_264px] xl:grid-cols-[220px_minmax(0,1fr)_272px] 2xl:grid-cols-[228px_minmax(0,1fr)_288px]"
+        >
           <aside className="order-2 overflow-hidden rounded-[32px] border border-black/[0.06] bg-[var(--ds-surface)] md:order-3 md:col-span-2 xl:order-1 xl:col-span-1 dark:border-white/[0.08]">
             <div className="border-b border-black/[0.06] px-7 py-6 dark:border-white/[0.08]">
               <Link
@@ -1297,18 +1563,7 @@ export function LessonEditor({ lessonId }: { lessonId: string }) {
               </Link>
             </div>
 
-            <div className="px-7 pb-3 pt-6">
-              <button
-                type="button"
-                onClick={() => paletteRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                className="inline-flex items-center gap-3 text-[16px] font-semibold tracking-[-0.02em] text-ds-ink transition-colors hover:text-ds-text-secondary"
-              >
-                <Plus className="h-5 w-5" />
-                Добавить блок
-              </button>
-            </div>
-
-            <div ref={paletteRef} className="space-y-5 px-5 pb-5">
+            <div ref={paletteRef} className="space-y-5 px-5 pb-5 pt-6">
               {LESSON_BUILDER_PALETTE_SECTIONS.map((section) => (
                 <section key={section.id}>
                   <div className="mb-2 px-3">
@@ -1351,14 +1606,6 @@ export function LessonEditor({ lessonId }: { lessonId: string }) {
                   <div className="flex flex-wrap items-center gap-3">
                     <button
                       type="button"
-                      onClick={() => paletteRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                      className="inline-flex h-10 items-center gap-2 rounded-[var(--ds-radius-md)] border border-black/[0.08] bg-[var(--ds-surface)] px-4 text-[14px] font-medium text-ds-ink transition-colors hover:bg-[var(--ds-neutral-row)] dark:border-white/[0.08] xl:hidden"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Добавить блок
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => void openPreview()}
                       className="inline-flex h-10 items-center gap-2 rounded-[var(--ds-radius-md)] border border-black/[0.08] bg-[var(--ds-surface)] px-4 text-[14px] font-medium text-ds-ink transition-colors hover:bg-[var(--ds-neutral-row)] dark:border-white/[0.08]"
                     >
@@ -1384,12 +1631,17 @@ export function LessonEditor({ lessonId }: { lessonId: string }) {
                           block={block}
                           selected={block.id === selectedBlockId}
                           subtitle={getNormalizedBlockSubtitle(block)}
+                          locked={block.type === "hero"}
                           onSelect={() => toggleBlock(block.id)}
                           onDelete={() => removeBlock(block.id)}
                         >
                           <BlockEditors
                             block={block}
                             onChange={(nextData) => updateBlockData(block.id, () => nextData)}
+                            lessonTitle={title}
+                            courseCoverColor={courseCoverColor}
+                            courseCoverStyle={courseCoverStyle}
+                            courseCoverImageUrl={courseCoverImageUrl}
                           />
                         </SortableBlockCard>
                       ))}
@@ -1410,6 +1662,10 @@ export function LessonEditor({ lessonId }: { lessonId: string }) {
               onMetaChange={updateSelectedBlockMeta}
               onBlockChange={updateSelectedBlockData}
               onDelete={removeSelectedBlock}
+              lessonTitle={title}
+              courseCoverColor={courseCoverColor}
+              courseCoverStyle={courseCoverStyle}
+              courseCoverImageUrl={courseCoverImageUrl}
             />
           </div>
         </div>

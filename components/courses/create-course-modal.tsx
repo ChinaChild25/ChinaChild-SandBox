@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { CourseArtworkSlot } from "@/components/courses/course-artwork-slot"
 import type { TeacherCustomCourse } from "@/lib/types"
 import { CourseCoverImageDialog } from "@/components/courses/course-cover-image-dialog"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -9,6 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
+  courseAccentFromCourse,
+  courseBannerPalette,
   courseCoverFromCourse,
   coverStyleForCourseSave,
   normalizeCoverImagePosition,
@@ -34,6 +37,9 @@ export function CreateCourseModal({
   const [coverColor, setCoverColor] = useState<string>(TEACHER_COURSE_COVER_PALETTE[0]!)
   const [coverImageUrl, setCoverImageUrl] = useState("")
   const [coverImagePosition, setCoverImagePosition] = useState("50% 50%")
+  const [coverImageScale, setCoverImageScale] = useState(1)
+  const [coverImageFlipX, setCoverImageFlipX] = useState(false)
+  const [coverImageFlipY, setCoverImageFlipY] = useState(false)
   const [coverImageOpen, setCoverImageOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -41,6 +47,9 @@ export function CreateCourseModal({
     if (!open) return
     setCoverImageUrl("")
     setCoverImagePosition("50% 50%")
+    setCoverImageScale(1)
+    setCoverImageFlipX(false)
+    setCoverImageFlipY(false)
   }, [open])
 
   const submitEnabled = useMemo(() => {
@@ -49,6 +58,8 @@ export function CreateCourseModal({
     if (level === "custom") return Boolean(levelCustom.trim())
     return true
   }, [title, level, levelCustom])
+  const bannerPalette = courseBannerPalette(coverColor)
+  const bannerAccent = courseAccentFromCourse({ cover_color: coverColor })
 
   async function createCourse() {
     if (!submitEnabled) return
@@ -65,6 +76,9 @@ export function CreateCourseModal({
         coverColor,
         coverImageUrl: coverImageUrl.trim() || null,
         coverImagePosition: normalizeCoverImagePosition(coverImagePosition),
+        coverImageScale,
+        coverImageFlipX,
+        coverImageFlipY,
         coverStyle: coverStyleForCourseSave({ hasPhoto: Boolean(coverImageUrl.trim()), coverColor })
       })
     })
@@ -126,26 +140,57 @@ export function CreateCourseModal({
             <p className="text-sm font-medium">Цвет обложки</p>
             <CourseCoverColorPicker value={coverColor} onChange={setCoverColor} />
           </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Фото на обложке</p>
-            <p className="text-xs text-muted-foreground">
-              Ссылка HTTPS или файл до 5 МБ. На карточке поверх фото — тёмный градиент для читаемости текста.
-            </p>
-            <div
-              className="relative aspect-[2/1] max-h-28 w-full max-w-md overflow-hidden rounded-[var(--ds-radius-md)] border border-black/[0.08] dark:border-white/10"
-              style={courseCoverFromCourse({
-                cover_color: coverColor,
-                cover_image_url: coverImageUrl.trim() || null,
-                cover_image_position: coverImagePosition
-              })}
-            >
-              <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] dark:bg-black/35" />
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Фото на обложке</p>
+              <p className="text-xs text-muted-foreground">
+                Изображение появится в правом слоте баннера. Ссылка HTTPS или файл до 5 МБ.
+              </p>
+              <div
+                className="overflow-hidden rounded-[24px] border border-black/[0.08] p-4 dark:border-white/10"
+                style={courseCoverFromCourse({
+                  cover_color: coverColor,
+                })}
+              >
+                <div className="grid items-center gap-4 sm:grid-cols-[minmax(0,1fr)_140px]">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em]" style={{ color: bannerPalette.secondary }}>
+                      Превью баннера
+                    </p>
+                    <p className="mt-2 text-2xl font-bold leading-none" style={{ color: bannerPalette.text }}>
+                      {title.trim() || "Название курса"}
+                    </p>
+                    <p className="mt-2 text-sm" style={{ color: bannerPalette.secondary }}>
+                      {(level === "custom" ? levelCustom.trim() : level) || "HSK1"}
+                    </p>
+                    <p className="mt-3 max-w-[32ch] text-sm leading-6" style={{ color: bannerPalette.secondary }}>
+                      {description.trim() || "Короткое описание курса появится здесь."}
+                    </p>
+                  </div>
+                  <div
+                    className="h-[132px] w-full overflow-hidden rounded-[22px]"
+                    style={{ backgroundColor: bannerPalette.artworkSlotBg }}
+                  >
+                    <CourseArtworkSlot
+                      cover={{
+                        cover_image_url: coverImageUrl.trim() || null,
+                        cover_image_position: coverImagePosition,
+                        cover_image_scale: coverImageScale,
+                        cover_image_flip_x: coverImageFlipX,
+                        cover_image_flip_y: coverImageFlipY,
+                        cover_style: null,
+                      }}
+                      accentColor={bannerAccent}
+                      className="h-full w-full rounded-[22px]"
+                      iconClassName="h-[58%] w-[58%] opacity-80"
+                    />
+                  </div>
+                </div>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={() => setCoverImageOpen(true)}>
+                Загрузить фотографию
+              </Button>
             </div>
-            <Button type="button" variant="outline" size="sm" onClick={() => setCoverImageOpen(true)}>
-              Загрузить фотографию
-            </Button>
           </div>
-        </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isCreating}>
             Отмена
@@ -161,10 +206,20 @@ export function CreateCourseModal({
       open={coverImageOpen}
       onOpenChange={setCoverImageOpen}
       courseId={null}
-      initial={{ url: coverImageUrl.trim() || null, position: coverImagePosition }}
+      coverColor={coverColor}
+      initial={{
+        url: coverImageUrl.trim() || null,
+        position: coverImagePosition,
+        scale: coverImageScale,
+        flipX: coverImageFlipX,
+        flipY: coverImageFlipY,
+      }}
       onApply={(next) => {
         setCoverImageUrl(next.url?.trim() ?? "")
         setCoverImagePosition(normalizeCoverImagePosition(next.position))
+        setCoverImageScale(next.scale)
+        setCoverImageFlipX(next.flipX)
+        setCoverImageFlipY(next.flipY)
       }}
     />
     </>

@@ -1,16 +1,22 @@
 "use client"
 
 import { useCallback, useEffect, useId, useState } from "react"
-import { Plus } from "lucide-react"
+import { ImagePlus, Plus } from "lucide-react"
+import { CourseArtworkSlot } from "@/components/courses/course-artwork-slot"
+import { MediaTransformControls } from "@/components/media/media-transform-controls"
 import {
+  courseAccentFromCourse,
+  courseBannerPalette,
   courseCoverSurfaceStyle,
   isAllowedExternalCoverImageUrl,
+  normalizeCoverImageFlip,
   normalizeCoverImagePosition
 } from "@/lib/teacher-custom-course-form"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
@@ -18,6 +24,9 @@ import { cn } from "@/lib/utils"
 export type CourseCoverImageValue = {
   url: string | null
   position: string
+  scale: number
+  flipX: boolean
+  flipY: boolean
 }
 
 function parsePositionPercents(pos: string): { x: number; y: number } {
@@ -33,6 +42,7 @@ export function CourseCoverImageDialog({
   open,
   onOpenChange,
   courseId,
+  coverColor,
   initial,
   onApply
 }: {
@@ -40,12 +50,16 @@ export function CourseCoverImageDialog({
   onOpenChange: (open: boolean) => void
   /** null — новый курс, файл уходит в draft/… */
   courseId: string | null
+  coverColor?: string | null
   initial: CourseCoverImageValue
   onApply: (next: CourseCoverImageValue) => void
 }) {
   const [tab, setTab] = useState<"link" | "file">("link")
   const [workingUrl, setWorkingUrl] = useState("")
   const [position, setPosition] = useState("50% 50%")
+  const [scale, setScale] = useState(1)
+  const [flipX, setFlipX] = useState(false)
+  const [flipY, setFlipY] = useState(false)
   const [linkDraft, setLinkDraft] = useState("")
   const [linkError, setLinkError] = useState<string | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
@@ -53,16 +67,21 @@ export function CourseCoverImageDialog({
   const fileFieldId = useId()
 
   const { x, y } = parsePositionPercents(position)
+  const accentColor = courseAccentFromCourse({ cover_color: coverColor ?? "#D7B2D9" })
+  const bannerPalette = courseBannerPalette(coverColor ?? "#D7B2D9")
 
   const resetFromInitial = useCallback(() => {
     const u = initial.url?.trim() ?? ""
     setWorkingUrl(u)
     setLinkDraft(u)
     setPosition(normalizeCoverImagePosition(initial.position))
+    setScale(initial.scale && Number.isFinite(initial.scale) ? Math.min(2.5, Math.max(1, initial.scale)) : 1)
+    setFlipX(normalizeCoverImageFlip(initial.flipX))
+    setFlipY(normalizeCoverImageFlip(initial.flipY))
     setLinkError(null)
     setFileError(null)
     setTab("link")
-  }, [initial.url, initial.position])
+  }, [initial.flipX, initial.flipY, initial.position, initial.scale, initial.url])
 
   useEffect(() => {
     if (!open) return
@@ -102,9 +121,16 @@ export function CourseCoverImageDialog({
       setFileError("Не больше 5 МБ — сожмите фото или выберите другой файл.")
       return
     }
-    const ok = ["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)
+    const ok = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/gif",
+      "image/avif",
+      "image/svg+xml",
+    ].includes(file.type)
     if (!ok) {
-      setFileError("Формат: JPEG, PNG, WebP или GIF.")
+      setFileError("Формат: JPEG, PNG, WebP, GIF, AVIF или SVG.")
       return
     }
     setUploading(true)
@@ -140,12 +166,18 @@ export function CourseCoverImageDialog({
       setLinkError("Некорректный URL")
       return
     }
-    onApply({ url: u || null, position: normalizeCoverImagePosition(position) })
+    onApply({
+      url: u || null,
+      position: normalizeCoverImagePosition(position),
+      scale,
+      flipX,
+      flipY,
+    })
     onOpenChange(false)
   }
 
   function removePhoto() {
-    onApply({ url: null, position: "50% 50%" })
+    onApply({ url: null, position: "50% 50%", scale: 1, flipX: false, flipY: false })
     onOpenChange(false)
   }
 
@@ -156,10 +188,10 @@ export function CourseCoverImageDialog({
         className="z-[70] max-h-[min(92vh,640px)] overflow-y-auto sm:max-w-lg"
       >
         <DialogHeader>
-          <DialogTitle>Фотография обложки</DialogTitle>
+          <DialogTitle>Изображение курса</DialogTitle>
           <DialogDescription>
-            Укажите ссылку HTTPS на картинку или загрузите файл с устройства (до 5 МБ: JPEG, PNG, WebP, GIF). Ниже
-            можно сместить кадр — какая часть фото попадёт в обложку.
+            Загрузите изображение, которое появится справа на баннере курса. Поддерживаются JPEG, PNG, WebP, GIF,
+            AVIF и SVG до 5 МБ. Ниже можно точно настроить кадр, масштаб и отражение.
           </DialogDescription>
         </DialogHeader>
 
@@ -210,7 +242,7 @@ export function CourseCoverImageDialog({
                   <input
                     id={fileFieldId}
                     type="file"
-                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    accept="image/jpeg,image/png,image/webp,image/gif,image/avif,image/svg+xml"
                     className="sr-only"
                     disabled={uploading}
                     onChange={(e) => void onFilePick(e)}
@@ -224,7 +256,8 @@ export function CourseCoverImageDialog({
                 </label>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-[min(90vw,280px)] text-balance">
-                Форматы: JPEG, PNG, WebP или GIF. Размер не больше 5 МБ — файл загрузится на сервер после выбора.
+                Форматы: JPEG, PNG, WebP, GIF, AVIF или SVG. Размер не больше 5 МБ — файл загрузится на сервер после
+                выбора.
               </TooltipContent>
             </Tooltip>
             {uploading ? <p className="text-sm text-ds-text-secondary">Загрузка…</p> : null}
@@ -232,48 +265,80 @@ export function CourseCoverImageDialog({
           </TabsContent>
         </Tabs>
 
-        <div className="space-y-2">
-          <Label>Кадр на обложке</Label>
-          <p className="text-xs text-ds-text-secondary">Нажмите на превью в нужную точку или подвиньте ползунки.</p>
-          <button
-            type="button"
-            className="relative aspect-[16/10] w-full cursor-crosshair overflow-hidden rounded-[var(--ds-radius-md)] border border-black/10 shadow-sm dark:border-white/15"
-            style={courseCoverSurfaceStyle("#c4b5fd", { url: workingUrl || null, position })}
-            onPointerDown={onPreviewClick}
-            aria-label="Выбрать фрагмент фотографии для обложки"
+        <div className="space-y-3">
+          <Label>Кадр изображения</Label>
+          <p className="text-xs leading-5 text-ds-text-secondary">
+            Иллюстрация ставится в правую часть баннера курса. Кликните по области справа, чтобы сместить фокус, а
+            затем уточните положение и масштаб ползунками.
+          </p>
+          <div
+            className="overflow-hidden rounded-[28px] p-4 sm:p-5"
+            style={courseCoverSurfaceStyle(coverColor ?? "#D7B2D9")}
           >
-            <span
-              aria-hidden
-              className="pointer-events-none absolute inset-0 rounded-[inherit] dark:bg-black/40"
-            />
-            <span className="pointer-events-none absolute bottom-2 left-2 rounded bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white">
-              Превью
-            </span>
-          </button>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <Label className="text-xs">Горизонталь — {x}%</Label>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={x}
-                className="w-full accent-ds-ink"
-                onChange={(e) => setPositionFromPercents(Number(e.target.value), y)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Вертикаль — {y}%</Label>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={y}
-                className="w-full accent-ds-ink"
-                onChange={(e) => setPositionFromPercents(x, Number(e.target.value))}
-              />
+            <div className="grid items-center gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
+              <div className="min-w-0 space-y-3">
+                <div
+                  className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.08em]"
+                  style={{ backgroundColor: bannerPalette.chipBg, color: bannerPalette.text }}
+                >
+                  <ImagePlus className="h-3.5 w-3.5" aria-hidden />
+                  Баннер курса
+                </div>
+                <div>
+                  <p
+                    className="text-[clamp(1.6rem,4vw,2.5rem)] font-bold leading-[0.94] tracking-[-0.04em]"
+                    style={{ color: bannerPalette.text }}
+                  >
+                    Превью курса
+                  </p>
+                  <p className="mt-2 max-w-[38ch] text-sm leading-6" style={{ color: bannerPalette.secondary }}>
+                    Справа появится загруженное изображение. Без картинки останется только минималистичная заглушка.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="relative aspect-[5/4] w-full cursor-crosshair overflow-hidden rounded-[26px]"
+                onPointerDown={onPreviewClick}
+                aria-label="Выбрать положение изображения справа на баннере"
+                style={{ backgroundColor: bannerPalette.artworkSlotBg }}
+              >
+                <CourseArtworkSlot
+                  cover={{
+                    cover_image_url: workingUrl || null,
+                    cover_image_position: position,
+                    cover_image_scale: scale,
+                    cover_image_flip_x: flipX,
+                    cover_image_flip_y: flipY,
+                  }}
+                  accentColor={accentColor}
+                  className="h-full w-full rounded-[26px]"
+                  iconClassName="h-[62%] w-[62%]"
+                />
+              </button>
             </div>
           </div>
+
+          <MediaTransformControls
+            x={x}
+            y={y}
+            scale={scale}
+            flipX={flipX}
+            flipY={flipY}
+            accentColor={accentColor}
+            onXChange={(value) => setPositionFromPercents(value, y)}
+            onYChange={(value) => setPositionFromPercents(x, value)}
+            onScaleChange={setScale}
+            onFlipXChange={setFlipX}
+            onFlipYChange={setFlipY}
+            onReset={() => {
+              setPosition("50% 50%")
+              setScale(1)
+              setFlipX(false)
+              setFlipY(false)
+            }}
+          />
         </div>
 
         <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">

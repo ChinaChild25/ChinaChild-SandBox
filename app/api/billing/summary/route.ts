@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { reconcilePendingPaymentOrdersForStudent } from "@/lib/billing-reconciliation"
 import { getStudentBillingSummary } from "@/lib/billing-server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
@@ -26,6 +27,7 @@ export async function GET() {
   }
 
   try {
+    await reconcilePendingPaymentOrdersForStudent(me.id)
     const summary = await getStudentBillingSummary(supabase, me.id)
     return NextResponse.json(summary)
   } catch (error) {
@@ -35,4 +37,3 @@ export async function GET() {
     )
   }
 }
-

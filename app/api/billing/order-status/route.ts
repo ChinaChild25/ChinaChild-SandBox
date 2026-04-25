@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { LOW_BALANCE_THRESHOLD } from "@/lib/billing"
+import { reconcilePaymentOrderById } from "@/lib/billing-reconciliation"
 import { getStudentLessonsLeft } from "@/lib/billing-server"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
@@ -51,10 +52,16 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    let effectiveStatus = order.status
+    if (order.status === "pending") {
+      const reconciled = await reconcilePaymentOrderById(order.id)
+      effectiveStatus = reconciled.status
+    }
+
     const lessonsLeft = await getStudentLessonsLeft(supabase, me.id)
     return NextResponse.json({
       orderId: order.id,
-      status: order.status,
+      status: effectiveStatus,
       lessonsLeft,
       lowBalance: lessonsLeft <= LOW_BALANCE_THRESHOLD,
       blocked: lessonsLeft <= 0
@@ -66,4 +73,3 @@ export async function GET(req: NextRequest) {
     )
   }
 }
-

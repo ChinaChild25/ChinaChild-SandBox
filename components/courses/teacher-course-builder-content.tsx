@@ -3,17 +3,28 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ChevronLeft, Plus, Settings, Sparkles } from "lucide-react"
+import { useTheme } from "next-themes"
 import type { TeacherCourseModule, TeacherCustomCourse, TeacherLesson } from "@/lib/types"
+import { CourseArtworkSlot } from "@/components/courses/course-artwork-slot"
 import { CourseCurriculumEditor } from "@/components/courses/course-curriculum-editor"
 import { CourseDetailContent } from "@/components/courses/course-detail-content"
 import { EditCustomCourseModal } from "@/components/courses/edit-custom-course-modal"
-import { courseCoverFromCourse } from "@/lib/teacher-custom-course-form"
+import {
+  courseAccentForTheme,
+  courseAccentFromCourse,
+  courseBannerPalette,
+  courseCoverFromCourseForTheme,
+  mutedCoverColorForDarkTheme,
+} from "@/lib/teacher-custom-course-form"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 export function TeacherCourseBuilderContent({ courseId }: { courseId: string }) {
+  const { resolvedTheme } = useTheme()
+  const isDark =
+    resolvedTheme === "dark" ||
+    (typeof document !== "undefined" && document.documentElement.classList.contains("dark"))
   const [course, setCourse] = useState<TeacherCustomCourse | null>(null)
   const [lessons, setLessons] = useState<TeacherLesson[]>([])
   const [modules, setModules] = useState<TeacherCourseModule[]>([])
@@ -154,6 +165,9 @@ export function TeacherCourseBuilderContent({ courseId }: { courseId: string }) 
     .toUpperCase()
   const headerAvatarUrl = (course.teacher_avatar_url ?? "").trim()
   const showHeaderAvatar = headerAvatarUrl.length > 0 && !headerAvatarFailed
+  const effectiveCoverColor = isDark ? (mutedCoverColorForDarkTheme(course.cover_color) ?? course.cover_color) : course.cover_color
+  const bannerPalette = courseBannerPalette(effectiveCoverColor)
+  const bannerAccent = courseAccentForTheme(courseAccentFromCourse(course), isDark)
 
   return (
     <div className="ds-figma-page">
@@ -165,11 +179,11 @@ export function TeacherCourseBuilderContent({ courseId }: { courseId: string }) 
 
         <header
           className="relative min-h-[220px] overflow-hidden rounded-[var(--ds-radius-xl)] p-6 text-inherit"
-          style={courseCoverFromCourse(course)}
+          style={courseCoverFromCourseForTheme(course, isDark)}
         >
           <span
             aria-hidden
-            className="pointer-events-none absolute inset-0 z-0 rounded-[var(--ds-radius-xl)] bg-transparent dark:bg-black/50"
+            className="pointer-events-none absolute inset-0 z-0 bg-transparent dark:bg-black/45"
           />
           <Tooltip>
             <TooltipTrigger asChild>
@@ -186,32 +200,62 @@ export function TeacherCourseBuilderContent({ courseId }: { courseId: string }) 
             </TooltipTrigger>
             <TooltipContent side="left">Название, уровень, описание, обложка</TooltipContent>
           </Tooltip>
-          <div className="relative z-10 flex min-h-[188px] flex-col justify-between pr-12">
-            <div>
-              <h1 className="line-clamp-3 text-3xl font-extrabold uppercase leading-[1.05] tracking-tight text-ds-ink">
+          <div className="relative z-10 grid min-h-[188px] gap-6 pr-12 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-start">
+            <div className="flex min-h-[188px] flex-col justify-between">
+              <div>
+                <h1
+                  className="line-clamp-3 text-3xl font-extrabold uppercase leading-[1.05] tracking-tight"
+                  style={{ color: bannerPalette.text }}
+                >
                 {(course.title || "Курс").slice(0, 20)}
-              </h1>
+                </h1>
               {course.level ? (
-                <p className="mt-2 text-sm font-semibold uppercase tracking-wide text-ds-text-secondary">{course.level}</p>
+                  <p className="mt-2 text-sm font-semibold uppercase tracking-wide" style={{ color: bannerPalette.secondary }}>
+                    {course.level}
+                  </p>
               ) : null}
-              <p className="mt-2 line-clamp-3 text-sm leading-snug text-ds-text-secondary">
+                <p className="mt-2 line-clamp-3 text-sm leading-snug" style={{ color: bannerPalette.secondary }}>
                 {course.description?.trim() ? course.description : "Описание не добавлено"}
-              </p>
+                </p>
+              </div>
+              <div className="mt-6 flex translate-x-[-4px] items-center gap-2 sm:mt-0">
+                {showHeaderAvatar ? (
+                  <img
+                    src={headerAvatarUrl}
+                    alt={course.teacher_name ?? "Преподаватель"}
+                    className="h-10 w-10 rounded-full object-cover"
+                    onError={() => setHeaderAvatarFailed(true)}
+                  />
+                ) : (
+                  <div
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold"
+                    style={{
+                      border: bannerPalette.tone === "dark" ? "1px solid rgb(255 255 255 / 0.2)" : "1px solid rgb(0 0 0 / 0.08)",
+                      backgroundColor: bannerPalette.teacherCardBg,
+                      color: bannerPalette.text,
+                    }}
+                  >
+                    {headerInitials}
+                  </div>
+                )}
+                <p className="text-base leading-none" style={{ color: bannerPalette.text }}>
+                  {course.teacher_name ?? "Преподаватель"}
+                </p>
+              </div>
             </div>
-            <div className="mt-6 flex translate-x-[-4px] items-center gap-2 sm:mt-0">
-              {showHeaderAvatar ? (
-                <img
-                  src={headerAvatarUrl}
-                  alt={course.teacher_name ?? "Преподаватель"}
-                  className="h-10 w-10 rounded-full object-cover"
-                  onError={() => setHeaderAvatarFailed(true)}
+
+            <div className="hidden items-center justify-end lg:flex">
+              <div
+                className="h-[180px] w-[220px] overflow-hidden rounded-[28px]"
+                style={{ backgroundColor: bannerPalette.artworkSlotBg }}
+              >
+                <CourseArtworkSlot
+                  cover={course}
+                  accentColor={bannerAccent}
+                  className="h-full w-full rounded-[28px]"
+                  iconClassName="h-[58%] w-[58%] opacity-80"
                 />
-              ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white/70 text-sm font-bold text-ds-ink dark:border-white/20 dark:bg-zinc-950/55">
-                  {headerInitials}
-                </div>
-              )}
-              <p className="text-base leading-none text-ds-ink">{course.teacher_name ?? "Преподаватель"}</p>
+              </div>
             </div>
           </div>
         </header>
@@ -251,29 +295,30 @@ export function TeacherCourseBuilderContent({ courseId }: { courseId: string }) 
             </EmptyContent>
           </Empty>
         ) : (
-          <Card className="border-0 bg-[var(--input-background)] shadow-none">
-            <CardHeader>
-              <CardTitle className="leading-tight" style={{ fontSize: "30px" }}>
-                Разделы и уроки
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CourseCurriculumEditor
-                courseId={courseId}
-                modules={modules}
-                lessons={lessons}
-                onReload={() => loadCourse({ silent: true })}
-                onDeleteLesson={(id) => void deleteLesson(id)}
-                onAddLessonOptimistic={(lesson) => setLessons((prev) => [...prev, lesson])}
-                onAddLessonSettled={(tempId, lesson) => {
-                  setLessons((prev) => {
-                    if (lesson === null) return prev.filter((l) => l.id !== tempId)
-                    return prev.map((l) => (l.id === tempId ? lesson : l))
-                  })
-                }}
-              />
-            </CardContent>
-          </Card>
+          <section className="space-y-4">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-ds-text-tertiary">Структура курса</p>
+              <h2 className="text-[30px] font-semibold tracking-[-0.03em] text-ds-ink">Разделы и уроки</h2>
+              <p className="max-w-[760px] text-sm text-ds-text-secondary">
+                Оформляйте курс по той же логике, что и платформенные программы: разделы сверху, внутри — аккуратные
+                уроки, которые можно быстро переставлять и дополнять.
+              </p>
+            </div>
+            <CourseCurriculumEditor
+              courseId={courseId}
+              modules={modules}
+              lessons={lessons}
+              onReload={() => loadCourse({ silent: true })}
+              onDeleteLesson={(id) => void deleteLesson(id)}
+              onAddLessonOptimistic={(lesson) => setLessons((prev) => [...prev, lesson])}
+              onAddLessonSettled={(tempId, lesson) => {
+                setLessons((prev) => {
+                  if (lesson === null) return prev.filter((l) => l.id !== tempId)
+                  return prev.map((l) => (l.id === tempId ? lesson : l))
+                })
+              }}
+            />
+          </section>
         )}
       </div>
     </div>

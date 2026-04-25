@@ -1,0 +1,1 @@
+select lb.lesson_id::text as lesson_id, lb.id::text as block_id, lb.type, lb.order, lb.data->>'exercise_variant_id' as variant_id from public.lesson_blocks lb where lb.lesson_id = '0977046b-3e85-4119-9a6f-50a78fac4c3f'::uuid order by lb.order;

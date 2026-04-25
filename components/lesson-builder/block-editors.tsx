@@ -11,7 +11,7 @@ import {
 } from "@dnd-kit/core"
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { GripVertical, Plus, Trash2, Upload } from "lucide-react"
+import { GripVertical, ImageIcon, Plus, Trash2, Upload } from "lucide-react"
 import type { TeacherLessonBlock } from "@/lib/types"
 import {
   asRecord,
@@ -26,6 +26,7 @@ import {
   type QuizSingleQuestion
 } from "@/lib/lesson-builder-blocks"
 import { getBlockVariantBehavior, getBlockVariantId } from "@/components/lesson-builder/block-registry"
+import { LessonAudioPlayerRow } from "@/components/lesson-builder/lesson-audio-waveform"
 import { InlineLessonVideo } from "@/components/lesson-builder/inline-lesson-video"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -259,16 +260,107 @@ function homeworkModeLabel(mode: HomeworkResponseMode) {
 
 export function BlockEditors({
   block,
-  onChange
+  onChange,
+  lessonTitle: _lessonTitle,
+  courseCoverColor: _courseCoverColor,
+  courseCoverStyle: _courseCoverStyle,
+  courseCoverImageUrl: _courseCoverImageUrl
 }: {
   block: TeacherLessonBlock
   onChange: (data: Record<string, unknown>) => void
+  lessonTitle?: string
+  courseCoverColor?: string | null
+  courseCoverStyle?: string | null
+  courseCoverImageUrl?: string | null
 }) {
   const normalizedBlock = normalizeTeacherLessonBlock(block)
   const data = asRecord(normalizedBlock.data)
   const variantId = getBlockVariantId(data)
   const variantBehavior = getBlockVariantBehavior({ type: normalizedBlock.type, data, variantId })
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
+
+  if (normalizedBlock.type === "hero") {
+    const heroData = asRecord(data.hero)
+    const eyebrow = asString(heroData.eyebrow)
+    const lead = asString(heroData.lead)
+    const imageUrl = asString(heroData.imageUrl).trim()
+
+    function updateHero(patch: Record<string, unknown>) {
+      onChange({
+        ...data,
+        hero: {
+          ...heroData,
+          ...patch
+        }
+      })
+    }
+
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center justify-between gap-3">
+          <FieldLabel>Баннер урока</FieldLabel>
+          <span className="rounded-full bg-[var(--ds-sage)] px-3 py-1 text-[12px] font-semibold uppercase tracking-[0.08em] text-ds-ink">
+            Первый блок
+          </span>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div>
+            <FieldLabel>Надпись над заголовком</FieldLabel>
+            <Input
+              value={eyebrow}
+              onChange={(event) => updateHero({ eyebrow: event.target.value })}
+              placeholder="Например, Индивидуальный урок"
+              className={cn(fieldClass, "mt-2")}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <FieldLabel>Обложка</FieldLabel>
+            <div className="flex flex-wrap items-center gap-3">
+              <LocalUploadButton
+                lessonId={block.lesson_id}
+                label={imageUrl ? "Заменить обложку" : "Загрузить обложку"}
+                accept="image/png,image/jpeg,image/webp,image/avif,image/gif,image/svg+xml"
+                onSelect={({ url }) => updateHero({ imageUrl: url })}
+              />
+              {imageUrl ? (
+                <button
+                  type="button"
+                  onClick={() => updateHero({ imageUrl: "" })}
+                  className="inline-flex h-10 items-center justify-center rounded-[var(--ds-radius-md)] bg-[var(--ds-neutral-row)] px-4 text-ds-body font-medium text-ds-ink transition-colors hover:bg-[var(--ds-neutral-row-hover)]"
+                >
+                  Убрать
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <FieldLabel>Краткое описание урока</FieldLabel>
+          <Textarea
+            value={lead}
+            onChange={(event) => updateHero({ lead: event.target.value })}
+            placeholder="Коротко опишите, что разберёте на занятии и что ученик потренирует."
+            className={cn(fieldClass, "mt-2 min-h-[120px] py-3")}
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-2 text-[13px] leading-5 text-ds-text-secondary">
+          <span className="rounded-full bg-[var(--ds-neutral-row)] px-3 py-1.5">
+            Внешний вид настраивается справа
+          </span>
+          <span className="rounded-full bg-[var(--ds-neutral-row)] px-3 py-1.5">
+            Превью открывается сверху
+          </span>
+          <span className="rounded-full bg-[var(--ds-neutral-row)] px-3 py-1.5">
+            {imageUrl ? "Обложка загружена" : "Без обложки"}
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   if (normalizedBlock.type === "text") {
     const textData = asRecord(data.text)
@@ -1238,6 +1330,17 @@ export function BlockEditors({
             </section>
           )
         })}
+        <AddGhostButton
+          label="Добавить видео"
+          onClick={() =>
+            onChange({
+              ...data,
+              video: {
+                items: [...items, { url: "", title: "", caption: "", thumbnailUrl: "" }]
+              }
+            })
+          }
+        />
       </div>
     )
   }
@@ -1340,6 +1443,17 @@ export function BlockEditors({
             </section>
           )
         })}
+        <AddGhostButton
+          label="Добавить изображение"
+          onClick={() =>
+            onChange({
+              ...data,
+              image: {
+                items: [...items, { url: "", title: "", caption: "" }]
+              }
+            })
+          }
+        />
       </div>
     )
   }
@@ -1358,7 +1472,21 @@ export function BlockEditors({
                 onRemove={items.length > 1 ? () => onChange({ ...data, audio: { items: items.filter((_, itemIndex) => itemIndex !== index) } }) : undefined}
               />
               {asString(current.url).trim() ? (
-                <audio src={asString(current.url).trim()} controls className="w-full" preload="metadata" />
+                <LessonAudioPlayerRow
+                  src={asString(current.url).trim()}
+                  seekable
+                  volumeControl
+                  speedControl
+                  transportIconMode="solid"
+                  barCount={52}
+                  containerClassName="rounded-[22px] border-0 bg-[var(--ds-surface)] px-3 py-3 shadow-none"
+                  buttonClassName="h-10 w-10 border-0 bg-ds-ink text-white shadow-none hover:bg-[#2a2a2a] dark:bg-white dark:text-black dark:hover:bg-[#f2f2f2]"
+                  playedBarClassName="bg-ds-ink dark:bg-white"
+                  idleBarClassName="bg-black/18 dark:bg-white/22"
+                  liveActiveBarClassName="bg-ds-ink dark:bg-white"
+                  liveIdleBarClassName="bg-black/18 dark:bg-white/22"
+                  timeClassName="text-ds-text-secondary"
+                />
               ) : (
                 <div className="rounded-[20px] bg-[#eceef3] px-4 py-5 text-[#7b8091]">Аудио появится здесь</div>
               )}
@@ -1435,6 +1563,17 @@ export function BlockEditors({
             </section>
           )
         })}
+        <AddGhostButton
+          label="Добавить аудио"
+          onClick={() =>
+            onChange({
+              ...data,
+              audio: {
+                items: [...items, { url: "", title: "", transcript: "" }]
+              }
+            })
+          }
+        />
       </div>
     )
   }
@@ -1525,6 +1664,17 @@ export function BlockEditors({
             </section>
           )
         })}
+        <AddGhostButton
+          label="Добавить PDF"
+          onClick={() =>
+            onChange({
+              ...data,
+              pdf: {
+                items: [...items, { url: "", title: "", description: "" }]
+              }
+            })
+          }
+        />
       </div>
     )
   }
@@ -1577,6 +1727,17 @@ export function BlockEditors({
             </section>
           )
         })}
+        <AddGhostButton
+          label="Добавить голосовой ответ"
+          onClick={() =>
+            onChange({
+              ...data,
+              speaking: {
+                items: [...items, { prompt: "", helper: "" }]
+              }
+            })
+          }
+        />
       </div>
     )
   }

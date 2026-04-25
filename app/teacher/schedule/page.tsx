@@ -402,13 +402,6 @@ export default function TeacherSchedulePage() {
   }, [notificationsOpen, user])
 
   useEffect(() => {
-    if (!lessonActions) return
-    const wall = lessonWallParts(lessonActions.lesson)
-    if (!isLocalWallPastOrStarted(wall.dateKey, wall.time, nowTs || Date.now())) return
-    setLessonActions(null)
-  }, [lessonActions, nowTs])
-
-  useEffect(() => {
     if (!scheduleSearchPulse) return
     const pulse = scheduleSearchPulse
     const t = window.setTimeout(() => setScheduleSearchPulse(null), 3000)
@@ -1418,13 +1411,14 @@ export default function TeacherSchedulePage() {
                     <div className="pointer-events-none absolute inset-0 z-20">
                       {(externalBlocks[dayIdx] ?? []).map((b, i) => {
                         const lesson = b.lesson
+                        const isSettledLesson = lesson.type === "completed" || lesson.type === "charged_absence"
                         const externalPulse =
                           scheduleSearchPulse?.kind === "external" && scheduleSearchPulse.slotAt === lesson.slot_at
                         const activeClass =
                           lesson.type === "charged_absence"
                             ? "pointer-events-auto absolute left-[2px] right-[2px] rounded-[6px] p-1.5 pl-7 text-left text-[11px] transition hover:ring-2 bg-[#f6c7c3] text-[#7f1d1d] hover:bg-[#f0b4ae] hover:ring-[#b3261e]/20 dark:bg-[#4a2528] dark:text-[#fecaca] dark:hover:bg-[#5c2e32] dark:hover:ring-[#f87171]/25"
                             : "pointer-events-auto absolute left-[2px] right-[2px] rounded-[6px] p-1.5 pl-7 pr-7 text-left text-[11px] transition hover:ring-2 bg-[#81c995]/70 text-[#0d652d] hover:bg-[#81c995] hover:ring-[#0d652d]/20 dark:bg-[#1e3d2e]/95 dark:text-[#b9f6ca] dark:hover:bg-[#255238] dark:hover:ring-[#81c995]/30"
-                        const pastClass = `pointer-events-none absolute left-[2px] right-[2px] rounded-[6px] border border-black/10 bg-ds-neutral-row p-1.5 pl-7 text-left text-[11px] text-ds-text-muted opacity-70 dark:border-white/10 ${externalPulse ? "schedule-lesson-search-pulse" : ""}`
+                        const pastClass = `pointer-events-auto absolute left-[2px] right-[2px] rounded-[6px] border border-black/10 bg-ds-neutral-row p-1.5 pl-7 pr-7 text-left text-[11px] text-ds-text-muted opacity-70 transition hover:border-black/15 hover:bg-black/[0.03] dark:border-white/10 dark:hover:bg-white/[0.04] ${externalPulse ? "schedule-lesson-search-pulse" : ""}`
                         const cardClass = b.isPast ? pastClass : `${activeClass} ${externalPulse ? "schedule-lesson-search-pulse" : ""}`
                         const cardInner = (
                           <>
@@ -1435,13 +1429,13 @@ export default function TeacherSchedulePage() {
                                 className="h-full w-full object-cover"
                               />
                             </span>
-                            {lesson.type === "completed" ? (
+                            {isSettledLesson ? (
                               <CheckCircle2
                                 size={12}
-                                className={`absolute right-1 top-1 ${b.isPast ? "text-ds-text-muted" : "text-[#0d652d] dark:text-[#b9f6ca]"}`}
+                                className={`absolute right-1 top-1 ${b.isPast ? "text-ds-text-muted" : lesson.type === "charged_absence" ? "text-[#7f1d1d] dark:text-[#fecaca]" : "text-[#0d652d] dark:text-[#b9f6ca]"}`}
                               />
                             ) : null}
-                            {b.isRecurring && lesson.type !== "completed" && lesson.type !== "charged_absence" && !b.isPast ? (
+                            {b.isRecurring && !isSettledLesson && !b.isPast ? (
                               <TooltipHint
                                 text="Еженедельное занятие"
                                 className="absolute right-1 top-1 text-[#4f4b5f] dark:text-[#c4bdd6]"
@@ -1456,16 +1450,20 @@ export default function TeacherSchedulePage() {
                           </>
                         )
                         return b.isPast ? (
-                          <div
+                          <button
                             key={`${dayIdx}-external-${i}`}
+                            type="button"
                             data-external-slot-at={lesson.slot_at}
                             className={cardClass}
                             style={{ top: b.top + 1, height: SLOT_HEIGHT }}
-                            role="note"
                             aria-label={`Прошедший урок ${b.label}`}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setLessonActions({ x: e.clientX, y: e.clientY, lesson })
+                            }}
                           >
                             {cardInner}
-                          </div>
+                          </button>
                         ) : (
                           <button
                             key={`${dayIdx}-external-${i}`}
@@ -1583,6 +1581,7 @@ export default function TeacherSchedulePage() {
           {(() => {
             const wall = lessonWallParts(lessonActions.lesson)
             const canMarkStatus = isLocalWallPastOrStarted(wall.dateKey, wall.time, Date.now())
+            const canRescheduleOrCancel = !canMarkStatus
             return (
               <>
           <div className="mb-1 flex justify-end">
@@ -1595,21 +1594,23 @@ export default function TeacherSchedulePage() {
               <X size={14} />
             </button>
           </div>
+          {canRescheduleOrCancel ? (
+            <button
+              className="mb-1 w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-black/5"
+              onClick={() => {
+                if (isRecurringLesson(lessonActions.lesson)) {
+                  setLessonDecision({ action: "reschedule", lesson: lessonActions.lesson })
+                  setLessonActions(null)
+                  return
+                }
+                openRescheduleModal(lessonActions.lesson, "single")
+              }}
+            >
+              Перенести
+            </button>
+          ) : null}
           <button
-            className="mb-1 w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-black/5"
-            onClick={() => {
-              if (isRecurringLesson(lessonActions.lesson)) {
-                setLessonDecision({ action: "reschedule", lesson: lessonActions.lesson })
-                setLessonActions(null)
-                return
-              }
-              openRescheduleModal(lessonActions.lesson, "single")
-            }}
-          >
-            Перенести
-          </button>
-          <button
-            className="mb-1 w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-black/5"
+            className={`${canRescheduleOrCancel ? "mb-1" : ""} w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-black/5`}
             onClick={() => {
               if (!canMarkStatus) {
                 setActionToast("Нельзя отметить занятие как проведенное до его фактического времени")
@@ -1624,12 +1625,14 @@ export default function TeacherSchedulePage() {
           >
             Отметить статус
           </button>
-          <button
-            className="w-full rounded-lg px-3 py-2 text-left text-sm text-[#b3261e] transition-colors hover:bg-[#fce8e6] dark:text-[#f87171] dark:hover:bg-[#b3261e]/18"
-            onClick={() => void cancelExternalLesson(lessonActions.lesson)}
-          >
-            Отменить
-          </button>
+          {canRescheduleOrCancel ? (
+            <button
+              className="w-full rounded-lg px-3 py-2 text-left text-sm text-[#b3261e] transition-colors hover:bg-[#fce8e6] dark:text-[#f87171] dark:hover:bg-[#b3261e]/18"
+              onClick={() => void cancelExternalLesson(lessonActions.lesson)}
+            >
+              Отменить
+            </button>
+          ) : null}
               </>
             )
           })()}

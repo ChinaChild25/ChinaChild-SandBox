@@ -57,7 +57,11 @@ export function VoiceWaveformBars({
     liveBars && liveBars.length > 0 ? resamplePeaks(liveBars, barCount) : resamplePeaks(peaks, barCount)
 
   return (
-    <div className={cn("flex h-9 min-w-0 flex-1 items-center gap-px sm:gap-0.5", className)} aria-hidden>
+    <div
+      className={cn("grid h-9 min-w-0 flex-1 items-center gap-x-px sm:gap-x-0.5", className)}
+      style={{ gridTemplateColumns: `repeat(${display.length}, minmax(0, 1fr))` }}
+      aria-hidden
+    >
       {display.map((h, i) => {
         const played = (i + 1) / display.length <= progress
         const heightPx = 4 + h * 26
@@ -65,7 +69,7 @@ export function VoiceWaveformBars({
           <div
             key={i}
             className={cn(
-              "w-[2px] shrink-0 rounded-full transition-[height,background-color] duration-75 sm:w-[3px]",
+              "mx-auto w-full max-w-[2px] rounded-full transition-[height,background-color] duration-75 sm:max-w-[3px]",
               liveBars && liveBars.length > 0
                 ? active
                   ? (liveActiveBarClassName ?? "bg-primary/90")
@@ -128,8 +132,10 @@ export function LessonAudioPlayerRow({
   timeClassName,
   seekable = false,
   volumeControl = false,
+  speedControl = false,
   transportIconMode = "lucide",
   transportIconClassName,
+  onPlaybackComplete,
 }: {
   src: string
   peaks?: number[] | null
@@ -151,10 +157,13 @@ export function LessonAudioPlayerRow({
   seekable?: boolean
   /** Слайдер громкости (элемент `audio.volume`) */
   volumeControl?: boolean
+  /** Переключение скорости воспроизведения */
+  speedControl?: boolean
   /** `solid` — залитые play/pause (цвет через `transportIconClassName` + currentColor). */
   transportIconMode?: "lucide" | "solid"
   /** Класс для SVG (например `text-neutral-500`). */
   transportIconClassName?: string
+  onPlaybackComplete?: () => void
 }) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const waveRef = useRef<HTMLDivElement>(null)
@@ -167,6 +176,12 @@ export function LessonAudioPlayerRow({
   const [currentTime, setCurrentTime] = useState(0)
   const [fetchedPeaks, setFetchedPeaks] = useState<number[] | null>(null)
   const [volume, setVolume] = useState(1)
+  const [playbackRate, setPlaybackRate] = useState(1)
+  const [waveWidth, setWaveWidth] = useState(0)
+
+  const adaptiveBarCount =
+    waveWidth > 0 ? Math.max(DEFAULT_BAR_COUNT, Math.min(220, Math.round(waveWidth / 4.5))) : 96
+  const resolvedBarCount = Math.max(barCount, adaptiveBarCount)
 
   const mergedPeaks = peaks && peaks.length > 0 ? peaks : fetchedPeaks
 
@@ -185,13 +200,33 @@ export function LessonAudioPlayerRow({
   }, [volume])
 
   useEffect(() => {
+    const el = audioRef.current
+    if (!el) return
+    el.playbackRate = playbackRate
+  }, [playbackRate])
+
+  useEffect(() => {
+    const waveEl = waveRef.current
+    if (!waveEl) return
+
+    const updateWidth = () => {
+      setWaveWidth(waveEl.getBoundingClientRect().width)
+    }
+
+    updateWidth()
+    const observer = new ResizeObserver(() => updateWidth())
+    observer.observe(waveEl)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
     if (!src || isRecording || liveBars) return
     if (peaks && peaks.length > 0) return
     let cancelled = false
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
-          const next = await computeWaveformPeaksFromUrl(src)
+          const next = await computeWaveformPeaksFromUrl(src, resolvedBarCount)
           if (cancelled) return
           setFetchedPeaks(next)
           onDecodedRef.current?.(next)
@@ -204,7 +239,7 @@ export function LessonAudioPlayerRow({
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [src, isRecording, liveBars, peaks])
+  }, [src, isRecording, liveBars, peaks, resolvedBarCount])
 
   const onTimeUpdate = useCallback(() => {
     const el = audioRef.current
@@ -283,7 +318,7 @@ export function LessonAudioPlayerRow({
     <div
       className={cn(
         "flex items-center gap-2 rounded-lg border border-border/70 bg-background/80 px-2 py-1.5 dark:bg-muted/30",
-        volumeControl && "flex-wrap",
+        (volumeControl || speedControl) && "flex-wrap",
         containerClassName,
         className
       )}
@@ -348,7 +383,7 @@ export function LessonAudioPlayerRow({
             <VoiceWaveformBars
               peaks={mergedPeaks}
               progress={playing || progress > 0 ? progress : 0}
-              barCount={barCount}
+              barCount={resolvedBarCount}
               className={cn("min-w-0 flex-1", waveformClassName)}
               playedBarClassName={playedBarClassName}
               idleBarClassName={idleBarClassName}
@@ -364,6 +399,22 @@ export function LessonAudioPlayerRow({
           >
             {timeLabel}
           </span>
+          {speedControl ? (
+            <button
+              type="button"
+              className="inline-flex h-8 shrink-0 items-center rounded-full bg-black/[0.06] px-3 text-[12px] font-semibold text-ds-ink transition-colors hover:bg-black/[0.1] dark:bg-white/[0.08] dark:hover:bg-white/[0.12]"
+              onClick={() =>
+                setPlaybackRate((prev) => {
+                  const rates = [0.75, 1, 1.25, 1.5]
+                  const currentIndex = rates.findIndex((rate) => Math.abs(rate - prev) < 0.001)
+                  return rates[(currentIndex + 1) % rates.length] ?? 1
+                })
+              }
+              aria-label={`Скорость воспроизведения ${playbackRate}x`}
+            >
+              {playbackRate}x
+            </button>
+          ) : null}
           {volumeControl ? (
             <div className="flex w-[76px] shrink-0 items-center gap-1.5 sm:w-[92px]">
               {volume < 0.04 ? (
@@ -408,6 +459,7 @@ export function LessonAudioPlayerRow({
               setPlaying(false)
               setProgress(0)
               setCurrentTime(0)
+              onPlaybackComplete?.()
             }}
             onPause={() => setPlaying(false)}
             onPlay={() => setPlaying(true)}
@@ -420,7 +472,7 @@ export function LessonAudioPlayerRow({
             peaks={mergedPeaks}
             liveBars={liveBars ?? undefined}
             active={isRecording}
-            barCount={barCount}
+            barCount={resolvedBarCount}
             className={waveformClassName}
             playedBarClassName={playedBarClassName}
             idleBarClassName={idleBarClassName}

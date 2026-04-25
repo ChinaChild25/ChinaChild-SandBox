@@ -6,7 +6,7 @@ import { PendingLesson } from "@/components/school/pending-lesson"
 import { InteractiveLesson } from "@/components/school/interactive-lesson"
 import { courseIdFromLessonSlug } from "@/lib/courses/course-id-from-slug"
 import { loadCourseLessonJson } from "@/lib/courses/load-lesson"
-import { lessonBySlug, lessonSlugs } from "@/lib/course-catalog"
+import { courseCatalog, lessonBySlug, lessonSlugs } from "@/lib/course-catalog"
 import { SchoolLessonShell } from "@/layouts/school-lesson-shell"
 
 type LessonPageProps = {
@@ -30,7 +30,8 @@ export default async function LessonPage({ params }: LessonPageProps) {
 
   const ready = file.contentStatus === "ready" && file.data !== null
 
-  const coursePillBg = catalog.courseId === "hsk1" ? "var(--ds-sage)" : "var(--ds-pink)"
+  const courseTheme = courseCatalog.find((course) => course.id === catalog.courseId)
+  const coursePillBg = courseTheme?.coverColor ?? "var(--ds-sage)"
   const courseLevelLabel =
     catalog.courseId === "hsk1" ? "HSK 1" : catalog.courseId === "hsk2" ? "HSK 2" : catalog.courseName
 

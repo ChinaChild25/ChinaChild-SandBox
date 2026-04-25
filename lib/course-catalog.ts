@@ -7,6 +7,10 @@ export type CourseCatalog = {
   id: "hsk1" | "hsk2"
   name: "HSK1" | "HSK2"
   description: string
+  /** Основной цвет обложки курса */
+  coverColor: string
+  /** Более насыщенный акцент для прогресса, иконок и активных элементов */
+  accentColor: string
   /** Целевой охват лексики по программе HSK */
   newWordsCount: number
   /** Количество аудиофрагментов в JSON-уроках курса (data.audioTracks) */
@@ -19,6 +23,8 @@ export const courseCatalog: CourseCatalog[] = [
     id: "hsk1",
     name: "HSK1",
     description: "Базовый уровень: фонетика, базовая грамматика и повседневные темы.",
+    coverColor: "#F4D56E",
+    accentColor: "#D29A12",
     newWordsCount: 150,
     audioCount: 5,
     lessons: [
@@ -47,6 +53,8 @@ export const courseCatalog: CourseCatalog[] = [
     id: "hsk2",
     name: "HSK2",
     description: "Расширение словаря и практика речевых ситуаций среднего базового уровня.",
+    coverColor: "#73D0D7",
+    accentColor: "#1597AA",
     newWordsCount: 300,
     audioCount: 0,
     lessons: [

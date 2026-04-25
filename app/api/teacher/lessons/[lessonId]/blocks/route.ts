@@ -123,19 +123,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ lesson
     }
   }
 
-  const { error: deleteAllError } = await supabase.from("lesson_blocks").delete().eq("lesson_id", lessonId)
-  if (deleteAllError) return NextResponse.json({ error: deleteAllError.message }, { status: 400 })
-
-  for (const [index, block] of blocks.entries()) {
-    const payload = {
-      lesson_id: lessonId,
+  const { error: replaceError } = await supabase.rpc("replace_lesson_blocks_atomic", {
+    p_lesson_id: lessonId,
+    p_blocks: blocks.map((block, index) => ({
       type: block.type,
       order: index,
       data: block.data ?? {}
-    }
-    const { error } = await supabase.from("lesson_blocks").insert(payload)
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  }
+    }))
+  })
+  if (replaceError) return NextResponse.json({ error: replaceError.message }, { status: 400 })
 
   const { data, error } = await supabase
     .from("lesson_blocks")

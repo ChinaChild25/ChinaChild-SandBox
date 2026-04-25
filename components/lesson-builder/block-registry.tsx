@@ -238,6 +238,12 @@ export const BLOCK_ICON_REGISTRY: Record<
     iconClass: string
   }
 > = {
+  hero: {
+    icon: BookOpenText,
+    circleClass: sageCircleClass,
+    cardClass: "border-black/[0.06] bg-[var(--ds-surface)] dark:border-white/[0.08]",
+    iconClass: "text-ds-ink"
+  },
   text: {
     icon: Type,
     circleClass: neutralCircleClass,
@@ -423,7 +429,27 @@ export function getBlockVariantBehavior({
   data?: unknown
   variantId?: string
 }): BlockVariantBehavior {
-  const resolvedVariantId = variantId || getBlockVariantId(data)
+  let resolvedVariantId = variantId || getBlockVariantId(data)
+  if (!resolvedVariantId && type === "fill_gaps" && data && typeof data === "object") {
+    const raw = data as Record<string, unknown>
+    const fillGaps = typeof raw.fill_gaps === "object" && raw.fill_gaps !== null ? (raw.fill_gaps as Record<string, unknown>) : {}
+    const firstItem =
+      Array.isArray(fillGaps.items) && fillGaps.items[0] && typeof fillGaps.items[0] === "object"
+        ? (fillGaps.items[0] as Record<string, unknown>)
+        : null
+    const labelHint = `${typeof raw.exercise_variant_label === "string" ? raw.exercise_variant_label : ""} ${typeof raw.meta === "object" && raw.meta !== null && typeof (raw.meta as Record<string, unknown>).title === "string" ? (raw.meta as Record<string, unknown>).title : ""}`
+      .toLowerCase()
+      .trim()
+
+    if (labelHint.includes("ввести слово к изображению")) resolvedVariantId = "fill-image-type"
+    else if (labelHint.includes("выбрать форму") && labelHint.includes("изображ")) resolvedVariantId = "fill-image-form"
+    else if (labelHint.includes("перенести слово к изображению")) resolvedVariantId = "fill-image-drag"
+    else if (labelHint.includes("ввести слово в пропуск")) resolvedVariantId = "fill-type-word"
+    else if (labelHint.includes("выбрать форму")) resolvedVariantId = "fill-choose-form"
+    else if (labelHint.includes("перенести слово")) resolvedVariantId = "fill-drag-word"
+    else if (firstItem && typeof firstItem.imageUrl === "string" && firstItem.imageUrl.trim()) resolvedVariantId = "fill-image-drag"
+    else resolvedVariantId = "fill-drag-word"
+  }
   const specific = resolvedVariantId ? VARIANT_BEHAVIORS[resolvedVariantId] ?? {} : {}
 
   if (specific.showTimerSetting !== undefined) return specific

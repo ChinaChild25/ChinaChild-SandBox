@@ -67,7 +67,7 @@ export async function GET() {
   const { data: courses, error: courseErr } = await supabase
     .from("courses")
     .select(
-      "id, title, description, level, cover_color, cover_style, cover_image_url, cover_image_position, is_custom, is_platform_course, teacher_id, created_at"
+      "id, title, description, level, cover_color, cover_style, cover_image_url, cover_image_position, cover_image_scale, cover_image_flip_x, cover_image_flip_y, is_custom, is_platform_course, teacher_id, created_at"
     )
     .in("id", courseIds)
     .eq("is_custom", true)
@@ -84,6 +84,9 @@ export async function GET() {
     cover_style: string | null
     cover_image_url: string | null
     cover_image_position: string | null
+    cover_image_scale: number | null
+    cover_image_flip_x: boolean | null
+    cover_image_flip_y: boolean | null
     is_custom: boolean
     is_platform_course: boolean | null
     teacher_id: string | null
@@ -144,12 +147,14 @@ export async function GET() {
     if (lessonIds.length > 0) {
       const { data: compRows, error: compErr } = await supabase
         .from("student_lesson_completions")
-        .select("lesson_id")
+        .select("lesson_id, is_completed")
         .eq("student_id", me.id)
         .in("lesson_id", lessonIds)
       if (compErr) return NextResponse.json({ error: compErr.message }, { status: 400 })
       for (const r of compRows ?? []) {
-        const lid = (r as { lesson_id: string }).lesson_id
+        const completion = r as { lesson_id: string; is_completed?: boolean | null }
+        if (!completion.is_completed) continue
+        const lid = completion.lesson_id
         const cid = lessonToCourseId.get(lid)
         if (!cid) continue
         completedByCourse.set(cid, (completedByCourse.get(cid) ?? 0) + 1)
@@ -187,6 +192,9 @@ export async function GET() {
       cover_style: c.cover_style,
       cover_image_url: c.cover_image_url,
       cover_image_position: c.cover_image_position,
+      cover_image_scale: c.cover_image_scale,
+      cover_image_flip_x: c.cover_image_flip_x,
+      cover_image_flip_y: c.cover_image_flip_y,
       created_at: c.created_at,
       lesson_count: lessonCountByCourse.get(c.id) ?? 0,
       completed_lesson_count: completedByCourse.get(c.id) ?? 0,

@@ -75,6 +75,7 @@ export async function createYooKassaPayment(params: {
   description: string
   metadata: YooKassaPaymentMetadata
   idempotenceKey: string
+  confirmationLocale?: "ru_RU" | "en_US"
 }) {
   return requestYooKassa<YooKassaPayment>("/payments", {
     method: "POST",
@@ -88,7 +89,8 @@ export async function createYooKassaPayment(params: {
       },
       capture: true,
       confirmation: {
-        type: "embedded"
+        type: "embedded",
+        ...(params.confirmationLocale ? { locale: params.confirmationLocale } : {})
       },
       description: params.description,
       metadata: params.metadata
@@ -99,4 +101,3 @@ export async function createYooKassaPayment(params: {
 export async function fetchYooKassaPayment(paymentId: string) {
   return requestYooKassa<YooKassaPayment>(`/payments/${encodeURIComponent(paymentId)}`)
 }
-

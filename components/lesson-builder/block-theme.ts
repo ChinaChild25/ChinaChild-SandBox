@@ -1,6 +1,8 @@
 import type { LessonBlockType } from "@/lib/types"
 
 export const blockTypeAccentClass: Record<LessonBlockType, string> = {
+  hero:
+    "border-[#cdecc8] bg-[#eefbe9] text-[#2e5e37] hover:bg-[#e1f6da] dark:border-[#3c7046] dark:bg-[#1f3224] dark:text-[#d4f0d8] dark:hover:bg-[#28412f]",
   text: "border-[#bfdcff] bg-[#e8f3ff] text-[#2e4d73] hover:bg-[#d9ebff] dark:border-[#35567b] dark:bg-[#1b2a3c] dark:text-[#d2e6ff] dark:hover:bg-[#22364d]",
   matching:
     "border-[#cdecc8] bg-[#eefbe9] text-[#2e5e37] hover:bg-[#e1f6da] dark:border-[#3c7046] dark:bg-[#1f3224] dark:text-[#d4f0d8] dark:hover:bg-[#28412f]",
@@ -36,6 +38,7 @@ export const blockTypeAccentClass: Record<LessonBlockType, string> = {
 
 /** Same palette as `blockTypeAccentClass` without border utilities (for compact icon buttons). */
 export const blockTypeAccentFillClass: Record<LessonBlockType, string> = {
+  hero: "bg-[#eefbe9] text-[#2e5e37] hover:bg-[#e1f6da] dark:bg-[#1f3224] dark:text-[#d4f0d8] dark:hover:bg-[#28412f]",
   text: "bg-[#e8f3ff] text-[#2e4d73] hover:bg-[#d9ebff] dark:bg-[#1b2a3c] dark:text-[#d2e6ff] dark:hover:bg-[#22364d]",
   matching: "bg-[#eefbe9] text-[#2e5e37] hover:bg-[#e1f6da] dark:bg-[#1f3224] dark:text-[#d4f0d8] dark:hover:bg-[#28412f]",
   fill_gaps: "bg-[#fff3e2] text-[#7a5632] hover:bg-[#ffe9cf] dark:bg-[#372a1f] dark:text-[#ffe5c4] dark:hover:bg-[#463424]",
@@ -66,6 +69,15 @@ export const blockTypeStudentTheme: Record<
     accent: string
   }
 > = {
+  hero: {
+    panel: "border-[#cdecc8]/80 bg-[#eefbe9]/72 dark:border-[#3c7046]/80 dark:bg-[#1f3224]/60",
+    soft: "border-[#cdecc8] bg-[#f6fdf3] text-[#2e5e37] dark:border-[#3c7046] dark:bg-[#1f3224]/70 dark:text-[#d4f0d8]",
+    active: "border-[#cdecc8] bg-[#eefbe9] text-[#2e5e37] dark:border-[#3c7046] dark:bg-[#1f3224] dark:text-[#d4f0d8]",
+    hover: "hover:bg-[#e1f6da] dark:hover:bg-[#28412f]",
+    ring: "ring-[#95cd8b]/50 dark:ring-[#5f9b67]/45",
+    text: "text-[#2e5e37] dark:text-[#d4f0d8]",
+    accent: "accent-[#2e5e37] dark:accent-[#d4f0d8]"
+  },
   text: {
     panel: "border-[#bfdcff]/80 bg-[#e8f3ff]/70 dark:border-[#35567b]/80 dark:bg-[#1b2a3c]/60",
     soft: "border-[#bfdcff] bg-[#f4f9ff] text-[#2e4d73] dark:border-[#35567b] dark:bg-[#1b2a3c]/70 dark:text-[#d2e6ff]",

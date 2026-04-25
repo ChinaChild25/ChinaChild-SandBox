@@ -38,9 +38,9 @@ function ruLessonWord(n: number) {
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth()
+  const { user, authReady } = useAuth()
   const { t, locale } = useUiLocale()
-  const { summary: billingSummary } = useStudentBillingSummary({ enabled: user?.role === "student" })
+  const { summary: billingSummary } = useStudentBillingSummary({ enabled: authReady && user?.role === "student" })
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>(readNotificationPreferences)
   const [upcomingLessons, setUpcomingLessons] = useState<DashboardLesson[]>([])
   const [calendarLessonDateKeys, setCalendarLessonDateKeys] = useState<string[]>([])
@@ -52,6 +52,7 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
+    if (!authReady || user?.role !== "student") return
     let alive = true
     async function loadUpcomingLessons() {
       try {
@@ -97,7 +98,7 @@ export default function DashboardPage() {
     return () => {
       alive = false
     }
-  }, [])
+  }, [authReady, user?.role])
 
   const dashboardStats = user?.dashboardStats ?? {
     attendedLessons: 9,

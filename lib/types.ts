@@ -99,6 +99,7 @@ export interface LearningResource {
 }
 
 export const LESSON_BLOCK_TYPES = [
+  "hero",
   "text",
   "matching",
   "fill_gaps",
@@ -136,12 +137,20 @@ export interface TeacherCustomCourse {
   cover_image_url?: string | null
   /** CSS background-position, напр. 72% 28% */
   cover_image_position?: string | null
+  /** Масштаб обложки, 1 = исходный cover-fit */
+  cover_image_scale?: number | null
+  /** Отразить обложку по горизонтали */
+  cover_image_flip_x?: boolean | null
+  /** Отразить обложку по вертикали */
+  cover_image_flip_y?: boolean | null
   teacher_name?: string | null
   teacher_avatar_url?: string | null
   /** Present on list payload from GET /api/teacher/courses */
   lesson_count?: number
   /** GET /api/student/assigned-courses — уроки, отмеченные учеником как пройденные */
   completed_lesson_count?: number
+  /** GET /api/student/courses/[courseId] — проценты прохождения по урокам */
+  lesson_score_percent_by_id?: Record<string, number>
   /** Сумма слотов лексики по блокам (сопоставление + пропуски) */
   new_words_count?: number
   /** Блоков «аудио» с загруженным файлом */

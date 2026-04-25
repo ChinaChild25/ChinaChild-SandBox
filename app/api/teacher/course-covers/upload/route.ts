@@ -5,12 +5,14 @@ import { createServerSupabaseClient } from "@/lib/supabase/server"
 type ProfileRole = "student" | "teacher" | "curator"
 
 const MAX_BYTES = 5 * 1024 * 1024
-const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"])
+const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "image/svg+xml"])
 
 function extForMime(mime: string): string {
   if (mime === "image/png") return "png"
   if (mime === "image/webp") return "webp"
   if (mime === "image/gif") return "gif"
+  if (mime === "image/avif") return "avif"
+  if (mime === "image/svg+xml") return "svg"
   return "jpg"
 }
 
@@ -53,7 +55,7 @@ export async function POST(req: Request) {
 
   const mime = (file.type || "").toLowerCase()
   if (!ALLOWED.has(mime)) {
-    return NextResponse.json({ error: "Допустимы только JPEG, PNG, WebP и GIF" }, { status: 400 })
+    return NextResponse.json({ error: "Допустимы JPEG, PNG, WebP, GIF, AVIF и SVG" }, { status: 400 })
   }
 
   const courseIdRaw = form.get("courseId")

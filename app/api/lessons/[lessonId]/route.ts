@@ -12,9 +12,19 @@ export async function GET(_: Request, { params }: { params: Promise<{ lessonId: 
 
   const { data: lesson, error: lessonError } = await supabase
     .from("lessons")
-    .select("id, title, course_id, task_badge_color")
+    .select("id, title, course_id, courses(title, cover_color, cover_style, cover_image_url)")
     .eq("id", lessonId)
-    .maybeSingle<{ id: string; title: string; course_id: string; task_badge_color: string | null }>()
+    .maybeSingle<{
+      id: string
+      title: string
+      course_id: string
+      courses: {
+        title: string | null
+        cover_color: string | null
+        cover_style: string | null
+        cover_image_url: string | null
+      } | null
+    }>()
   if (lessonError) return NextResponse.json({ error: lessonError.message }, { status: 400 })
   if (!lesson) return NextResponse.json({ error: "Lesson not found" }, { status: 404 })
 
@@ -25,5 +35,16 @@ export async function GET(_: Request, { params }: { params: Promise<{ lessonId: 
     .order("order", { ascending: true })
 
   if (blockError) return NextResponse.json({ error: blockError.message }, { status: 400 })
-  return NextResponse.json({ lesson, blocks: blocks ?? [] })
+  return NextResponse.json({
+    lesson: {
+      id: lesson.id,
+      title: lesson.title,
+      course_id: lesson.course_id,
+      course_title: lesson.courses?.title ?? null,
+      course_cover_color: lesson.courses?.cover_color ?? null,
+      course_cover_style: lesson.courses?.cover_style ?? null,
+      course_cover_image_url: lesson.courses?.cover_image_url ?? null,
+    },
+    blocks: blocks ?? []
+  })
 }

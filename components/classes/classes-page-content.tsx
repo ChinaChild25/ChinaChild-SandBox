@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
 import { AlertTriangle, ChevronRight, FileCheck, Video } from "lucide-react"
 
+import { useAuth } from "@/lib/auth-context"
 import { useStudentBillingSummary } from "@/hooks/use-student-billing-summary"
 import {
   canJoinOnlineClass,
@@ -45,7 +46,8 @@ export function ClassesPageContent({
   const [activeFilter, setActiveFilter] = useState<(typeof classTypes)[number]>("Все")
   const [allClasses, setAllClasses] = useState<ClassListItem[]>([])
   const [loadState, setLoadState] = useState<"loading" | "ok" | "error">("loading")
-  const { summary: billingSummary } = useStudentBillingSummary()
+  const { user, authReady } = useAuth()
+  const { summary: billingSummary } = useStudentBillingSummary({ enabled: authReady && user?.role === "student" })
 
   const loadClasses = useCallback(async () => {
     setLoadState("loading")
@@ -66,8 +68,9 @@ export function ClassesPageContent({
   }, [])
 
   useEffect(() => {
+    if (!authReady || user?.role !== "student") return
     void loadClasses()
-  }, [loadClasses])
+  }, [authReady, user?.role, loadClasses])
 
   const filtered =
     activeFilter === "Все" ? allClasses : allClasses.filter((c) => c.type === activeFilter)

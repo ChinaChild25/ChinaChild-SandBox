@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { AppProviders } from "@/components/app-providers"
+import { AppEnvironmentBadge } from "@/components/app-environment-badge"
 import { AuthProvider } from "@/lib/auth-context"
+import { getAppEnvironmentLabel } from "@/lib/app-environment"
 import "./globals.css"
 
 const inter = Inter({
@@ -12,8 +14,12 @@ const inter = Inter({
   variable: "--font-inter",
 })
 
+const appEnvironmentLabel = getAppEnvironmentLabel()
+
 export const metadata: Metadata = {
-  title: "ChinaChild — кабинет ученика и преподавателя",
+  title: appEnvironmentLabel
+    ? `ChinaChild ${appEnvironmentLabel} — кабинет ученика и преподавателя`
+    : "ChinaChild — кабинет ученика и преподавателя",
   description: "Личный кабинет: занятия, курсы, прогресс, журнал преподавателя и настройки.",
   keywords: ["ChinaChild", "китайский язык", "HSK", "образовательная платформа"],
 }
@@ -35,6 +41,7 @@ export default function RootLayout({
   return (
     <html lang="ru" className={inter.variable} suppressHydrationWarning>
       <body className="font-sans antialiased">
+        <AppEnvironmentBadge />
         <AppProviders>
           <AuthProvider>{children}</AuthProvider>
         </AppProviders>

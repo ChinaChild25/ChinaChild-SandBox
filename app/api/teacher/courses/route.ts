@@ -3,6 +3,7 @@ import { countAudioInBlock, countWordSlotsInBlock } from "@/lib/lesson-block-sta
 import {
   coverStyleForCourseSave,
   isAllowedExternalCoverImageUrl,
+  normalizeCoverImageFlip,
   normalizeCoverImagePosition
 } from "@/lib/teacher-custom-course-form"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
@@ -63,7 +64,7 @@ export async function GET() {
     supabase
       .from("courses")
       .select(
-        "id, title, description, level, is_custom, is_platform_course, cover_color, cover_style, cover_image_url, cover_image_position, created_at, lessons(count)"
+        "id, title, description, level, is_custom, is_platform_course, cover_color, cover_style, cover_image_url, cover_image_position, cover_image_scale, cover_image_flip_x, cover_image_flip_y, created_at, lessons(count)"
       )
       .eq("is_custom", true)
       .eq("teacher_id", me.id)
@@ -148,6 +149,9 @@ export async function POST(req: Request) {
         coverStyle?: string
         coverImageUrl?: string | null
         coverImagePosition?: string | null
+        coverImageScale?: number | null
+        coverImageFlipX?: boolean | null
+        coverImageFlipY?: boolean | null
       }
     | null
   const title = body?.title?.trim() ?? ""
@@ -177,12 +181,15 @@ export async function POST(req: Request) {
       cover_style: coverStyle,
       cover_image_url: coverImageUrl,
       cover_image_position: coverImageUrl ? normalizeCoverImagePosition(body?.coverImagePosition) : "50% 50%",
+      cover_image_scale: coverImageUrl ? Math.min(2.5, Math.max(1, Number(body?.coverImageScale) || 1)) : 1,
+      cover_image_flip_x: coverImageUrl ? normalizeCoverImageFlip(body?.coverImageFlipX) : false,
+      cover_image_flip_y: coverImageUrl ? normalizeCoverImageFlip(body?.coverImageFlipY) : false,
       teacher_id: me.id,
       is_custom: true,
       is_platform_course: false
     })
     .select(
-      "id, title, description, level, is_custom, is_platform_course, cover_color, cover_style, cover_image_url, cover_image_position, created_at"
+      "id, title, description, level, is_custom, is_platform_course, cover_color, cover_style, cover_image_url, cover_image_position, cover_image_scale, cover_image_flip_x, cover_image_flip_y, created_at"
     )
     .single()
 

@@ -722,6 +722,20 @@
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.cc-hsk-hero-cta:hover {
+  background: #2f2f33;
+}
+
+.cc-hsk-hero-cta:active {
+  transform: translateY(1px);
+}
+
+.cc-hsk-hero-cta:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(20, 20, 22, 0.18);
 }
 
 .cc-hsk-hero-cta-arrow {
@@ -745,6 +759,11 @@
   background: rgba(255, 255, 255, 0.35);
   color: var(--cc-hsk-hero-ink);
   opacity: 0.85;
+}
+
+.cc-hsk-hero-art-inner--image {
+  background: transparent;
+  opacity: 1;
 }
 
 .cc-hsk-hero-art-svg {
@@ -783,7 +802,7 @@
 .cc-hsk-module-icon {
   width: 26px;
   height: 26px;
-  color: #6a9c2e;
+  color: var(--cc-hsk-accent);
 }
 
 .cc-hsk-module-title {
@@ -815,18 +834,28 @@
   margin: 0;
   padding: 0;
   list-style: none;
+  display: grid;
+  gap: 14px;
+}
+
+@media (min-width: 900px) {
+  .cc-hsk-goals-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .cc-hsk-goals-item {
   display: flex;
   gap: 14px;
-  padding: 14px 0;
-  border-top: 1px solid rgba(23, 23, 23, 0.06);
+  align-items: flex-start;
+  min-height: 92px;
+  padding: 16px;
+  border-radius: 24px;
+  background: #f7f7f4;
 }
 
 .cc-hsk-goals-item:first-child {
-  padding-top: 0;
-  border-top: none;
+  padding: 16px;
 }
 
 .cc-hsk-goals-num {
@@ -920,6 +949,20 @@
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
+  transition: background-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.cc-hsk-btn-next:hover {
+  background: #2f2f33;
+}
+
+.cc-hsk-btn-next:active {
+  transform: translateY(1px);
+}
+
+.cc-hsk-btn-next:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(20, 20, 22, 0.18);
 }
 
 a.cc-hsk-btn-next--link {
@@ -1628,6 +1671,16 @@ a.cc-hsk-btn-next--link {
   background: #3f3f42;
 }
 
+.dark .lesson-shell .cc-hsk-hero-cta:hover,
+.dark .lesson-shell .cc-hsk-btn-next:hover {
+  background: #2d2d31;
+}
+
+.dark .lesson-shell .cc-hsk-hero-cta:focus-visible,
+.dark .lesson-shell .cc-hsk-btn-next:focus-visible {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+
 .dark .lesson-shell .cc-hsk-progressbar {
   background: rgba(255, 255, 255, 0.1);
 }
@@ -1647,7 +1700,7 @@ a.cc-hsk-btn-next--link {
 }
 
 .dark .lesson-shell .cc-hsk-module-icon {
-  color: #b4e063;
+  color: var(--cc-hsk-accent);
 }
 
 .dark .lesson-shell .cc-hsk-goals {
@@ -1656,7 +1709,7 @@ a.cc-hsk-btn-next--link {
 }
 
 .dark .lesson-shell .cc-hsk-goals-item {
-  border-top-color: rgba(255, 255, 255, 0.08);
+  background: #1e1e20;
 }
 
 .dark .lesson-shell .cc-hsk-panel-inset {

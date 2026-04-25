@@ -26,6 +26,8 @@ export function mergeSegmentsIntoBlockData(segments: Record<string, unknown>[]):
 /** Одно подзадание внутри блока (прежняя форма `data` до введения сегментов). */
 export function createDefaultSegmentPayload(type: LessonBlockType): Record<string, unknown> {
   switch (type) {
+    case "hero":
+      return { eyebrow: "", lead: "", imageUrl: "", imagePosition: "72% 50%", imageScale: 1, imageFlipX: false, imageFlipY: false, accentColor: "" }
     case "text":
       return { content: "", questions: [] }
     case "matching":
@@ -58,10 +60,8 @@ export function createDefaultSegmentPayload(type: LessonBlockType): Record<strin
       return { label: "", url: "", hint: "" }
     case "divider":
       return { label: "" }
-    default: {
-      const _exhaustive: never = type
-      return _exhaustive
-    }
+    default:
+      return {}
   }
 }
 

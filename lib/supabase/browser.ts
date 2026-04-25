@@ -7,7 +7,7 @@ import { getSupabaseAnonKey, getSupabaseUrl, isSupabaseConfigured } from "@/lib/
 export function createBrowserSupabaseClient() {
   if (!isSupabaseConfigured()) {
     throw new Error(
-      "Supabase не настроен: задайте NEXT_PUBLIC_SUPABASE_URL и NEXT_PUBLIC_SUPABASE_ANON_KEY в .env.local"
+      "Supabase не настроен: задайте NEXT_PUBLIC_SUPABASE_URL/NEXT_PUBLIC_SUPABASE_ANON_KEY или SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY"
     )
   }
   const url = getSupabaseUrl()!

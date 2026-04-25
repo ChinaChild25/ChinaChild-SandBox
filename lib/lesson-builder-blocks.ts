@@ -38,6 +38,18 @@ export type FlashcardItem = { front: string; back: string; example: string }
 
 export type HomeworkResponseMode = "text" | "file" | "text_file"
 
+export type LessonHeroData = {
+  eyebrow: string
+  lead: string
+  imageUrl: string
+  imagePosition: string
+  imageScale: number
+  imageFlipX: boolean
+  imageFlipY: boolean
+  useCustomAccent: boolean
+  accentColor: string
+}
+
 export type MediaLibraryItem = {
   url: string
   title: string
@@ -63,6 +75,7 @@ export type SpeakingLibraryItem = {
 }
 
 export const LESSON_BLOCK_LABELS: Record<LessonBlockType, string> = {
+  hero: "Обложка урока",
   text: "Текст",
   video: "Видео",
   image: "Картинка",
@@ -308,6 +321,24 @@ function normalizeHomeworkResponseMode(value: unknown): HomeworkResponseMode {
   return "text"
 }
 
+function normalizeHeroData(value: unknown): LessonHeroData {
+  const raw = asRecord(value)
+  const accentColor = asString(raw.accentColor).trim()
+  const imageScaleRaw = asNumber(raw.imageScale, 1)
+  return {
+    eyebrow: asString(raw.eyebrow).trim() || "Индивидуальный урок",
+    lead: asString(raw.lead).trim(),
+    imageUrl: asString(raw.imageUrl).trim(),
+    imagePosition: asString(raw.imagePosition).trim() || "72% 50%",
+    imageScale: Math.max(0.5, Math.min(2, imageScaleRaw)),
+    imageFlipX: asBoolean(raw.imageFlipX, false),
+    imageFlipY: asBoolean(raw.imageFlipY, false),
+    // Accent override is applied only when this explicit flag is enabled.
+    useCustomAccent: asBoolean(raw.useCustomAccent, false),
+    accentColor
+  }
+}
+
 export function extractBracketAnswers(text: string): string[] {
   const matches = Array.from(text.matchAll(/\[([^[\]]*?)\]/g))
   return matches.map((match) => (match[1] ?? "").trim()).filter(Boolean)
@@ -363,6 +394,17 @@ export function resolveLessonBlockType(block: TeacherLessonBlock): LessonBlockTy
 export function normalizeLessonBlockData(type: LessonBlockType, rawData: unknown): Record<string, unknown> {
   const raw = asRecord(rawData)
   const meta = normalizeMeta(type, raw)
+
+  if (type === "hero") {
+    return {
+      ...raw,
+      meta: {
+        ...meta,
+        title: asString(asRecord(raw.meta).title).trim() || LESSON_BLOCK_LABELS.hero
+      },
+      hero: normalizeHeroData(raw.hero)
+    }
+  }
 
   if (type === "text") {
     const nested = asRecord(raw.text)
@@ -586,6 +628,15 @@ export function normalizeTeacherLessonBlock(block: TeacherLessonBlock): TeacherL
 export function createDefaultBlockData(type: LessonBlockType): Record<string, unknown> {
   const meta = createDefaultBlockMeta(type)
 
+  if (type === "hero") {
+    return {
+      meta: {
+        ...meta,
+        title: LESSON_BLOCK_LABELS.hero
+      },
+      hero: normalizeHeroData({})
+    }
+  }
   if (type === "text") return { meta, text: { items: [{ content: "", questions: [] }] } }
   if (type === "matching") return { meta, matching: { pairs: [{ left: "", right: "" }] } }
   if (type === "fill_gaps") return { meta, fill_gaps: { items: [{ text: "", answers: [] }] } }
@@ -630,6 +681,10 @@ export function getNormalizedBlockSubtitle(block: TeacherLessonBlock): string {
   const normalized = normalizeTeacherLessonBlock(block)
   const raw = asRecord(normalized.data)
 
+  if (normalized.type === "hero") {
+    const hero = normalizeHeroData(raw.hero)
+    return hero.lead || hero.eyebrow || "Верхний баннер урока"
+  }
   if (normalized.type === "text") {
     const firstItem = asRecordArray(asRecord(raw.text).items)[0]
     return asString(firstItem?.content).trim().slice(0, 72) || "Текстовый материал"
@@ -675,6 +730,38 @@ export function getNormalizedBlockSubtitle(block: TeacherLessonBlock): string {
   if (normalized.type === "note") return asString(asRecord(raw.note).content).trim() || "Важная заметка"
   if (normalized.type === "link") return asString(asRecord(raw.link).hint).trim() || "Внешний материал"
   return asString(asRecord(raw.divider).label).trim() || "Следующий этап"
+}
+
+export function createLessonHeroBlock(lessonId: string): TeacherLessonBlock {
+  return normalizeTeacherLessonBlock({
+    id: `tmp-hero-${lessonId}`,
+    lesson_id: lessonId,
+    type: "hero",
+    order: 0,
+    data: createDefaultBlockData("hero")
+  })
+}
+
+export function ensureLessonHasHeroBlock(blocks: TeacherLessonBlock[], lessonId: string): TeacherLessonBlock[] {
+  const normalized = [...blocks].map(normalizeTeacherLessonBlock).sort((left, right) => left.order - right.order)
+  let heroBlock: TeacherLessonBlock | null = null
+  const contentBlocks: TeacherLessonBlock[] = []
+
+  for (const block of normalized) {
+    if (block.type === "hero" && !heroBlock) {
+      heroBlock = block
+      continue
+    }
+    contentBlocks.push(block)
+  }
+
+  const nextBlocks = [heroBlock ?? createLessonHeroBlock(lessonId), ...contentBlocks]
+  return nextBlocks.map((block, index) =>
+    normalizeTeacherLessonBlock({
+      ...block,
+      order: index
+    })
+  )
 }
 
 function pluralizeRu(count: number, one: string, few: string, many: string) {

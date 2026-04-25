@@ -14,7 +14,6 @@ import {
   CreditCard,
   Settings,
   LogOut,
-  ChevronRight,
   type LucideIcon
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -129,39 +128,6 @@ export function AppSidebar({ variant = "sidebar" }: AppSidebarProps) {
     )
   })
 
-  const hskCard =
-    notifPrefs.lessons ? (
-      <Link
-        href="/courses"
-        className={cn(
-          "flex no-underline text-ds-ink transition-opacity hover:opacity-95",
-          drawer
-            ? "w-full flex-row items-center gap-3 rounded-xl bg-ds-sage px-3 py-2.5"
-            : "mt-4 flex-col gap-2 rounded-[20px] bg-ds-sage p-4"
-        )}
-      >
-        <div className={cn("font-semibold", drawer ? "min-w-0 flex-1 text-[13px] leading-snug" : "text-[14px]")}>
-          {t("sidebar.hskTitle")}
-        </div>
-        <div
-          className={cn(
-            "overflow-hidden rounded-full bg-white/50",
-            drawer ? "h-1.5 min-w-0 flex-1" : "h-2 w-full"
-          )}
-        >
-          <div className="h-full w-[37%] rounded-full bg-ds-sage-strong" />
-        </div>
-        {!drawer ? (
-          <div className="flex items-center gap-1 text-[13px] font-medium text-ds-ink/80">
-            <span>37%</span>
-            <ChevronRight className="h-4 w-4" aria-hidden />
-          </div>
-        ) : (
-          <span className="shrink-0 text-[12px] font-semibold text-ds-ink/85">37%</span>
-        )}
-      </Link>
-    ) : null
-
   return (
     <div className={cn("flex h-full min-h-0 flex-col text-ds-ink", drawer && "gap-0")}>
       {!drawer ? (
@@ -215,7 +181,6 @@ export function AppSidebar({ variant = "sidebar" }: AppSidebarProps) {
           <nav className="flex flex-col gap-1.5" aria-label={t("sidebar.navAria")}>
             {navLinkNodes}
           </nav>
-          {hskCard}
         </div>
       ) : (
         <>
@@ -225,7 +190,6 @@ export function AppSidebar({ variant = "sidebar" }: AppSidebarProps) {
           >
             {navLinkNodes}
           </nav>
-          {hskCard}
         </>
       )}
 

@@ -1,16 +1,44 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useParams } from "next/navigation"
-import { ArrowLeft, Eye } from "lucide-react"
+import { SchoolLessonShell } from "@/layouts/school-lesson-shell"
+import { CustomInteractiveLesson } from "@/components/school/custom-interactive-lesson"
+import { FigmaAppShell } from "@/components/figma-app-shell"
+import { AppSidebar } from "@/components/app-sidebar"
+import { TeacherSidebar } from "@/components/teacher-sidebar"
+import { useAuth } from "@/lib/auth-context"
+import { useUiLocale } from "@/lib/ui-locale"
 import type { TeacherLessonBlock } from "@/lib/types"
-import { BlockRenderer } from "@/components/lesson-builder/block-renderer"
+
+type LessonResponse = {
+  lesson?: {
+    id: string
+    title: string
+    course_id: string
+    course_title?: string | null
+    course_cover_color?: string | null
+    course_cover_style?: string | null
+    course_cover_image_url?: string | null
+  }
+  blocks?: TeacherLessonBlock[]
+  error?: string
+}
 
 export default function StudentLessonPage() {
   const params = useParams<{ lessonId: string }>()
+  const router = useRouter()
   const lessonId = params.lessonId
-  const [title, setTitle] = useState("Урок")
+  const { user, isAuthenticated, authReady } = useAuth()
+  const { t } = useUiLocale()
+
+  const [lessonTitle, setLessonTitle] = useState("Урок")
+  const [courseId, setCourseId] = useState("")
+  const [courseTitle, setCourseTitle] = useState<string | undefined>(undefined)
+  const [courseCoverColor, setCourseCoverColor] = useState<string | undefined>(undefined)
+  const [courseCoverStyle, setCourseCoverStyle] = useState<string | undefined>(undefined)
+  const [courseCoverImageUrl, setCourseCoverImageUrl] = useState<string | undefined>(undefined)
   const [blocks, setBlocks] = useState<TeacherLessonBlock[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -19,60 +47,73 @@ export default function StudentLessonPage() {
     void loadLesson()
   }, [lessonId])
 
+  useEffect(() => {
+    if (!authReady) return
+    if (!isAuthenticated) {
+      router.replace("/")
+    }
+  }, [authReady, isAuthenticated, router])
+
   async function loadLesson() {
     setIsLoading(true)
     const res = await fetch(`/api/lessons/${lessonId}`, { cache: "no-store" })
-    const json = (await res.json().catch(() => null)) as
-      | { lesson?: { title: string; task_badge_color?: string | null }; blocks?: TeacherLessonBlock[]; error?: string }
-      | null
+    const json = (await res.json().catch(() => null)) as LessonResponse | null
     if (!res.ok || !json?.lesson) {
       setError(json?.error ?? "Не удалось загрузить урок")
       setIsLoading(false)
       return
     }
     setError(null)
-    setTitle(json.lesson.title)
+    setLessonTitle(json.lesson.title)
+    setCourseId(json.lesson.course_id ?? "")
+    setCourseTitle(json.lesson.course_title ?? undefined)
+    setCourseCoverColor(json.lesson.course_cover_color?.trim() || undefined)
+    setCourseCoverStyle(json.lesson.course_cover_style?.trim() || undefined)
+    setCourseCoverImageUrl(json.lesson.course_cover_image_url?.trim() || undefined)
     setBlocks((json.blocks ?? []).sort((a, b) => a.order - b.order))
     setIsLoading(false)
   }
 
-  return (
-    <div className="min-h-screen bg-[var(--ds-page)] px-3 py-4 sm:px-5 sm:py-5 lg:px-8">
-      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-4 sm:gap-5">
-        <header className="rounded-[28px] border border-black/[0.06] bg-[var(--ds-surface)] px-4 py-5 shadow-[0_20px_60px_-40px_rgba(0,0,0,0.18)] dark:border-white/[0.08] sm:px-6 sm:py-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0">
-              <div className="inline-flex items-center gap-2 rounded-full bg-[var(--ds-sage)] px-4 py-2 text-[13px] font-semibold uppercase tracking-[0.12em] text-ds-ink">
-                <Eye className="h-4 w-4" />
-                Превью для ученика
-              </div>
-              <h1 className="mt-4 text-[clamp(1.8rem,4vw,3.35rem)] font-semibold leading-[0.95] tracking-[-0.05em] text-ds-ink">
-                {title}
-              </h1>
-              <p className="mt-3 max-w-[720px] text-[15px] leading-7 text-ds-text-secondary sm:text-[16px]">
-                Так урок будет выглядеть для ученика после публикации. Проверяйте порядок блоков, тексты и взаимодействия прямо здесь.
-              </p>
-              {error ? <p className="mt-3 text-[15px] text-[#c0394b] dark:text-[#ff8c9a]">{error}</p> : null}
-            </div>
+  const isTeacher = user?.role === "teacher" || user?.role === "curator"
+  const backHref = isTeacher ? `/teacher/lessons/${lessonId}` : courseId ? `/courses/${courseId}` : "/courses"
+  const backLabel = isTeacher ? "Редактор" : (courseTitle?.trim() || "Курс")
 
-            <Link
-              href={`/teacher/lessons/${lessonId}`}
-              className="inline-flex h-11 items-center gap-2 rounded-[16px] border border-black/[0.08] bg-[var(--ds-surface-muted)] px-4 text-[14px] font-medium text-ds-ink transition-colors hover:bg-[var(--ds-neutral-row-hover)] dark:border-white/[0.08]"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Вернуться в редактор
-            </Link>
-          </div>
-        </header>
-
-        <main className="rounded-[28px] border border-black/[0.06] bg-[var(--ds-surface)] px-3 py-4 shadow-[0_24px_70px_-50px_rgba(0,0,0,0.22)] dark:border-white/[0.08] sm:px-5 sm:py-5 lg:px-6">
-          {isLoading ? (
-            <div className="flex min-h-[40vh] items-center justify-center text-[18px] text-ds-text-secondary">Загрузка урока...</div>
-          ) : (
-            <BlockRenderer blocks={blocks} />
-          )}
-        </main>
+  if (!authReady || !isAuthenticated) {
+    return (
+      <div className="ds-app-canvas">
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="animate-pulse text-muted-foreground">{t("app.loading")}</div>
+        </div>
       </div>
-    </div>
+    )
+  }
+
+  return (
+    <FigmaAppShell
+      logoHref={isTeacher ? "/teacher/dashboard" : "/dashboard"}
+      renderSidebar={(props) => (isTeacher ? <TeacherSidebar variant={props.variant} /> : <AppSidebar variant={props.variant} />)}
+    >
+      <SchoolLessonShell>
+        {isLoading ? (
+          <div className="flex min-h-[40vh] items-center justify-center text-[18px] text-ds-text-secondary">Загрузка урока...</div>
+        ) : error ? (
+          <div className="rounded-[28px] border border-[#d98b95]/35 bg-[#fff4f5] px-5 py-5 text-[15px] leading-7 text-[#9b3948] dark:border-[#7d3d49] dark:bg-[#2e1d21] dark:text-[#ffb8c4]">
+            {error}
+          </div>
+        ) : (
+          <CustomInteractiveLesson
+            lessonId={lessonId}
+            lessonTitle={lessonTitle}
+            courseTitle={courseTitle}
+            courseCoverColor={courseCoverColor}
+            courseCoverStyle={courseCoverStyle}
+            courseCoverImageUrl={courseCoverImageUrl}
+            backHref={backHref}
+            backLabel={backLabel}
+            blocks={blocks}
+          />
+        )}
+      </SchoolLessonShell>
+    </FigmaAppShell>
   )
 }
