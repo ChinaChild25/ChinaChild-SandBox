@@ -54,6 +54,14 @@ export function humanizeDailyError(
     })
   }
 
+  if (code === "authentication-error" || code === "authorization-header-error") {
+    return pickLocale(locale, {
+      ru: "Daily отклоняет авторизацию. Обычно это значит, что DAILY_API_KEY в Vercel пустой, недействительный или не соответствует текущему Daily-аккаунту комнаты.",
+      en: "Daily rejected authentication. This usually means the DAILY_API_KEY in Vercel is empty, invalid, or belongs to a different Daily account than the room.",
+      zh: "Daily 拒绝了鉴权。通常表示 Vercel 里的 DAILY_API_KEY 为空、无效，或与当前房间所属的 Daily 账号不一致。"
+    })
+  }
+
   if (code === "The teacher has not started this lesson yet.") {
     return pickLocale(locale, {
       ru: "Преподаватель еще не начал занятие.",
