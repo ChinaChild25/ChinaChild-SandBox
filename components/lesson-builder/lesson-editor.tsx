@@ -14,7 +14,9 @@ import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } 
 import { CSS } from "@dnd-kit/utilities"
 import { ChevronDown, ChevronLeft, Clock3, Eye, GripVertical, Loader2, Medal, Pencil, Trash2 } from "lucide-react"
 import { useTheme } from "next-themes"
+import { LessonAnalyticsCard } from "@/components/lessons/lesson-analytics-card"
 import type { TeacherCustomCourse, TeacherLessonBlock } from "@/lib/types"
+import type { LatestLessonReport } from "@/lib/lesson-analytics/server"
 import {
   asRecord,
   asString,
@@ -57,6 +59,10 @@ type TeacherLessonPayload = {
 type TeacherBlocksPayload = {
   blocks?: TeacherLessonBlock[]
   error?: string
+}
+
+type TeacherLessonAnalyticsPayload = {
+  latest_report?: LatestLessonReport | null
 }
 
 function snapshotForSave(blocks: TeacherLessonBlock[]) {
@@ -1218,6 +1224,7 @@ export function LessonEditor({ lessonId }: { lessonId: string }) {
   const [courseCoverStyle, setCourseCoverStyle] = useState<string | null>(null)
   const [courseCoverImageUrl, setCourseCoverImageUrl] = useState<string | null>(null)
   const [blocks, setBlocks] = useState<TeacherLessonBlock[]>([])
+  const [latestReport, setLatestReport] = useState<LatestLessonReport | null>(null)
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -1280,13 +1287,15 @@ export function LessonEditor({ lessonId }: { lessonId: string }) {
     setIsLoading(true)
     setError(null)
 
-    const [lessonRes, blocksRes] = await Promise.all([
+    const [lessonRes, blocksRes, analyticsRes] = await Promise.all([
       fetch(`/api/teacher/lessons/${lessonId}`, { cache: "no-store" }),
-      fetch(`/api/teacher/lessons/${lessonId}/blocks`, { cache: "no-store" })
+      fetch(`/api/teacher/lessons/${lessonId}/blocks`, { cache: "no-store" }),
+      fetch(`/api/lessons/${lessonId}`, { cache: "no-store" }),
     ])
 
     const lessonJson = (await lessonRes.json().catch(() => null)) as TeacherLessonPayload | null
     const blocksJson = (await blocksRes.json().catch(() => null)) as TeacherBlocksPayload | null
+    const analyticsJson = (await analyticsRes.json().catch(() => null)) as TeacherLessonAnalyticsPayload | null
 
     if (!lessonRes.ok || !lessonJson?.lesson) {
       setError(lessonJson?.error ?? "Не удалось загрузить урок")
@@ -1306,6 +1315,7 @@ export function LessonEditor({ lessonId }: { lessonId: string }) {
     const serverBlocks = (blocksJson?.blocks ?? []).map(normalizeTeacherLessonBlock).sort((left, right) => left.order - right.order)
     const nextBlocks = ensureLessonHasHeroBlock(serverBlocks, lessonId)
     setBlocks(nextBlocks)
+    setLatestReport(analyticsRes.ok ? analyticsJson?.latest_report ?? null : null)
     lastSavedSnapshotRef.current = snapshotForSave(serverBlocks)
     setSelectedBlockId(null)
     setIsLoading(false)
@@ -1549,6 +1559,7 @@ export function LessonEditor({ lessonId }: { lessonId: string }) {
   return (
     <div className="ds-figma-page ds-lesson-editor-page">
       <div className="w-full">
+        {latestReport ? <LessonAnalyticsCard report={latestReport} /> : null}
         <div
           className="grid min-h-[calc(100dvh-5rem)] gap-4 md:grid-cols-[minmax(0,1fr)_264px] xl:grid-cols-[220px_minmax(0,1fr)_272px] 2xl:grid-cols-[228px_minmax(0,1fr)_288px]"
         >

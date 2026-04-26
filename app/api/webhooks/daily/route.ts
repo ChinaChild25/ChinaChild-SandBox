@@ -4,6 +4,7 @@ import { processPendingLessonAnalyticsJobsIfConfigured } from "@/lib/lesson-anal
 import {
   completeLessonSession,
   findLatestLessonSessionByRoomName,
+  importStoredDailyTranscriptForSession,
   queueSessionAnalysis,
   recordDailyWebhookEvent,
   updateDailyWebhookEventSession,
@@ -199,6 +200,11 @@ export async function POST(request: Request) {
           last_daily_event: eventType,
           daily_transcript_meta: payload,
         },
+      })
+      await importStoredDailyTranscriptForSession({
+        adminSupabase,
+        sessionId: session.id,
+        transcriptId: typeof payload.id === "string" ? payload.id : null,
       })
       await queueSessionAnalysis({
         adminSupabase,

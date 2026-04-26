@@ -2,8 +2,11 @@ import { createHash } from "node:crypto"
 import {
   createOrGetDailyLessonRoom,
   createOrGetDailyPrivateRoom,
+  getDailyTranscriptAccessLink,
 } from "@/lib/daily/server"
+import { parseDailyTranscriptVtt } from "@/lib/daily-transcript-vtt"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
+import { displayNameFromProfileFields } from "@/lib/supabase/profile"
 
 type AdminSupabase = ReturnType<typeof createAdminSupabaseClient>
 
@@ -44,6 +47,19 @@ export type LiveTranscriptSnippet = {
   dedupeKey?: string | null
 }
 
+type SessionParticipantProfile = {
+  first_name: string | null
+  last_name: string | null
+  full_name: string | null
+}
+
+export type StoredTranscriptImportResult =
+  | { status: "imported"; inserted: number; transcriptId: string }
+  | { status: "skipped-no-transcript-id"; inserted: 0; transcriptId: null }
+  | { status: "skipped-no-vtt"; inserted: 0; transcriptId: string }
+  | { status: "skipped-empty-vtt"; inserted: 0; transcriptId: string }
+  | { status: "skipped-existing-rows"; inserted: 0; transcriptId: string }
+
 const SESSION_STALE_AFTER_MS = 1000 * 60 * 60 * 8
 
 export function isTeacherProfileRole(role: ProfileRole): boolean {
@@ -71,6 +87,71 @@ function transcriptDedupeKey(sessionId: string, segment: LiveTranscriptSnippet):
     trimOrNull(segment.participantUserId) ?? "",
     segment.timestamp.trim(),
     segment.text.trim(),
+  ].join("::")
+
+  return createHash("sha256").update(seed).digest("hex")
+}
+
+function normalizedSpeakerIdentity(value: string | null | undefined): string | null {
+  const trimmed = value?.trim()
+  if (!trimmed) return null
+  const normalized = trimmed
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "")
+  return normalized || null
+}
+
+function candidateDisplayNames(profile: SessionParticipantProfile | null | undefined): Set<string> {
+  const candidates = new Set<string>()
+  if (!profile) return candidates
+
+  const full = displayNameFromProfileFields(profile, null)
+  const first = profile.first_name?.trim() || ""
+  const last = profile.last_name?.trim() || ""
+  const combined = [first, last].filter(Boolean).join(" ").trim()
+
+  for (const candidate of [full, combined, first, last, profile.full_name?.trim() || ""]) {
+    const normalized = normalizedSpeakerIdentity(candidate)
+    if (normalized) candidates.add(normalized)
+  }
+
+  return candidates
+}
+
+function detectStoredTranscriptSpeakerRole(args: {
+  speakerLabel: string | null
+  teacherNames: Set<string>
+  studentNames: Set<string>
+}): "teacher" | "student" | "unknown" {
+  const normalizedLabel = normalizedSpeakerIdentity(args.speakerLabel)
+  if (!normalizedLabel) return "unknown"
+
+  const isTeacher = args.teacherNames.has(normalizedLabel)
+  const isStudent = args.studentNames.has(normalizedLabel)
+
+  if (isTeacher && !isStudent) return "teacher"
+  if (isStudent && !isTeacher) return "student"
+  return "unknown"
+}
+
+function storedTranscriptDedupeKey(args: {
+  sessionId: string
+  transcriptId: string
+  cueIndex: number
+  speakerLabel: string | null
+  text: string
+  startedAtSec: number | null
+  endedAtSec: number | null
+}): string {
+  const seed = [
+    args.sessionId,
+    args.transcriptId,
+    String(args.cueIndex),
+    args.speakerLabel?.trim() ?? "",
+    args.text.trim(),
+    args.startedAtSec?.toFixed(3) ?? "",
+    args.endedAtSec?.toFixed(3) ?? "",
   ].join("::")
 
   return createHash("sha256").update(seed).digest("hex")
@@ -558,4 +639,134 @@ export async function appendLiveTranscriptSnippets(args: {
       transcript_source: "daily-live",
     },
   })
+}
+
+export async function importStoredDailyTranscriptForSession(args: {
+  adminSupabase: AdminSupabase
+  sessionId: string
+  transcriptId?: string | null
+}): Promise<StoredTranscriptImportResult> {
+  const transcriptId = trimOrNull(args.transcriptId)
+  if (!transcriptId) {
+    const { data: session, error: sessionError } = await args.adminSupabase
+      .from("lesson_sessions")
+      .select("daily_transcript_id")
+      .eq("id", args.sessionId)
+      .single<{ daily_transcript_id: string | null }>()
+
+    if (sessionError) throw new Error(sessionError.message)
+    if (!session.daily_transcript_id?.trim()) {
+      return { status: "skipped-no-transcript-id", inserted: 0, transcriptId: null }
+    }
+
+    return importStoredDailyTranscriptForSession({
+      adminSupabase: args.adminSupabase,
+      sessionId: args.sessionId,
+      transcriptId: session.daily_transcript_id,
+    })
+  }
+
+  const { count: existingRows, error: countError } = await args.adminSupabase
+    .from("lesson_transcripts")
+    .select("id", { head: true, count: "exact" })
+    .eq("session_id", args.sessionId)
+
+  if (countError) throw new Error(countError.message)
+  if ((existingRows ?? 0) > 0) {
+    return {
+      status: "skipped-existing-rows",
+      inserted: 0,
+      transcriptId,
+    }
+  }
+
+  const { data: session, error: sessionError } = await args.adminSupabase
+    .from("lesson_sessions")
+    .select(
+      "id, teacher_id, student_id, teacher_profile:profiles!lesson_sessions_teacher_id_fkey(first_name, last_name, full_name), student_profile:profiles!lesson_sessions_student_id_fkey(first_name, last_name, full_name)"
+    )
+    .eq("id", args.sessionId)
+    .single<{
+      id: string
+      teacher_id: string | null
+      student_id: string | null
+      teacher_profile: SessionParticipantProfile | null
+      student_profile: SessionParticipantProfile | null
+    }>()
+
+  if (sessionError) throw new Error(sessionError.message)
+
+  const transcriptLink = await getDailyTranscriptAccessLink(transcriptId)
+  if (!transcriptLink) {
+    return { status: "skipped-no-vtt", inserted: 0, transcriptId }
+  }
+
+  const response = await fetch(transcriptLink, { cache: "no-store" })
+  if (!response.ok) {
+    throw new Error(`Daily transcript download failed (${response.status})`)
+  }
+
+  const vttContent = await response.text()
+  const parsedSegments = parseDailyTranscriptVtt(vttContent)
+  if (parsedSegments.length === 0) {
+    return { status: "skipped-empty-vtt", inserted: 0, transcriptId }
+  }
+
+  const teacherNames = candidateDisplayNames(session.teacher_profile)
+  const studentNames = candidateDisplayNames(session.student_profile)
+
+  const rows = parsedSegments.map((segment, index) => ({
+    session_id: args.sessionId,
+    sequence: index,
+    dedupe_key: storedTranscriptDedupeKey({
+      sessionId: args.sessionId,
+      transcriptId,
+      cueIndex: segment.cueIndex,
+      speakerLabel: segment.speakerLabel,
+      text: segment.text,
+      startedAtSec: segment.startedAtSec,
+      endedAtSec: segment.endedAtSec,
+    }),
+    speaker_label: segment.speakerLabel,
+    speaker_role: detectStoredTranscriptSpeakerRole({
+      speakerLabel: segment.speakerLabel,
+      teacherNames,
+      studentNames,
+    }),
+    text: segment.text,
+    started_at_sec: segment.startedAtSec,
+    ended_at_sec: segment.endedAtSec,
+    source: "daily-webvtt",
+    metadata: {
+      cue_index: segment.cueIndex,
+      transcript_id: transcriptId,
+      imported_from: "daily-stored-transcript",
+    },
+  }))
+
+  const { error: insertError } = await args.adminSupabase
+    .from("lesson_transcripts")
+    .upsert(rows, { onConflict: "dedupe_key", ignoreDuplicates: true })
+
+  if (insertError) throw new Error(insertError.message)
+
+  await updateSessionFromWebhook({
+    adminSupabase: args.adminSupabase,
+    sessionId: args.sessionId,
+    patch: {
+      transcript_status: "ready",
+    },
+    contextPatch: {
+      last_transcript_import_at: new Date().toISOString(),
+      transcript_source: "daily-webvtt",
+      stored_transcript_imported_rows: rows.length,
+      stored_transcript_id: transcriptId,
+    },
+  })
+
+  return {
+    status: "imported",
+    inserted: rows.length,
+    transcriptId,
+  }
 }

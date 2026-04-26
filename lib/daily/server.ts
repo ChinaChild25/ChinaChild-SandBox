@@ -10,6 +10,16 @@ type DailyTokenResponse = {
   token?: string
 }
 
+type DailyTranscriptResponse = {
+  id?: string
+  status?: string
+  isVttAvailable?: boolean
+}
+
+type DailyTranscriptAccessLinkResponse = {
+  link?: string
+}
+
 class DailyApiError extends Error {
   status: number
   payload: unknown
@@ -228,6 +238,33 @@ export async function createDailyLessonMeetingToken({
   }
 
   return token.token
+}
+
+export async function getDailyTranscriptById(transcriptId: string): Promise<DailyTranscriptResponse> {
+  return dailyApiRequest<DailyTranscriptResponse>(`/transcript/${encodeURIComponent(transcriptId)}`, {
+    method: "GET",
+  })
+}
+
+export async function getDailyTranscriptAccessLink(transcriptId: string): Promise<string> {
+  const transcript = await getDailyTranscriptById(transcriptId)
+  if (!transcript.isVttAvailable) {
+    throw new Error("Daily transcript VTT is not available yet")
+  }
+
+  const accessLink = await dailyApiRequest<DailyTranscriptAccessLinkResponse>(
+    `/transcript/${encodeURIComponent(transcriptId)}/access-link`,
+    {
+      method: "GET",
+    }
+  )
+
+  const link = accessLink.link?.trim()
+  if (!link) {
+    throw new Error("Daily did not return a transcript access link")
+  }
+
+  return link
 }
 
 function countPresenceEntries(payload: unknown): number {

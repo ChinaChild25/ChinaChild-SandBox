@@ -1,4 +1,5 @@
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
+import { importStoredDailyTranscriptForSession } from "@/lib/live-lessons/server"
 
 type AdminSupabase = ReturnType<typeof createAdminSupabaseClient>
 type ProfileRole = "student" | "teacher" | "curator"
@@ -18,6 +19,7 @@ type SessionRow = {
   lesson_id: string | null
   student_id: string | null
   teacher_id: string | null
+  daily_transcript_id: string | null
   status: "active" | "awaiting_artifacts" | "processing" | "done" | "failed"
   transcript_status: "not_started" | "starting" | "ready" | "error"
   started_at: string | null
@@ -68,6 +70,57 @@ type LessonAnalyticsOutput = {
   topics_practiced: string[]
 }
 
+export const SKILL_AXES = {
+  speaking: ["speaking", "pronunciation", "tones", "fluency"],
+  phrases: ["phrases", "chengyu", "expressions", "patterns"],
+  vocabulary: ["vocabulary", "words", "characters", "hanzi"],
+  listening: ["listening", "comprehension"],
+  grammar: ["grammar", "particles", "measure_words", "ba_sentence"],
+  reading: ["reading", "pinyin"],
+} as const
+
+export type SkillAxisKey = keyof typeof SKILL_AXES
+
+export type SkillMap = Record<SkillAxisKey, number>
+
+export type LessonTranscriptSegment = {
+  sequence: number
+  speakerRole: TranscriptRow["speaker_role"]
+  speakerLabel: string | null
+  text: string
+  startedAtSec: number | null
+  endedAtSec: number | null
+}
+
+export type LessonFeedItem = {
+  sessionId: string
+  lessonId: string | null
+  title: string
+  teacherName: string | null
+  startedAt: string | null
+  endedAt: string | null
+  status: SessionRow["status"]
+  summary: string | null
+  grammarScore: number | null
+  vocabularyScore: number | null
+  fluencyScore: number | null
+  speakingRatio: number | null
+  averageScore: number | null
+  mistakes: LessonAnalyticsOutput["mistakes"]
+  strengths: string[]
+  recommendations: string[]
+  topicsPracticed: string[]
+  transcript: LessonTranscriptSegment[]
+}
+
+export type StudentProgressOverview = {
+  studentId: string
+  studentName: string | null
+  skillMap: SkillMap
+  previousSkillMap: SkillMap | null
+  sessions: LessonFeedItem[]
+}
+
 export type LatestLessonReport = {
   sessionId: string
   status: SessionRow["status"]
@@ -87,6 +140,36 @@ export type LatestLessonReport = {
     speakerLabel: string | null
     text: string
   }>
+}
+
+type StudentMasteryRow = {
+  topic: string
+  confidence: number | null
+  lessons_seen: number | null
+  mistake_count: number | null
+  last_practiced_at: string | null
+}
+
+type ProgressSessionRow = {
+  id: string
+  lesson_id: string | null
+  teacher_id: string | null
+  started_at: string | null
+  ended_at: string | null
+  status: SessionRow["status"]
+  context: Record<string, unknown> | null
+  lessons: Array<{ title: string | null }> | null
+  teacher_profile: Array<{ full_name: string | null }> | null
+}
+
+type ProgressTranscriptRow = {
+  session_id: string
+  sequence: number
+  speaker_label: string | null
+  speaker_role: TranscriptRow["speaker_role"]
+  text: string
+  started_at_sec: number | null
+  ended_at_sec: number | null
 }
 
 const ANALYTICS_MODEL = process.env.LESSON_ANALYTICS_OPENAI_MODEL?.trim() || "gpt-4o-mini"
@@ -198,6 +281,115 @@ function normalizeAnalyticsOutput(value: unknown): LessonAnalyticsOutput {
     recommendations: asStringArray(record.recommendations).slice(0, 8),
     topics_practiced: asStringArray(record.topics_practiced).slice(0, 24),
   }
+}
+
+function createEmptySkillMap(): SkillMap {
+  return {
+    speaking: 0,
+    phrases: 0,
+    vocabulary: 0,
+    listening: 0,
+    grammar: 0,
+    reading: 0,
+  }
+}
+
+function hasSkillMapData(skillMap: SkillMap): boolean {
+  return Object.values(skillMap).some((value) => value > 0)
+}
+
+function normalizeTopicKey(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, "_")
+}
+
+function resolveSkillAxesForTopic(topic: string): SkillAxisKey[] {
+  const normalizedTopic = normalizeTopicKey(topic)
+  if (!normalizedTopic) return []
+
+  return (Object.entries(SKILL_AXES) as Array<[SkillAxisKey, readonly string[]]>)
+    .filter(([axis, aliases]) =>
+      [axis, ...aliases].some((alias) => {
+        const normalizedAlias = normalizeTopicKey(alias)
+        return (
+          normalizedTopic === normalizedAlias ||
+          normalizedTopic.includes(normalizedAlias) ||
+          normalizedAlias.includes(normalizedTopic)
+        )
+      })
+    )
+    .map(([axis]) => axis)
+}
+
+function buildSkillMapFromAnalyticsSnapshot(args: {
+  grammarScore: number | null
+  vocabularyScore: number | null
+  fluencyScore: number | null
+  speakingRatio: number | null
+  topicsPracticed: string[]
+}): SkillMap {
+  const grammar = clampInt(Number(args.grammarScore), 0, 100)
+  const vocabulary = clampInt(Number(args.vocabularyScore), 0, 100)
+  const fluency = clampInt(Number(args.fluencyScore), 0, 100)
+  const speakingRatioScore = clampInt(clampRatio(Number(args.speakingRatio)) * 100, 0, 100)
+  const overall = clampInt((grammar + vocabulary + fluency) / 3, 0, 100)
+  const baseline = overall > 0 ? clampInt(overall * 0.45, 12, 100) : 0
+
+  const skillMap: SkillMap = {
+    speaking: Math.max(baseline, clampInt(fluency * 0.7 + speakingRatioScore * 0.3, 0, 100)),
+    phrases: baseline,
+    vocabulary: Math.max(baseline, vocabulary),
+    listening: Math.max(baseline, clampInt(overall * 0.7 + speakingRatioScore * 0.3, 0, 100)),
+    grammar: Math.max(baseline, grammar),
+    reading: Math.max(baseline, clampInt((grammar + vocabulary) / 2, 0, 100)),
+  }
+
+  for (const topic of args.topicsPracticed) {
+    for (const axis of resolveSkillAxesForTopic(topic)) {
+      const emphasizedScore =
+        axis === "speaking"
+          ? clampInt((skillMap.speaking + fluency + overall) / 3, 0, 100)
+          : axis === "grammar"
+            ? Math.max(grammar, overall)
+            : axis === "vocabulary"
+              ? Math.max(vocabulary, overall)
+              : axis === "listening"
+                ? clampInt((skillMap.listening + overall) / 2, 0, 100)
+                : axis === "reading"
+                  ? clampInt((skillMap.reading + vocabulary) / 2, 0, 100)
+                  : clampInt((vocabulary + overall) / 2, 0, 100)
+
+      skillMap[axis] = Math.max(skillMap[axis], emphasizedScore)
+    }
+  }
+
+  return skillMap
+}
+
+function hasAnalyticsPayload(lesson: LessonFeedItem): boolean {
+  return (
+    Boolean(lesson.summary?.trim()) ||
+    lesson.mistakes.length > 0 ||
+    lesson.strengths.length > 0 ||
+    lesson.recommendations.length > 0 ||
+    lesson.topicsPracticed.length > 0 ||
+    lesson.grammarScore !== null ||
+    lesson.vocabularyScore !== null ||
+    lesson.fluencyScore !== null
+  )
+}
+
+function resolveSessionTitle(session: ProgressSessionRow): string {
+  const lessonTitle = session.lessons?.[0]?.title?.trim()
+  if (lessonTitle) return lessonTitle
+
+  const contextTitle =
+    typeof session.context?.lesson_title === "string"
+      ? session.context.lesson_title.trim()
+      : typeof session.context?.lessonTitle === "string"
+        ? session.context.lessonTitle.trim()
+        : ""
+
+  return contextTitle || "Онлайн-занятие"
 }
 
 function trimTranscriptForPrompt(transcripts: TranscriptRow[]): string {
@@ -338,7 +530,7 @@ async function loadSessionForProcessing(
   const { data: session, error: sessionError } = await adminSupabase
     .from("lesson_sessions")
     .select(
-      "id, lesson_id, student_id, teacher_id, status, transcript_status, started_at, ended_at, context, lessons(title), student_profile:profiles!lesson_sessions_student_id_fkey(full_name), teacher_profile:profiles!lesson_sessions_teacher_id_fkey(full_name)"
+      "id, lesson_id, student_id, teacher_id, daily_transcript_id, status, transcript_status, started_at, ended_at, context, lessons(title), student_profile:profiles!lesson_sessions_student_id_fkey(full_name), teacher_profile:profiles!lesson_sessions_teacher_id_fkey(full_name)"
     )
     .eq("id", sessionId)
     .single<SessionRow>()
@@ -453,7 +645,7 @@ async function markJobFailure(args: {
 }
 
 async function processSingleJob(adminSupabase: AdminSupabase, job: ProcessingJobRow) {
-  const { session, transcripts } = await loadSessionForProcessing(adminSupabase, job.session_id)
+  let { session, transcripts } = await loadSessionForProcessing(adminSupabase, job.session_id)
   const { error: markProcessingError } = await adminSupabase
     .from("lesson_sessions")
     .update({
@@ -463,6 +655,17 @@ async function processSingleJob(adminSupabase: AdminSupabase, job: ProcessingJob
     .eq("id", session.id)
 
   if (markProcessingError) throw new Error(markProcessingError.message)
+
+  if (transcripts.length === 0 && session.daily_transcript_id?.trim()) {
+    await importStoredDailyTranscriptForSession({
+      adminSupabase,
+      sessionId: session.id,
+      transcriptId: session.daily_transcript_id,
+    })
+    const reloaded = await loadSessionForProcessing(adminSupabase, job.session_id)
+    session = reloaded.session
+    transcripts = reloaded.transcripts
+  }
 
   const transcriptText = trimTranscriptForPrompt(
     transcripts.filter((segment) => segment.text.trim() && segment.speaker_role !== "system")
@@ -648,5 +851,187 @@ export async function getLatestLessonReportForViewer(args: {
     recommendations: asStringArray(analytics?.recommendations).slice(0, 6),
     topicsPracticed: asStringArray(analytics?.topics_practiced).slice(0, 10),
     transcriptPreview,
+  }
+}
+
+export async function getStudentSkillMap(
+  adminSupabase: AdminSupabase,
+  studentId: string
+): Promise<SkillMap> {
+  const { data, error } = await adminSupabase
+    .from("student_mastery")
+    .select("topic, confidence, lessons_seen, mistake_count, last_practiced_at")
+    .eq("student_id", studentId)
+
+  if (error) throw new Error(error.message)
+
+  const totals = createEmptySkillMap()
+  const counts: Record<SkillAxisKey, number> = {
+    speaking: 0,
+    phrases: 0,
+    vocabulary: 0,
+    listening: 0,
+    grammar: 0,
+    reading: 0,
+  }
+
+  for (const row of (data ?? []) as StudentMasteryRow[]) {
+    const confidenceScore = clampInt(clampRatio(Number(row.confidence)) * 100, 0, 100)
+    for (const axis of resolveSkillAxesForTopic(row.topic)) {
+      totals[axis] += confidenceScore
+      counts[axis] += 1
+    }
+  }
+
+  return {
+    speaking: counts.speaking > 0 ? clampInt(totals.speaking / counts.speaking, 0, 100) : 0,
+    phrases: counts.phrases > 0 ? clampInt(totals.phrases / counts.phrases, 0, 100) : 0,
+    vocabulary: counts.vocabulary > 0 ? clampInt(totals.vocabulary / counts.vocabulary, 0, 100) : 0,
+    listening: counts.listening > 0 ? clampInt(totals.listening / counts.listening, 0, 100) : 0,
+    grammar: counts.grammar > 0 ? clampInt(totals.grammar / counts.grammar, 0, 100) : 0,
+    reading: counts.reading > 0 ? clampInt(totals.reading / counts.reading, 0, 100) : 0,
+  }
+}
+
+export async function getStudentProgressOverview(args: {
+  adminSupabase: AdminSupabase
+  studentId: string
+  limit?: number
+}): Promise<StudentProgressOverview> {
+  const limit = Math.max(1, Math.min(args.limit ?? 10, 20))
+
+  const [{ data: profile, error: profileError }, skillMap, { data: sessionsData, error: sessionsError }] =
+    await Promise.all([
+      args.adminSupabase
+        .from("profiles")
+        .select("id, full_name")
+        .eq("id", args.studentId)
+        .maybeSingle<{ id: string; full_name: string | null }>(),
+      getStudentSkillMap(args.adminSupabase, args.studentId),
+      args.adminSupabase
+        .from("lesson_sessions")
+        .select(
+          "id, lesson_id, teacher_id, started_at, ended_at, status, context, lessons(title), teacher_profile:profiles!lesson_sessions_teacher_id_fkey(full_name)"
+        )
+        .eq("student_id", args.studentId)
+        .order("ended_at", { ascending: false, nullsFirst: false })
+        .order("started_at", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false })
+        .limit(limit),
+    ])
+
+  if (profileError) throw new Error(profileError.message)
+  if (sessionsError) throw new Error(sessionsError.message)
+
+  const sessionRows = (sessionsData ?? []) as ProgressSessionRow[]
+  const sessionIds = sessionRows.map((session) => session.id)
+
+  if (sessionIds.length === 0) {
+    return {
+      studentId: args.studentId,
+      studentName: profile?.full_name?.trim() || null,
+      skillMap,
+      previousSkillMap: null,
+      sessions: [],
+    }
+  }
+
+  const [{ data: analyticsData, error: analyticsError }, { data: transcriptData, error: transcriptError }] =
+    await Promise.all([
+      args.adminSupabase
+        .from("lesson_analytics")
+        .select(
+          "session_id, summary, grammar_score, vocabulary_score, fluency_score, speaking_ratio, mistakes, strengths, recommendations, topics_practiced, raw_analysis, created_at"
+        )
+        .in("session_id", sessionIds),
+      args.adminSupabase
+        .from("lesson_transcripts")
+        .select("session_id, sequence, speaker_label, speaker_role, text, started_at_sec, ended_at_sec")
+        .in("session_id", sessionIds)
+        .order("session_id", { ascending: true })
+        .order("sequence", { ascending: true }),
+    ])
+
+  if (analyticsError) throw new Error(analyticsError.message)
+  if (transcriptError) throw new Error(transcriptError.message)
+
+  const analyticsBySessionId = new Map(
+    ((analyticsData ?? []) as AnalyticsRow[]).map((row) => [row.session_id, row])
+  )
+  const transcriptsBySessionId = new Map<string, LessonTranscriptSegment[]>()
+
+  for (const row of (transcriptData ?? []) as ProgressTranscriptRow[]) {
+    const existing = transcriptsBySessionId.get(row.session_id) ?? []
+    existing.push({
+      sequence: row.sequence,
+      speakerRole: row.speaker_role,
+      speakerLabel: row.speaker_label,
+      text: row.text,
+      startedAtSec: row.started_at_sec,
+      endedAtSec: row.ended_at_sec,
+    })
+    transcriptsBySessionId.set(row.session_id, existing)
+  }
+
+  const sessions = sessionRows.map<LessonFeedItem>((session) => {
+    const analytics = analyticsBySessionId.get(session.id)
+    const grammarScore = analytics?.grammar_score ?? null
+    const vocabularyScore = analytics?.vocabulary_score ?? null
+    const fluencyScore = analytics?.fluency_score ?? null
+
+    return {
+      sessionId: session.id,
+      lessonId: session.lesson_id,
+      title: resolveSessionTitle(session),
+      teacherName: session.teacher_profile?.[0]?.full_name?.trim() || null,
+      startedAt: session.started_at,
+      endedAt: session.ended_at,
+      status: session.status,
+      summary: analytics?.summary?.trim() || null,
+      grammarScore,
+      vocabularyScore,
+      fluencyScore,
+      speakingRatio: analytics?.speaking_ratio ?? null,
+      averageScore:
+        grammarScore !== null && vocabularyScore !== null && fluencyScore !== null
+          ? clampInt((grammarScore + vocabularyScore + fluencyScore) / 3, 0, 100)
+          : null,
+      mistakes: asMistakes(analytics?.mistakes),
+      strengths: asStringArray(analytics?.strengths),
+      recommendations: asStringArray(analytics?.recommendations),
+      topicsPracticed: asStringArray(analytics?.topics_practiced),
+      transcript: transcriptsBySessionId.get(session.id) ?? [],
+    }
+  })
+
+  const sessionsWithAnalytics = sessions.filter(hasAnalyticsPayload)
+  const currentSkillMap = hasSkillMapData(skillMap)
+    ? skillMap
+    : sessionsWithAnalytics[0]
+      ? buildSkillMapFromAnalyticsSnapshot({
+          grammarScore: sessionsWithAnalytics[0].grammarScore,
+          vocabularyScore: sessionsWithAnalytics[0].vocabularyScore,
+          fluencyScore: sessionsWithAnalytics[0].fluencyScore,
+          speakingRatio: sessionsWithAnalytics[0].speakingRatio,
+          topicsPracticed: sessionsWithAnalytics[0].topicsPracticed,
+        })
+      : createEmptySkillMap()
+
+  const previousLesson = sessionsWithAnalytics[1]
+
+  return {
+    studentId: args.studentId,
+    studentName: profile?.full_name?.trim() || null,
+    skillMap: currentSkillMap,
+    previousSkillMap: previousLesson
+      ? buildSkillMapFromAnalyticsSnapshot({
+          grammarScore: previousLesson.grammarScore,
+          vocabularyScore: previousLesson.vocabularyScore,
+          fluencyScore: previousLesson.fluencyScore,
+          speakingRatio: previousLesson.speakingRatio,
+          topicsPracticed: previousLesson.topicsPracticed,
+        })
+      : null,
+    sessions,
   }
 }

@@ -4,7 +4,7 @@ import { getStudentProgressOverview } from "@/lib/lesson-analytics/server"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
-export default async function ProgressPage() {
+export default async function StudentProgressPage() {
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
@@ -35,7 +35,7 @@ export default async function ProgressPage() {
   return (
     <ProgressOverview
       title="Моя успеваемость"
-      subtitle="Шестигранная карта навыков обновляется после каждого разобранного live-урока: здесь собираются сильные стороны, ошибки, рекомендации и полная история транскрипций."
+      subtitle="Здесь собирается история разборов после звонков: карта навыков, сильные стороны, рекомендации, ошибки и полные транскрипции по каждому уроку."
       current={overview.skillMap}
       previous={overview.previousSkillMap}
       sessions={overview.sessions}
