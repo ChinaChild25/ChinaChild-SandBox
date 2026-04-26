@@ -61,6 +61,7 @@ export default async function TeacherStudentProgressPage({
     <ProgressOverview
       title={overview.studentName ? `Успеваемость: ${overview.studentName}` : "Успеваемость ученика"}
       subtitle="После каждого live-занятия сюда попадают summary, ошибки, рекомендации, темы урока и полная транскрипция, чтобы преподаватель видел динамику по каждому разбору."
+      accent={overview.studentAccent}
       current={overview.skillMap}
       previous={overview.previousSkillMap}
       sessions={overview.sessions}

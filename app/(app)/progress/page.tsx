@@ -36,6 +36,7 @@ export default async function ProgressPage() {
     <ProgressOverview
       title="Моя успеваемость"
       subtitle="Шестигранная карта навыков обновляется после каждого разобранного live-урока: здесь собираются сильные стороны, ошибки, рекомендации и полная история транскрипций."
+      accent={overview.studentAccent}
       current={overview.skillMap}
       previous={overview.previousSkillMap}
       sessions={overview.sessions}

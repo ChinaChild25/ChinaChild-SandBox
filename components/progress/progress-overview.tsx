@@ -1,4 +1,4 @@
-import type { LessonFeedItem, SkillMap } from "@/lib/lesson-analytics/server"
+import type { LessonFeedItem, SkillMap, UiAccentKey } from "@/lib/lesson-analytics/server"
 import { LessonFeed } from "@/components/progress/lesson-feed"
 import { SkillRadarChart } from "@/components/progress/skill-radar-chart"
 import { Badge } from "@/components/ui/badge"
@@ -9,6 +9,7 @@ type ProgressOverviewProps = {
   current: SkillMap
   previous?: SkillMap | null
   sessions: LessonFeedItem[]
+  accent?: UiAccentKey | null
 }
 
 const SKILL_LABELS: Array<{ key: keyof SkillMap; label: string }> = [
@@ -55,35 +56,30 @@ export function ProgressOverview({
   current,
   previous,
   sessions,
+  accent,
 }: ProgressOverviewProps) {
   const latestSession = sessions[0] ?? null
   const readyReports = analyticsReadyCount(sessions)
 
   return (
-    <div className="ds-figma-page">
+    <div className="ds-figma-page font-[family:var(--ds-font-sans)]" data-progress-accent={accent ?? "sage"}>
       <div className="mx-auto w-full max-w-[min(100%,1460px)] space-y-6">
-        <section className="overflow-hidden rounded-[40px] border border-black/[0.06] bg-white/[0.96] px-6 py-6 shadow-[0_24px_80px_rgba(15,23,42,0.06)] sm:px-8 sm:py-8">
+        <section className="overflow-hidden rounded-[40px] border border-black/[0.06] bg-[var(--ds-surface)]/95 px-6 py-6 shadow-[0_24px_80px_rgba(15,23,42,0.06)] dark:border-white/10 dark:shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:px-8 sm:py-8">
           <div className="grid gap-8 xl:grid-cols-[minmax(340px,0.92fr)_minmax(0,1.08fr)] xl:items-center">
             <div className="space-y-6">
               <div>
-                <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-ds-text-tertiary">
+                <p className="text-[13px] font-semibold text-ds-text-tertiary">
                   Успеваемость
                 </p>
-                <h1 className="mt-3 text-[34px] font-bold leading-[1.02] text-ds-ink sm:text-[48px]">{title}</h1>
+                <h1 className="mt-3 text-[30px] font-bold leading-[1.05] text-ds-ink sm:text-[42px]">{title}</h1>
                 <p className="mt-4 max-w-[40rem] text-[15px] leading-7 text-ds-text-secondary">{subtitle}</p>
               </div>
 
               <div className="flex flex-wrap gap-2">
-                <Badge
-                  variant="outline"
-                  className="rounded-full border-black/[0.08] bg-[var(--ds-neutral-row)] px-3 py-1.5 text-[12px] font-semibold text-ds-ink"
-                >
+                <Badge variant="outline" className="rounded-full border-0 bg-[var(--ds-neutral-row)] px-3 py-1.5 text-[12px] font-semibold text-ds-ink shadow-none">
                   {readyReports} готовых разборов
                 </Badge>
-                <Badge
-                  variant="outline"
-                  className="rounded-full border-black/[0.08] bg-[var(--ds-neutral-row)] px-3 py-1.5 text-[12px] font-semibold text-ds-ink"
-                >
+                <Badge variant="outline" className="rounded-full border-0 bg-[var(--ds-neutral-row)] px-3 py-1.5 text-[12px] font-semibold text-ds-ink shadow-none">
                   Последнее обновление: {formatCompactDate(latestSession?.endedAt ?? latestSession?.startedAt ?? null)}
                 </Badge>
               </div>
@@ -101,7 +97,7 @@ export function ProgressOverview({
               </div>
             </div>
 
-            <div className="rounded-[34px] bg-[linear-gradient(180deg,rgba(248,247,252,0.92),rgba(244,241,249,0.84))] p-4 sm:p-6">
+            <div className="rounded-[34px] bg-[linear-gradient(180deg,var(--progress-accent-surface),var(--progress-accent-secondary-soft))] p-4 sm:p-6">
               <SkillRadarChart current={current} previous={previous} mode="hero" />
             </div>
           </div>

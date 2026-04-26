@@ -3,6 +3,7 @@ import { importStoredDailyTranscriptForSession } from "@/lib/live-lessons/server
 
 type AdminSupabase = ReturnType<typeof createAdminSupabaseClient>
 type ProfileRole = "student" | "teacher" | "curator"
+export type UiAccentKey = "sage" | "pink" | "blue" | "orange"
 
 type TranscriptRow = {
   id: string
@@ -96,7 +97,10 @@ export type LessonFeedItem = {
   sessionId: string
   lessonId: string | null
   title: string
+  studentName: string | null
   teacherName: string | null
+  studentAvatarUrl: string | null
+  teacherAvatarUrl: string | null
   startedAt: string | null
   endedAt: string | null
   status: SessionRow["status"]
@@ -116,6 +120,8 @@ export type LessonFeedItem = {
 export type StudentProgressOverview = {
   studentId: string
   studentName: string | null
+  studentAvatarUrl: string | null
+  studentAccent: UiAccentKey | null
   skillMap: SkillMap
   previousSkillMap: SkillMap | null
   sessions: LessonFeedItem[]
@@ -159,7 +165,8 @@ type ProgressSessionRow = {
   status: SessionRow["status"]
   context: Record<string, unknown> | null
   lessons: Array<{ title: string | null }> | null
-  teacher_profile: Array<{ full_name: string | null }> | null
+  student_profile: Array<{ full_name: string | null; avatar_url: string | null }> | null
+  teacher_profile: Array<{ full_name: string | null; avatar_url: string | null }> | null
 }
 
 type ProgressTranscriptRow = {
@@ -236,6 +243,24 @@ function clampInt(value: number, min: number, max: number) {
 function clampRatio(value: number) {
   if (!Number.isFinite(value)) return 0
   return Math.max(0, Math.min(1, value))
+}
+
+function normalizeAvatarUrl(adminSupabase: AdminSupabase, raw: string | null | undefined): string | null {
+  const value = (raw ?? "").trim()
+  if (!value) return null
+  if (/^https?:\/\//i.test(value) || value.startsWith("/")) return value
+
+  const normalizedPath = value.replace(/^avatars\//, "")
+  const { data } = adminSupabase.storage.from("avatars").getPublicUrl(normalizedPath)
+  return data.publicUrl || null
+}
+
+function fallbackTeacherAvatarByName(name: string | null | undefined): string | null {
+  const normalized = (name ?? "").trim().toLowerCase().replace(/\s+/g, " ")
+  if (!normalized) return null
+  if (normalized === "чжао ли" || normalized === "zhao li") return "/staff/zhao-li.png"
+  if (normalized === "денис гасенко" || normalized === "denis gasenko") return "/staff/denis-gasenko-curator.png"
+  return null
 }
 
 function asStringArray(value: unknown): string[] {
@@ -904,14 +929,14 @@ export async function getStudentProgressOverview(args: {
     await Promise.all([
       args.adminSupabase
         .from("profiles")
-        .select("id, full_name")
+        .select("id, full_name, avatar_url, ui_accent")
         .eq("id", args.studentId)
-        .maybeSingle<{ id: string; full_name: string | null }>(),
+        .maybeSingle<{ id: string; full_name: string | null; avatar_url: string | null; ui_accent: UiAccentKey | null }>(),
       getStudentSkillMap(args.adminSupabase, args.studentId),
       args.adminSupabase
         .from("lesson_sessions")
         .select(
-          "id, lesson_id, teacher_id, started_at, ended_at, status, context, lessons(title), teacher_profile:profiles!lesson_sessions_teacher_id_fkey(full_name)"
+          "id, lesson_id, teacher_id, started_at, ended_at, status, context, lessons(title), student_profile:profiles!lesson_sessions_student_id_fkey(full_name, avatar_url), teacher_profile:profiles!lesson_sessions_teacher_id_fkey(full_name, avatar_url)"
         )
         .eq("student_id", args.studentId)
         .order("ended_at", { ascending: false, nullsFirst: false })
@@ -930,6 +955,8 @@ export async function getStudentProgressOverview(args: {
     return {
       studentId: args.studentId,
       studentName: profile?.full_name?.trim() || null,
+      studentAvatarUrl: normalizeAvatarUrl(args.adminSupabase, profile?.avatar_url) ?? null,
+      studentAccent: profile?.ui_accent ?? null,
       skillMap,
       previousSkillMap: null,
       sessions: [],
@@ -978,12 +1005,22 @@ export async function getStudentProgressOverview(args: {
     const grammarScore = analytics?.grammar_score ?? null
     const vocabularyScore = analytics?.vocabulary_score ?? null
     const fluencyScore = analytics?.fluency_score ?? null
+    const studentName = session.student_profile?.[0]?.full_name?.trim() || profile?.full_name?.trim() || null
+    const teacherName = session.teacher_profile?.[0]?.full_name?.trim() || null
+    const studentAvatarUrl =
+      normalizeAvatarUrl(args.adminSupabase, session.student_profile?.[0]?.avatar_url ?? profile?.avatar_url) ?? null
+    const teacherAvatarUrl =
+      normalizeAvatarUrl(args.adminSupabase, session.teacher_profile?.[0]?.avatar_url) ??
+      fallbackTeacherAvatarByName(teacherName)
 
     return {
       sessionId: session.id,
       lessonId: session.lesson_id,
       title: resolveSessionTitle(session),
-      teacherName: session.teacher_profile?.[0]?.full_name?.trim() || null,
+      studentName,
+      teacherName,
+      studentAvatarUrl,
+      teacherAvatarUrl,
       startedAt: session.started_at,
       endedAt: session.ended_at,
       status: session.status,
@@ -1022,6 +1059,8 @@ export async function getStudentProgressOverview(args: {
   return {
     studentId: args.studentId,
     studentName: profile?.full_name?.trim() || null,
+    studentAvatarUrl: normalizeAvatarUrl(args.adminSupabase, profile?.avatar_url) ?? null,
+    studentAccent: profile?.ui_accent ?? null,
     skillMap: currentSkillMap,
     previousSkillMap: previousLesson
       ? buildSkillMapFromAnalyticsSnapshot({

@@ -72,8 +72,8 @@ function AxisTick(props: {
       x={props.x}
       y={props.y}
       textAnchor={props.textAnchor}
-      fill="#2d2c33"
-      fontSize={16}
+      fill="var(--ds-ink)"
+      fontSize={15}
       fontWeight={600}
     >
       {props.payload.value}
@@ -101,16 +101,16 @@ export function SkillRadarChart({
     <div className={`relative w-full ${heightClass}`}>
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart data={data} outerRadius={outerRadius}>
-          <PolarGrid gridType="polygon" radialLines stroke="#ece8f2" />
+          <PolarGrid gridType="polygon" radialLines stroke="var(--progress-grid)" />
           <PolarAngleAxis dataKey="subject" tickLine={false} axisLine={false} tick={<AxisTick />} />
           <PolarRadiusAxis axisLine={false} tick={false} domain={[0, 100]} />
 
           {hasPrevious ? (
             <Radar
               dataKey="previous"
-              stroke="#8E7FD8"
-              fill="#C8BFF3"
-              fillOpacity={0.22}
+              stroke="var(--progress-accent-secondary)"
+              fill="var(--progress-accent-secondary)"
+              fillOpacity={0.18}
               strokeWidth={2.35}
               isAnimationActive
               animationDuration={520}
@@ -120,9 +120,9 @@ export function SkillRadarChart({
 
           <Radar
             dataKey="current"
-            stroke="#E3B73F"
-            fill="#F5D783"
-            fillOpacity={0.22}
+            stroke="var(--progress-accent-strong)"
+            fill="var(--progress-accent)"
+            fillOpacity={0.18}
             strokeWidth={2.45}
             isAnimationActive
             animationDuration={560}
@@ -135,7 +135,7 @@ export function SkillRadarChart({
 
       {!hasCurrent ? (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
-          <div className="rounded-full bg-white/92 px-4 py-2 text-sm font-medium text-ds-text-secondary shadow-[0_10px_30px_rgba(15,23,42,0.08)]">
+          <div className="rounded-full bg-[var(--ds-surface)]/92 px-4 py-2 text-sm font-medium text-ds-text-secondary shadow-[0_10px_30px_rgba(15,23,42,0.08)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.18)]">
             Карта заполнится после первых разобранных уроков
           </div>
         </div>

@@ -19,8 +19,10 @@ import {
   Volume2,
 } from "lucide-react"
 import type { LessonFeedItem, SkillMap } from "@/lib/lesson-analytics/server"
+import { placeholderImages } from "@/lib/placeholders"
 import { cn } from "@/lib/utils"
 import { SkillRadarChart } from "@/components/progress/skill-radar-chart"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -55,6 +57,7 @@ type PracticeItem = {
 type LessonMetrics = {
   masteryScore: number | null
   masteryDelta: number | null
+  speakingRatioValue: number | null
   speechLevel: string
   speechLevelHint: string
   vocabularySize: number
@@ -208,6 +211,17 @@ function formatSessionMeta(session: LessonFeedItem): string {
 function formatSpeakingRatio(value: number | null): string {
   if (value === null) return "—"
   return `${Math.round(value * 100)}%`
+}
+
+function initials(name: string | null | undefined, fallback: string): string {
+  const cleaned = (name ?? "").trim()
+  if (!cleaned) return fallback
+  return cleaned
+    .split(/\s+/)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
 }
 
 function formatDelta(value: number | null, suffix = ""): string {
@@ -403,11 +417,20 @@ function buildLessonMetrics(
   const vocabularySize = vocabularyItems.length > 0 ? vocabularyItems.length : transcriptVocabulary.size
   const previousVocabularySize =
     previousVocabularyItems.length > 0 ? previousVocabularyItems.length : previousTranscriptVocabulary.size
+  const totalMinutes =
+    studentMinutes !== null && teacherMinutes !== null ? studentMinutes + teacherMinutes : null
+  const speakingRatioValue =
+    session.speakingRatio !== null
+      ? clampRatio(session.speakingRatio)
+      : totalMinutes && totalMinutes > 0 && studentMinutes !== null
+        ? clampRatio(studentMinutes / totalMinutes)
+        : null
 
   return {
     masteryScore: session.averageScore,
     masteryDelta:
       session.averageScore !== null && previousAverage !== null ? session.averageScore - previousAverage : null,
+    speakingRatioValue,
     speechLevel: speechLevel.value,
     speechLevelHint: speechLevel.hint,
     vocabularySize,
@@ -423,9 +446,9 @@ function buildLessonMetrics(
 }
 
 function statusTone(session: LessonFeedItem): string {
-  if (session.status === "failed") return "border-black/[0.08] bg-[#fff3f5] text-[#a33f53]"
-  if (analyticsReady(session)) return "border-black/[0.08] bg-[var(--ds-neutral-row)] text-ds-ink"
-  return "border-black/[0.08] bg-[#fff7eb] text-[#935d15]"
+  if (session.status === "failed") return "border-0 bg-[color:rgb(168_85_85/0.12)] text-[#a85b5b] dark:text-[#f0b0b0]"
+  if (analyticsReady(session)) return "border-0 bg-[var(--ds-neutral-row)] text-ds-ink"
+  return "border-0 bg-[color:var(--progress-accent-soft)] text-[color:var(--progress-accent-strong)]"
 }
 
 function statusLabel(session: LessonFeedItem): string {
@@ -440,10 +463,10 @@ function TooltipHint({ text }: { text: string }) {
       <TooltipTrigger asChild>
         <button
           type="button"
-          className="inline-flex h-5 w-5 items-center justify-center rounded-full text-ds-text-tertiary transition-colors hover:text-ds-ink"
+          className="group inline-flex h-5 w-5 items-center justify-center rounded-full text-ds-text-tertiary transition-all duration-200 hover:-translate-y-0.5 hover:text-ds-ink"
           aria-label={text}
         >
-          <CircleHelp className="h-4 w-4" />
+          <CircleHelp className="h-4 w-4 transition-transform duration-200 group-hover:scale-105" />
         </button>
       </TooltipTrigger>
       <TooltipContent side="top" className="max-w-[240px]">
@@ -461,9 +484,9 @@ function DeltaBadge({ value, suffix = "" }: { value: number | null; suffix?: str
         value === null
           ? "bg-[var(--ds-neutral-row)] text-ds-text-tertiary"
           : value > 0
-            ? "bg-[#e5f6ec] text-[#2e8e53]"
+            ? "bg-[color:var(--progress-accent-surface)] text-[color:var(--progress-accent-strong)]"
             : value < 0
-              ? "bg-[#fff2de] text-[#a96a12]"
+              ? "bg-[color:rgb(250_235_214/0.9)] text-[#a96a12] dark:bg-[color:rgb(169_106_18/0.18)] dark:text-[#f0c27a]"
               : "bg-[var(--ds-neutral-row)] text-ds-text-tertiary"
       )}
     >
@@ -479,10 +502,10 @@ function RingChart({ value }: { value: number | null }) {
     <div
       className="relative h-20 w-20 rounded-full"
       style={{
-        background: `conic-gradient(#1f1f22 ${progress * 3.6}deg, rgba(0,0,0,0.08) ${progress * 3.6}deg)`,
+        background: `conic-gradient(var(--progress-accent-strong) ${progress * 3.6}deg, color-mix(in srgb, var(--ds-ink) 10%, transparent) ${progress * 3.6}deg)`,
       }}
     >
-      <div className="absolute inset-[9px] rounded-full bg-white" />
+      <div className="absolute inset-[9px] rounded-full bg-[var(--ds-surface)]" />
     </div>
   )
 }
@@ -497,8 +520,8 @@ function LevelBars({ value }: { value: number | null }) {
         <span
           key={bar}
           className={cn(
-            "w-3 rounded-full bg-black/[0.07] transition-all duration-300",
-            bar <= activeBars ? "bg-[#ea7ca6]" : ""
+            "w-3 rounded-full bg-black/[0.07] transition-all duration-300 dark:bg-white/10",
+            bar <= activeBars ? "bg-[color:var(--progress-accent-strong)]" : ""
           )}
           style={{ height: `${18 + bar * 8}px` }}
         />
@@ -513,12 +536,15 @@ function TrendLine({ up }: { up: boolean }) {
       <path
         d={up ? "M4 36 L54 24 L106 10" : "M4 14 L54 24 L106 36"}
         fill="none"
-        stroke="#1f1f22"
+        stroke="var(--progress-accent-strong)"
         strokeWidth="2.5"
         strokeLinecap="round"
       />
-      <circle cx="106" cy={up ? "10" : "36"} r="5.5" fill="#ffffff" stroke="#1f1f22" strokeWidth="2.5" />
-      <path d={up ? "M4 36 L54 24 L106 10 L106 48 L4 48 Z" : "M4 14 L54 24 L106 36 L106 48 L4 48 Z"} fill="#f7dbe9" />
+      <circle cx="106" cy={up ? "10" : "36"} r="5.5" fill="var(--ds-surface)" stroke="var(--progress-accent-strong)" strokeWidth="2.5" />
+      <path
+        d={up ? "M4 36 L54 24 L106 10 L106 48 L4 48 Z" : "M4 14 L54 24 L106 36 L106 48 L4 48 Z"}
+        fill="var(--progress-accent-soft)"
+      />
     </svg>
   )
 }
@@ -529,11 +555,11 @@ function Gauge({ value }: { value: number | null }) {
 
   return (
     <div className="relative h-16 w-28 overflow-hidden">
-      <div className="absolute inset-x-0 bottom-0 h-14 rounded-t-full border-[10px] border-b-0 border-black/[0.08]" />
+      <div className="absolute inset-x-0 bottom-0 h-14 rounded-t-full border-[10px] border-b-0 border-black/[0.08] dark:border-white/10" />
       <div
         className="absolute inset-x-0 bottom-0 h-14 rounded-t-full border-[10px] border-b-0 border-transparent"
         style={{
-          borderTopColor: "#79d7c2",
+          borderTopColor: "var(--progress-accent-strong)",
           transform: `rotate(${degrees - 180}deg)`,
           transformOrigin: "center bottom",
         }}
@@ -542,12 +568,45 @@ function Gauge({ value }: { value: number | null }) {
   )
 }
 
+function SpeakerLegend({
+  name,
+  avatarUrl,
+  fallbackLabel,
+  align = "start",
+}: {
+  name: string | null
+  avatarUrl: string | null
+  fallbackLabel: string
+  align?: "start" | "end"
+}) {
+  return (
+    <div className={cn("flex items-center gap-2.5", align === "end" ? "justify-end text-right" : "justify-start")}>
+      {align === "end" ? <span className="truncate text-[12px] font-medium text-ds-text-secondary">{name || fallbackLabel}</span> : null}
+      <Avatar className="h-8 w-8 ring-1 ring-black/[0.06] dark:ring-white/10">
+        <AvatarImage src={avatarUrl || undefined} alt={name || fallbackLabel} className="object-cover" />
+        <AvatarFallback className="bg-[var(--ds-neutral-row)] text-[11px] font-semibold text-ds-ink">
+          {initials(name, fallbackLabel.slice(0, 2).toUpperCase())}
+        </AvatarFallback>
+      </Avatar>
+      {align === "start" ? <span className="truncate text-[12px] font-medium text-ds-text-secondary">{name || fallbackLabel}</span> : null}
+    </div>
+  )
+}
+
 function SpeakingSplit({
   studentMinutes,
   teacherMinutes,
+  studentName,
+  teacherName,
+  studentAvatarUrl,
+  teacherAvatarUrl,
 }: {
   studentMinutes: number | null
   teacherMinutes: number | null
+  studentName: string | null
+  teacherName: string | null
+  studentAvatarUrl: string | null
+  teacherAvatarUrl: string | null
 }) {
   const student = studentMinutes ?? 0
   const teacher = teacherMinutes ?? 0
@@ -556,11 +615,24 @@ function SpeakingSplit({
   const teacherWidth = total > 0 ? `${(teacher / total) * 100}%` : "50%"
 
   return (
-    <div className="w-full max-w-[220px]">
-      <div className="h-4 overflow-hidden rounded-full bg-black/[0.07]">
+    <div className="w-full max-w-[240px]">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <SpeakerLegend
+          name={studentName}
+          avatarUrl={studentAvatarUrl || placeholderImages.studentAvatar}
+          fallbackLabel="Ученик"
+        />
+        <SpeakerLegend
+          name={teacherName}
+          avatarUrl={teacherAvatarUrl || placeholderImages.teacherAvatar}
+          fallbackLabel="Преподаватель"
+          align="end"
+        />
+      </div>
+      <div className="h-4 overflow-hidden rounded-full bg-black/[0.07] dark:bg-white/10">
         <div className="flex h-full">
-          <div className="bg-[#f08cb5]" style={{ width: studentWidth }} />
-          <div className="bg-[#b44574]" style={{ width: teacherWidth }} />
+          <div className="bg-[color:var(--progress-accent-strong)]" style={{ width: studentWidth }} />
+          <div className="bg-[color:var(--progress-accent-secondary)]" style={{ width: teacherWidth }} />
         </div>
       </div>
       <div className="mt-3 flex items-center justify-between text-[13px] text-ds-text-secondary">
@@ -587,19 +659,19 @@ function MetricCard({
   visual: ReactNode
 }) {
   return (
-    <article className="rounded-[30px] border border-black/[0.06] bg-white p-5 shadow-[0_12px_34px_rgba(15,23,42,0.04)] transition-transform duration-300 hover:-translate-y-0.5">
+    <article className="group rounded-[30px] border border-black/[0.06] bg-[var(--ds-surface)] p-5 shadow-[0_12px_34px_rgba(15,23,42,0.04)] transition-transform duration-300 hover:-translate-y-0.5 dark:border-white/10 dark:shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <p className="text-[16px] font-semibold text-ds-ink">{title}</p>
           <TooltipHint text={hint} />
         </div>
-        <ChevronRight className="mt-1 h-4 w-4 text-ds-text-tertiary" />
+        <ChevronRight className="mt-1 h-4 w-4 text-ds-text-tertiary transition-transform duration-200 group-hover:translate-x-0.5" />
       </div>
 
       <div className="mt-6 flex items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <p className="text-[44px] font-semibold leading-none text-ds-ink">{value}</p>
+            <p className="text-[38px] font-semibold leading-none text-ds-ink sm:text-[42px]">{value}</p>
             {delta}
           </div>
           <p className="mt-3 max-w-[15rem] text-[14px] leading-6 text-ds-text-secondary">{subtitle}</p>
@@ -611,14 +683,14 @@ function MetricCard({
 }
 
 function TranscriptTone({ speakerRole }: { speakerRole: LessonFeedItem["transcript"][number]["speakerRole"] }) {
-  if (speakerRole === "student") return <span className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-[#f4c65c]" />
-  if (speakerRole === "teacher") return <span className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-[#b9adeb]" />
+  if (speakerRole === "student") return <span className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-[color:var(--progress-accent-strong)]" />
+  if (speakerRole === "teacher") return <span className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-[color:var(--progress-accent-secondary)]" />
   return <span className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-black/18" />
 }
 
 function EmptyLessonInsights() {
   return (
-    <div className="rounded-[40px] border border-black/[0.06] bg-white/[0.95] p-8 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+    <div className="rounded-[40px] border border-black/[0.06] bg-[var(--ds-surface)]/95 p-8 shadow-[0_20px_60px_rgba(15,23,42,0.06)] dark:border-white/10 dark:shadow-[0_20px_60px_rgba(0,0,0,0.2)]">
       <h2 className="text-[28px] font-semibold text-ds-ink">Пока нет разборов уроков</h2>
       <p className="mt-3 max-w-[42rem] text-[15px] leading-7 text-ds-text-secondary">
         Когда после звонка появятся транскрипция и AI-разбор, здесь откроется история уроков с вкладками, графиками,
@@ -644,7 +716,7 @@ function LessonSelector({
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          className="h-auto min-h-[54px] max-w-full justify-between gap-3 rounded-[18px] border border-black/[0.08] bg-white px-4 py-3 shadow-none"
+          className="group h-auto min-h-[54px] max-w-full justify-between gap-3 rounded-[18px] border border-black/[0.08] bg-[var(--ds-surface)] px-4 py-3 shadow-none transition-transform duration-200 hover:-translate-y-0.5 dark:border-white/10"
         >
           <div className="min-w-0 text-left">
             <p className="truncate text-[16px] font-semibold text-ds-ink">{selectedSession.title}</p>
@@ -652,13 +724,13 @@ function LessonSelector({
               {formatSessionDateTime(selectedSession.endedAt ?? selectedSession.startedAt)}
             </p>
           </div>
-          <ChevronDown className="h-4 w-4 shrink-0 text-ds-text-tertiary" />
+          <ChevronDown className="h-4 w-4 shrink-0 text-ds-text-tertiary transition-transform duration-200 group-data-[state=open]:rotate-180" />
         </Button>
       </PopoverTrigger>
       <PopoverContent
         align="start"
         sideOffset={10}
-        className="w-[min(92vw,420px)] rounded-[26px] border border-black/[0.08] bg-white p-2 shadow-[0_30px_80px_rgba(15,23,42,0.18)]"
+        className="w-[min(92vw,420px)] rounded-[26px] border border-black/[0.08] bg-[var(--ds-surface)] p-2 shadow-[0_30px_80px_rgba(15,23,42,0.18)] dark:border-white/10 dark:shadow-[0_30px_80px_rgba(0,0,0,0.28)]"
       >
         <ScrollArea className="max-h-[420px] pr-2">
           <div className="space-y-1">
@@ -671,12 +743,12 @@ function LessonSelector({
                   type="button"
                   onClick={() => onSelect(session.sessionId)}
                   className={cn(
-                    "flex w-full items-start gap-4 rounded-[22px] px-4 py-4 text-left transition-colors",
+                    "group flex w-full items-start gap-4 rounded-[22px] px-4 py-4 text-left transition-colors",
                     selected ? "bg-[var(--ds-neutral-row)]" : "hover:bg-[var(--ds-neutral-row)]"
                   )}
                 >
-                  <div className="mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,#d9e8ff,#f7dbe9)]">
-                    <Sparkles className="h-5 w-5 text-ds-ink" />
+                  <div className="mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,var(--progress-accent-soft),var(--progress-accent-secondary-soft))]">
+                    <Sparkles className="h-5 w-5 text-[color:var(--progress-accent-strong)] transition-transform duration-200 group-hover:scale-105" />
                   </div>
                   <div className="min-w-0">
                     <p className="truncate text-[16px] font-semibold text-ds-ink">{session.title}</p>
@@ -707,7 +779,7 @@ function OverviewCard({
     <button
       type="button"
       onClick={onOpen}
-      className="group rounded-[30px] border border-black/[0.08] bg-white p-5 text-left shadow-[0_12px_36px_rgba(15,23,42,0.04)] transition-transform duration-300 hover:-translate-y-0.5"
+      className="group rounded-[30px] border border-black/[0.08] bg-[var(--ds-surface)] p-5 text-left shadow-[0_12px_36px_rgba(15,23,42,0.04)] transition-transform duration-300 hover:-translate-y-0.5 dark:border-white/10 dark:shadow-[0_14px_36px_rgba(0,0,0,0.22)]"
     >
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-[18px] font-semibold text-ds-ink">{title}</h3>
@@ -736,7 +808,7 @@ function TabLabel({
       <Tooltip>
         <TooltipTrigger asChild>
           <span className="inline-flex items-center justify-center">
-            <Icon className="h-4 w-4" />
+            <Icon className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:scale-105" />
           </span>
         </TooltipTrigger>
         <TooltipContent side="top">{label}</TooltipContent>
@@ -746,7 +818,7 @@ function TabLabel({
 
   return (
     <>
-      {Icon ? <Icon className="h-4 w-4" /> : null}
+      {Icon ? <Icon className="h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:scale-105" /> : null}
       <span>{label}</span>
     </>
   )
@@ -789,42 +861,42 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
       : previous ?? null
 
   return (
-    <section className="overflow-hidden rounded-[42px] border border-black/[0.06] bg-white shadow-[0_28px_90px_rgba(15,23,42,0.07)]">
-      <div className="border-b border-black/[0.06] bg-[linear-gradient(90deg,rgba(213,227,255,0.72),rgba(249,223,236,0.76))] px-5 py-4 sm:px-8">
+    <section className="overflow-hidden rounded-[42px] border border-black/[0.06] bg-[var(--ds-surface)] shadow-[0_28px_90px_rgba(15,23,42,0.07)] dark:border-white/10 dark:shadow-[0_28px_90px_rgba(0,0,0,0.24)]">
+      <div className="border-b border-black/[0.06] bg-[linear-gradient(90deg,var(--progress-accent-gradient-start),var(--progress-accent-gradient-end))] px-5 py-4 dark:border-white/10 sm:px-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5 text-sm font-semibold text-ds-ink">
-            <Sparkles className="h-4 w-4" />
+          <div className="inline-flex items-center gap-2 rounded-full bg-[var(--ds-surface)]/80 px-3 py-1.5 text-sm font-semibold text-ds-ink backdrop-blur-sm">
+            <Sparkles className="h-4 w-4 text-[color:var(--progress-accent-strong)] transition-transform duration-200 hover:scale-105" />
             Разбор урока
           </div>
           <Badge
             variant="outline"
-            className="rounded-full border-black/[0.08] bg-white/80 px-3 py-1.5 text-[12px] font-semibold text-ds-ink"
+            className="rounded-full border-0 bg-[var(--ds-surface)]/80 px-3 py-1.5 text-[12px] font-semibold text-ds-ink shadow-none backdrop-blur-sm"
           >
             ИИ-бета
           </Badge>
         </div>
       </div>
 
-      <div className="border-b border-black/[0.06] px-5 py-4 sm:px-8">
+      <div className="border-b border-black/[0.06] px-5 py-4 dark:border-white/10 sm:px-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <LessonSelector sessions={sessions} selectedSessionId={selectedSession.sessionId} onSelect={setSelectedSessionId} />
-          <Badge variant="outline" className={cn("rounded-full border px-3 py-1.5 text-[12px] font-semibold", statusTone(selectedSession))}>
+          <Badge variant="outline" className={cn("rounded-full px-3 py-1.5 text-[12px] font-semibold shadow-none", statusTone(selectedSession))}>
             {statusLabel(selectedSession)}
           </Badge>
         </div>
       </div>
 
       <div className="px-5 py-6 sm:px-8 sm:py-8">
-        <p className="text-[17px] leading-7 text-ds-text-secondary">{formatSessionMeta(selectedSession)}</p>
-        <h2 className="mt-3 text-[40px] font-bold leading-[0.98] text-ds-ink sm:text-[64px]">{selectedSession.title}</h2>
+        <p className="text-[15px] leading-7 text-ds-text-secondary sm:text-[16px]">{formatSessionMeta(selectedSession)}</p>
+        <h2 className="mt-3 text-[30px] font-bold leading-[1.04] text-ds-ink sm:text-[42px]">{selectedSession.title}</h2>
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as InsightTab)} className="mt-8 gap-0">
-          <TabsList className="flex h-auto w-full flex-wrap items-end gap-6 rounded-none border-b border-black/[0.08] bg-transparent p-0 text-left">
+          <TabsList className="flex h-auto w-full flex-wrap items-end gap-6 rounded-none border-b border-black/[0.08] bg-transparent p-0 text-left dark:border-white/10">
             {INSIGHT_TABS.map((tab) => (
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
-                className="h-auto rounded-none border-b-2 border-transparent bg-transparent px-0 pb-4 pt-0 text-[15px] font-semibold text-ds-text-secondary data-[state=active]:border-[#ea7ca6] data-[state=active]:bg-transparent data-[state=active]:text-ds-ink"
+                className="group !h-auto rounded-none !border-0 !border-b-2 !border-transparent !bg-transparent px-0 pb-4 pt-0 text-[15px] font-semibold text-ds-text-secondary shadow-none transition-[color,border-color,transform] duration-200 hover:text-ds-ink data-[state=active]:!border-[color:var(--progress-accent-strong)] data-[state=active]:!bg-transparent data-[state=active]:text-ds-ink"
               >
                 <TabLabel label={tab.label} icon={tab.icon} iconOnly={tab.iconOnly} />
               </TabsTrigger>
@@ -850,7 +922,7 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                 <OverviewCard title="Итог" onOpen={() => setActiveTab("recap")}>
                   <div className="space-y-3 rounded-[24px] bg-[var(--ds-neutral-row)] p-3">
                     {topics.slice(0, 3).map((topic, index) => (
-                      <div key={`${topic}-${index}`} className="flex items-start gap-3 rounded-[20px] bg-white px-4 py-3">
+                      <div key={`${topic}-${index}`} className="flex items-start gap-3 rounded-[20px] bg-[var(--ds-surface)] px-4 py-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--ds-neutral-row)] text-[16px] font-semibold text-ds-ink">
                           {index + 1}
                         </div>
@@ -862,23 +934,23 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
 
                 <OverviewCard title="Прогресс" onOpen={() => setActiveTab("progress")}>
                   <div className="rounded-[24px] bg-[var(--ds-neutral-row)] p-4">
-                    <div className="rounded-[20px] bg-white px-4 py-4">
+                    <div className="rounded-[20px] bg-[var(--ds-surface)] px-4 py-4">
                       <div className="flex items-center justify-between gap-3">
                         <p className="text-[15px] font-semibold text-ds-ink">Говорил ученик</p>
                         <span className="text-[15px] font-semibold text-ds-ink">
-                          {formatSpeakingRatio(selectedSession.speakingRatio)}
+                          {formatSpeakingRatio(metrics.speakingRatioValue)}
                         </span>
                       </div>
                       <div className="mt-4">
-                        <div className="h-4 overflow-hidden rounded-full bg-black/[0.07]">
+                        <div className="h-4 overflow-hidden rounded-full bg-black/[0.07] dark:bg-white/10">
                           <div className="flex h-full">
                             <div
-                              className="bg-[#f08cb5]"
-                              style={{ width: `${clampRatio(selectedSession.speakingRatio ?? 0.5) * 100}%` }}
+                              className="bg-[color:var(--progress-accent-strong)]"
+                              style={{ width: `${clampRatio(metrics.speakingRatioValue ?? 0.5) * 100}%` }}
                             />
                             <div
-                              className="bg-[#b44574]"
-                              style={{ width: `${100 - clampRatio(selectedSession.speakingRatio ?? 0.5) * 100}%` }}
+                              className="bg-[color:var(--progress-accent-secondary)]"
+                              style={{ width: `${100 - clampRatio(metrics.speakingRatioValue ?? 0.5) * 100}%` }}
                             />
                           </div>
                         </div>
@@ -894,12 +966,12 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                 <OverviewCard title="Разбор" onOpen={() => setActiveTab("feedback")}>
                   <div className="space-y-3">
                     {feedback.strengths[0] ? (
-                      <div className="rounded-[20px] bg-[#f3fbf6] px-4 py-3 text-[14px] leading-6 text-[#27553b]">
+                      <div className="rounded-[20px] bg-[var(--progress-accent-surface)] px-4 py-3 text-[14px] leading-6 text-[color:var(--progress-accent-strong)]">
                         {feedback.strengths[0]}
                       </div>
                     ) : null}
                     {feedback.mistakes[0] ? (
-                      <div className="rounded-[20px] bg-[#fff8eb] px-4 py-3 text-[14px] leading-6 text-[#825617]">
+                      <div className="rounded-[20px] bg-[color:rgb(250_235_214/0.9)] px-4 py-3 text-[14px] leading-6 text-[#825617] dark:bg-[color:rgb(130_86_23/0.16)] dark:text-[#f0c27a]">
                         {feedback.mistakes[0].original} → {feedback.mistakes[0].correction}
                       </div>
                     ) : null}
@@ -911,7 +983,7 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                     {vocabularyItems.slice(0, 8).map((item) => (
                       <span
                         key={item.id}
-                        className="rounded-[14px] bg-white px-3 py-2 text-[14px] font-medium text-ds-ink"
+                        className="rounded-[14px] bg-[var(--ds-surface)] px-3 py-2 text-[14px] font-medium text-ds-ink"
                       >
                         {item.phrase}
                       </span>
@@ -966,16 +1038,16 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
 
               <section>
                 <h3 className="text-[22px] font-semibold text-ds-ink">Ключевые выводы</h3>
-                <Accordion type="single" collapsible className="mt-5 rounded-[28px] border border-black/[0.08] bg-white">
+                <Accordion type="single" collapsible className="mt-5 rounded-[28px] border border-black/[0.08] bg-[var(--ds-surface)] dark:border-white/10">
                   {[...feedback.strengths.slice(0, 2), ...selectedSession.recommendations.slice(0, 2)].map((item, index) => (
-                    <AccordionItem key={`${item}-${index}`} value={`learning-${index}`} className="px-5">
-                      <AccordionTrigger className="py-5 text-[16px] font-semibold text-ds-ink hover:no-underline">
-                        <span className="flex items-center gap-4">
-                          <span className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#d9e8ff,#f7dbe9)]">
-                            <BookOpen className="h-5 w-5 text-ds-ink" />
+                      <AccordionItem key={`${item}-${index}`} value={`learning-${index}`} className="px-5">
+                        <AccordionTrigger className="py-5 text-[16px] font-semibold text-ds-ink hover:no-underline">
+                          <span className="flex items-center gap-4">
+                            <span className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,var(--progress-accent-soft),var(--progress-accent-secondary-soft))]">
+                              <BookOpen className="h-5 w-5 text-[color:var(--progress-accent-strong)] transition-transform duration-200 group-hover:scale-105" />
+                            </span>
+                            <span>{item}</span>
                           </span>
-                          <span>{item}</span>
-                        </span>
                       </AccordionTrigger>
                       <AccordionContent className="pl-16 pr-4 text-[14px] leading-7 text-ds-text-secondary">
                         Это одна из мыслей, к которой стоит вернуться перед следующим уроком и в самостоятельной практике.
@@ -999,12 +1071,16 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                   <ScrollArea className="mt-5 h-[420px] rounded-[28px] bg-[var(--ds-neutral-row)] p-4">
                     <div className="space-y-3 pr-3">
                       {selectedSession.transcript.map((segment) => (
-                        <article key={`${segment.sequence}-${segment.startedAtSec ?? "na"}`} className="rounded-[22px] bg-white px-4 py-4">
+                        <article key={`${segment.sequence}-${segment.startedAtSec ?? "na"}`} className="rounded-[22px] bg-[var(--ds-surface)] px-4 py-4">
                           <div className="flex items-start gap-3">
                             <TranscriptTone speakerRole={segment.speakerRole} />
                             <div className="min-w-0">
-                              <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-ds-text-tertiary">
-                                {segment.speakerLabel?.trim() || segment.speakerRole}
+                              <p className="text-[13px] font-medium text-ds-text-tertiary">
+                                {segment.speakerRole === "student"
+                                  ? selectedSession.studentName || segment.speakerLabel?.trim() || "Ученик"
+                                  : segment.speakerRole === "teacher"
+                                    ? selectedSession.teacherName || segment.speakerLabel?.trim() || "Преподаватель"
+                                    : segment.speakerLabel?.trim() || "Система"}
                                 {segment.startedAtSec !== null ? ` · ${segment.startedAtSec.toFixed(1)}с` : ""}
                               </p>
                               <p className="mt-2 text-[15px] leading-7 text-ds-ink">{segment.text}</p>
@@ -1061,10 +1137,19 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                 <MetricCard
                   title="Время речи"
                   hint="Как распределилось время разговора между учеником и преподавателем."
-                  value={formatSpeakingRatio(selectedSession.speakingRatio)}
+                  value={formatSpeakingRatio(metrics.speakingRatioValue)}
                   subtitle="Баланс живой беседы внутри урока."
-                  delta={<DeltaBadge value={selectedSession.speakingRatio !== null ? Math.round((selectedSession.speakingRatio - 0.5) * 100) : null} suffix="%" />}
-                  visual={<SpeakingSplit studentMinutes={metrics.studentMinutes} teacherMinutes={metrics.teacherMinutes} />}
+                  delta={<DeltaBadge value={metrics.speakingRatioValue !== null ? Math.round((metrics.speakingRatioValue - 0.5) * 100) : null} suffix="%" />}
+                  visual={
+                    <SpeakingSplit
+                      studentMinutes={metrics.studentMinutes}
+                      teacherMinutes={metrics.teacherMinutes}
+                      studentName={selectedSession.studentName}
+                      teacherName={selectedSession.teacherName}
+                      studentAvatarUrl={selectedSession.studentAvatarUrl}
+                      teacherAvatarUrl={selectedSession.teacherAvatarUrl}
+                    />
+                  }
                 />
                 <MetricCard
                   title="Длина реплики"
@@ -1090,18 +1175,18 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
 
                     <div className="mt-5 space-y-3">
                       <div className="flex items-center gap-3 text-[14px] text-ds-text-secondary">
-                        <span className="inline-flex h-4 w-4 rounded-full bg-[#f5d783]" />
+                        <span className="inline-flex h-4 w-4 rounded-full bg-[color:var(--progress-accent-strong)]" />
                         <span>Текущее состояние после урока</span>
                       </div>
                       <div className="flex items-center gap-3 text-[14px] text-ds-text-secondary">
-                        <span className="inline-flex h-4 w-4 rounded-full bg-[#c8bff3]" />
+                        <span className="inline-flex h-4 w-4 rounded-full bg-[color:var(--progress-accent-secondary)]" />
                         <span>Предыдущий сопоставимый урок</span>
                       </div>
                     </div>
 
                     <div className="mt-6 grid gap-3 sm:grid-cols-2">
                       {SKILL_LABELS.map((axis) => (
-                        <div key={axis.key} className="rounded-[22px] bg-white px-4 py-3">
+                        <div key={axis.key} className="rounded-[22px] bg-[var(--ds-surface)] px-4 py-3">
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-[14px] font-semibold text-ds-ink">{axis.label}</p>
                             <span className="text-[14px] font-semibold text-ds-ink">{selectedSkillMap[axis.key]}</span>
@@ -1114,7 +1199,7 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                     </div>
                   </div>
 
-                  <div className="rounded-[30px] bg-white p-3 sm:p-5">
+                  <div className="rounded-[30px] bg-[var(--ds-surface)] p-3 sm:p-5">
                     <SkillRadarChart current={selectedSkillMap} previous={previousSkillMap} mode="panel" />
                   </div>
                 </div>
@@ -1129,9 +1214,9 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                 <div className="mt-5 space-y-4">
                   {feedback.strengths.length > 0 ? (
                     feedback.strengths.map((item, index) => (
-                      <article key={`${item}-${index}`} className="rounded-[28px] border border-black/[0.06] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.04)]">
-                        <div className="flex items-center gap-3 text-[14px] text-[#2d9150]">
-                          <Sparkles className="h-4 w-4" />
+                      <article key={`${item}-${index}`} className="rounded-[28px] border border-black/[0.06] bg-[var(--ds-surface)] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.04)] dark:border-white/10 dark:shadow-[0_12px_30px_rgba(0,0,0,0.2)]">
+                        <div className="flex items-center gap-3 text-[14px] text-[color:var(--progress-accent-strong)]">
+                          <Sparkles className="h-4 w-4 transition-transform duration-200 hover:scale-105" />
                           <span>Сильная сторона</span>
                         </div>
                         <p className="mt-4 text-[17px] leading-8 text-ds-ink">{item}</p>
@@ -1150,11 +1235,11 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                 <div className="mt-5 space-y-4">
                   {feedback.mistakes.length > 0 ? (
                     feedback.mistakes.map((mistake, index) => (
-                      <article key={`${mistake.original}-${index}`} className="rounded-[28px] border border-black/[0.06] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.04)]">
-                        <div className="flex flex-wrap items-center gap-2 text-[14px] text-[#a26a15]">
+                      <article key={`${mistake.original}-${index}`} className="rounded-[28px] border border-black/[0.06] bg-[var(--ds-surface)] p-5 shadow-[0_12px_30px_rgba(15,23,42,0.04)] dark:border-white/10 dark:shadow-[0_12px_30px_rgba(0,0,0,0.2)]">
+                        <div className="flex flex-wrap items-center gap-2 text-[14px] text-[#a26a15] dark:text-[#f0c27a]">
                           <CircleAlert className="h-4 w-4" />
                           <span>{mistake.type}</span>
-                          <Badge variant="outline" className="border-black/[0.08] bg-[var(--ds-neutral-row)] text-ds-ink">
+                          <Badge variant="outline" className="border-0 bg-[var(--ds-neutral-row)] text-ds-ink shadow-none">
                             HSK {mistake.hsk_level}
                           </Badge>
                         </div>
@@ -1181,7 +1266,7 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                 <div className="mt-5 grid gap-4 lg:grid-cols-2">
                   {selectedSession.recommendations.length > 0 ? (
                     selectedSession.recommendations.map((item, index) => (
-                      <div key={`${item}-${index}`} className="rounded-[24px] bg-[#f3f7ff] px-5 py-4 text-[15px] leading-7 text-[#2d4d8c]">
+                      <div key={`${item}-${index}`} className="rounded-[24px] bg-[var(--progress-accent-secondary-soft)] px-5 py-4 text-[15px] leading-7 text-[color:var(--progress-accent-strong)]">
                         {item}
                       </div>
                     ))
@@ -1200,8 +1285,8 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
               <section className="rounded-[30px] bg-[var(--ds-neutral-row)] px-5 py-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-start gap-4">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#d9e8ff,#f7dbe9)]">
-                      <Languages className="h-6 w-6 text-ds-ink" />
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,var(--progress-accent-soft),var(--progress-accent-secondary-soft))]">
+                      <Languages className="h-6 w-6 text-[color:var(--progress-accent-strong)] transition-transform duration-200 hover:scale-105" />
                     </div>
                     <div>
                       <h3 className="text-[22px] font-semibold text-ds-ink">Лексика урока</h3>
@@ -1210,7 +1295,7 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                       </p>
                     </div>
                   </div>
-                  <Button variant="outline" className="rounded-full border-black px-5">
+                  <Button variant="outline" className="rounded-full border-black px-5 dark:border-white/10">
                     <Bookmark className="h-4 w-4" />
                     Сохранить все ({vocabularyItems.length})
                   </Button>
@@ -1218,19 +1303,19 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
               </section>
 
               {vocabularyItems.length > 0 ? (
-                <Accordion type="single" collapsible className="rounded-[30px] border border-black/[0.08] bg-white">
+                <Accordion type="single" collapsible className="rounded-[30px] border border-black/[0.08] bg-[var(--ds-surface)] dark:border-white/10">
                   {vocabularyItems.map((item) => (
                     <AccordionItem key={item.id} value={item.id} className="px-5">
                       <AccordionTrigger className="py-5 hover:no-underline">
                         <div className="flex min-w-0 items-center gap-4">
-                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border border-black/[0.06] bg-white">
-                            <Volume2 className="h-5 w-5 text-[#4c7fe6]" />
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border border-black/[0.06] bg-[var(--ds-surface)] dark:border-white/10">
+                            <Volume2 className="h-5 w-5 text-[color:var(--progress-accent-strong)] transition-transform duration-200 group-hover:scale-105" />
                           </div>
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-3">
                               <span className="truncate text-[17px] font-semibold text-ds-ink">{item.phrase}</span>
                               {item.hskLevel ? (
-                                <Badge variant="outline" className="border-black/[0.08] bg-[var(--ds-neutral-row)] text-ds-ink">
+                                <Badge variant="outline" className="border-0 bg-[var(--ds-neutral-row)] text-ds-ink shadow-none">
                                   HSK {item.hskLevel}
                                 </Badge>
                               ) : null}
@@ -1268,7 +1353,7 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
               <div className="grid gap-4 xl:grid-cols-2">
                 {practiceItems.length > 0 ? (
                   practiceItems.map((item, index) => (
-                    <article key={item.id} className="rounded-[30px] border border-black/[0.06] bg-white p-5 shadow-[0_12px_36px_rgba(15,23,42,0.04)]">
+                    <article key={item.id} className="rounded-[30px] border border-black/[0.06] bg-[var(--ds-surface)] p-5 shadow-[0_12px_36px_rgba(15,23,42,0.04)] dark:border-white/10 dark:shadow-[0_12px_36px_rgba(0,0,0,0.22)]">
                       <div className="flex items-start gap-4">
                         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--ds-neutral-row)] text-[18px] font-semibold text-ds-ink">
                           {index + 1}
@@ -1280,7 +1365,7 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                             <div className="mt-4 space-y-2">
                               {item.bullets.map((bullet) => (
                                 <div key={bullet} className="flex items-start gap-3 text-[14px] leading-6 text-ds-text-secondary">
-                                  <CheckCheck className="mt-1 h-4 w-4 shrink-0 text-ds-text-tertiary" />
+                                  <CheckCheck className="mt-1 h-4 w-4 shrink-0 text-[color:var(--progress-accent-strong)] transition-transform duration-200 hover:scale-105" />
                                   <p>{bullet}</p>
                                 </div>
                               ))}
@@ -1305,12 +1390,16 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                 {previewSegments.length > 0 ? (
                   <div className="mt-4 space-y-3">
                     {previewSegments.map((segment) => (
-                      <div key={`${segment.sequence}-${segment.text}`} className="rounded-[22px] bg-white px-4 py-4">
+                      <div key={`${segment.sequence}-${segment.text}`} className="rounded-[22px] bg-[var(--ds-surface)] px-4 py-4">
                         <div className="flex items-start gap-3">
                           <TranscriptTone speakerRole={segment.speakerRole} />
                           <div>
-                            <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-ds-text-tertiary">
-                              {segment.speakerLabel?.trim() || segment.speakerRole}
+                            <p className="text-[13px] font-medium text-ds-text-tertiary">
+                              {segment.speakerRole === "student"
+                                ? selectedSession.studentName || segment.speakerLabel?.trim() || "Ученик"
+                                : segment.speakerRole === "teacher"
+                                  ? selectedSession.teacherName || segment.speakerLabel?.trim() || "Преподаватель"
+                                  : segment.speakerLabel?.trim() || "Система"}
                             </p>
                             <p className="mt-2 text-[15px] leading-7 text-ds-ink">{segment.text}</p>
                           </div>

@@ -36,6 +36,7 @@ export default async function StudentProgressPage() {
     <ProgressOverview
       title="Моя успеваемость"
       subtitle="Здесь собирается история разборов после звонков: карта навыков, сильные стороны, рекомендации, ошибки и полные транскрипции по каждому уроку."
+      accent={overview.studentAccent}
       current={overview.skillMap}
       previous={overview.previousSkillMap}
       sessions={overview.sessions}

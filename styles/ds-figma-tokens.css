@@ -849,6 +849,99 @@ html.dark[data-ui-accent="orange"] {
   --ds-group-card-bg-dark: color-mix(in srgb, var(--ds-sage) 48%, #1e1e1e);
 }
 
+[data-progress-accent] {
+  --progress-accent: #8ab84a;
+  --progress-accent-strong: #6d9838;
+  --progress-accent-soft: #dff0c4;
+  --progress-accent-surface: #f3f8ec;
+  --progress-accent-secondary: #90a97a;
+  --progress-accent-secondary-soft: #edf2e7;
+  --progress-accent-gradient-start: #edf5e3;
+  --progress-accent-gradient-end: #f7f9f2;
+  --progress-grid: rgb(0 0 0 / 0.07);
+}
+
+html:not(.dark) [data-progress-accent="pink"] {
+  --progress-accent: #c06060;
+  --progress-accent-strong: #a84848;
+  --progress-accent-soft: #f1dddd;
+  --progress-accent-surface: #f8eeee;
+  --progress-accent-secondary: #b6888d;
+  --progress-accent-secondary-soft: #f3e8ea;
+  --progress-accent-gradient-start: #f7ecec;
+  --progress-accent-gradient-end: #faf6f6;
+}
+
+html:not(.dark) [data-progress-accent="blue"] {
+  --progress-accent: #3d6ea8;
+  --progress-accent-strong: #2f5685;
+  --progress-accent-soft: #dbe7f6;
+  --progress-accent-surface: #ecf3fb;
+  --progress-accent-secondary: #7691b7;
+  --progress-accent-secondary-soft: #e7eef8;
+  --progress-accent-gradient-start: #ebf2fb;
+  --progress-accent-gradient-end: #f7f9fc;
+}
+
+html:not(.dark) [data-progress-accent="orange"] {
+  --progress-accent: #c0631a;
+  --progress-accent-strong: #9e4f14;
+  --progress-accent-soft: #f7e6d5;
+  --progress-accent-surface: #fbf1e7;
+  --progress-accent-secondary: #b68857;
+  --progress-accent-secondary-soft: #f4ece3;
+  --progress-accent-gradient-start: #faf0e4;
+  --progress-accent-gradient-end: #fbf7f2;
+}
+
+html.dark [data-progress-accent="sage"] {
+  --progress-accent: #a3c968;
+  --progress-accent-strong: #c4e085;
+  --progress-accent-soft: rgb(163 201 104 / 0.18);
+  --progress-accent-surface: #1b2417;
+  --progress-accent-secondary: #7f9d61;
+  --progress-accent-secondary-soft: #171d15;
+  --progress-accent-gradient-start: #182015;
+  --progress-accent-gradient-end: #141814;
+  --progress-grid: rgb(255 255 255 / 0.08);
+}
+
+html.dark [data-progress-accent="pink"] {
+  --progress-accent: #e88787;
+  --progress-accent-strong: #f0a8a8;
+  --progress-accent-soft: rgb(232 135 135 / 0.16);
+  --progress-accent-surface: #24191b;
+  --progress-accent-secondary: #b17b83;
+  --progress-accent-secondary-soft: #1d1517;
+  --progress-accent-gradient-start: #211618;
+  --progress-accent-gradient-end: #171314;
+  --progress-grid: rgb(255 255 255 / 0.08);
+}
+
+html.dark [data-progress-accent="blue"] {
+  --progress-accent: #7eb0e8;
+  --progress-accent-strong: #9ec8f5;
+  --progress-accent-soft: rgb(126 176 232 / 0.16);
+  --progress-accent-surface: #151f2c;
+  --progress-accent-secondary: #6f8caf;
+  --progress-accent-secondary-soft: #131a23;
+  --progress-accent-gradient-start: #141c28;
+  --progress-accent-gradient-end: #11161c;
+  --progress-grid: rgb(255 255 255 / 0.08);
+}
+
+html.dark [data-progress-accent="orange"] {
+  --progress-accent: #e8994a;
+  --progress-accent-strong: #f0b06a;
+  --progress-accent-soft: rgb(232 153 74 / 0.16);
+  --progress-accent-surface: #241c13;
+  --progress-accent-secondary: #b38859;
+  --progress-accent-secondary-soft: #1d1712;
+  --progress-accent-gradient-start: #22180f;
+  --progress-accent-gradient-end: #181411;
+  --progress-grid: rgb(255 255 255 / 0.08);
+}
+
 /**
  * Редактор урока: нейтральные «шейпы» и hover, без тона data-ui-accent.
  * В :root --muted/--accent привязаны к --ds-sidebar (sage → зеленоватый фон при hover:bg-muted и т.п.).
