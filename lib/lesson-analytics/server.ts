@@ -159,14 +159,21 @@ type StudentMasteryRow = {
 type ProgressSessionRow = {
   id: string
   lesson_id: string | null
+  student_id: string | null
   teacher_id: string | null
   started_at: string | null
   ended_at: string | null
   status: SessionRow["status"]
   context: Record<string, unknown> | null
   lessons: Array<{ title: string | null }> | null
-  student_profile: Array<{ full_name: string | null; avatar_url: string | null }> | null
-  teacher_profile: Array<{ full_name: string | null; avatar_url: string | null }> | null
+  student_profile:
+    | { full_name: string | null; avatar_url: string | null }
+    | Array<{ full_name: string | null; avatar_url: string | null }>
+    | null
+  teacher_profile:
+    | { full_name: string | null; avatar_url: string | null }
+    | Array<{ full_name: string | null; avatar_url: string | null }>
+    | null
 }
 
 type ProgressTranscriptRow = {
@@ -288,6 +295,17 @@ function transcriptDisplayName(
   }
 
   return null
+}
+
+function resolveEmbeddedProfile(
+  value:
+    | { full_name: string | null; avatar_url?: string | null }
+    | Array<{ full_name: string | null; avatar_url?: string | null }>
+    | null
+    | undefined
+): { full_name: string | null; avatar_url?: string | null } | null {
+  if (!value) return null
+  return Array.isArray(value) ? value[0] ?? null : value
 }
 
 function asStringArray(value: unknown): string[] {
@@ -963,7 +981,7 @@ export async function getStudentProgressOverview(args: {
       args.adminSupabase
         .from("lesson_sessions")
         .select(
-          "id, lesson_id, teacher_id, started_at, ended_at, status, context, lessons(title), student_profile:profiles!lesson_sessions_student_id_fkey(full_name, avatar_url), teacher_profile:profiles!lesson_sessions_teacher_id_fkey(full_name, avatar_url)"
+          "id, lesson_id, student_id, teacher_id, started_at, ended_at, status, context, lessons(title), student_profile:profiles!lesson_sessions_student_id_fkey(full_name, avatar_url), teacher_profile:profiles!lesson_sessions_teacher_id_fkey(full_name, avatar_url)"
         )
         .eq("student_id", args.studentId)
         .order("ended_at", { ascending: false, nullsFirst: false })
@@ -1009,6 +1027,20 @@ export async function getStudentProgressOverview(args: {
   if (analyticsError) throw new Error(analyticsError.message)
   if (transcriptError) throw new Error(transcriptError.message)
 
+  const teacherIds = [...new Set(sessionRows.map((session) => session.teacher_id).filter((value): value is string => Boolean(value)))]
+  const { data: teacherProfilesData, error: teacherProfilesError } = teacherIds.length
+    ? await args.adminSupabase
+        .from("profiles")
+        .select("id, full_name, avatar_url")
+        .in("id", teacherIds)
+    : { data: [], error: null as { message?: string } | null }
+
+  if (teacherProfilesError) throw new Error(teacherProfilesError.message)
+
+  const teacherProfilesById = new Map(
+    ((teacherProfilesData ?? []) as Array<{ id: string; full_name: string | null; avatar_url: string | null }>).map((row) => [row.id, row])
+  )
+
   const analyticsBySessionId = new Map(
     ((analyticsData ?? []) as AnalyticsRow[]).map((row) => [row.session_id, row])
   )
@@ -1030,24 +1062,28 @@ export async function getStudentProgressOverview(args: {
   const sessions = sessionRows.map<LessonFeedItem>((session) => {
     const analytics = analyticsBySessionId.get(session.id)
     const transcript = transcriptsBySessionId.get(session.id) ?? []
+    const relatedTeacherProfile = session.teacher_id ? teacherProfilesById.get(session.teacher_id) : null
+    const embeddedStudentProfile = resolveEmbeddedProfile(session.student_profile)
+    const embeddedTeacherProfile = resolveEmbeddedProfile(session.teacher_profile)
     const grammarScore = analytics?.grammar_score ?? null
     const vocabularyScore = analytics?.vocabulary_score ?? null
     const fluencyScore = analytics?.fluency_score ?? null
     const studentName =
-      session.student_profile?.[0]?.full_name?.trim() ||
+      embeddedStudentProfile?.full_name?.trim() ||
       profile?.full_name?.trim() ||
       contextDisplayName(session.context, ["student_name", "studentName", "student_full_name", "studentFullName"]) ||
       transcriptDisplayName(transcript, "student") ||
       null
     const teacherName =
-      session.teacher_profile?.[0]?.full_name?.trim() ||
+      embeddedTeacherProfile?.full_name?.trim() ||
+      relatedTeacherProfile?.full_name?.trim() ||
       contextDisplayName(session.context, ["teacher_name", "teacherName", "teacher_full_name", "teacherFullName"]) ||
       transcriptDisplayName(transcript, "teacher") ||
       null
     const studentAvatarUrl =
-      normalizeAvatarUrl(args.adminSupabase, session.student_profile?.[0]?.avatar_url ?? profile?.avatar_url) ?? null
+      normalizeAvatarUrl(args.adminSupabase, embeddedStudentProfile?.avatar_url ?? profile?.avatar_url) ?? null
     const teacherAvatarUrl =
-      normalizeAvatarUrl(args.adminSupabase, session.teacher_profile?.[0]?.avatar_url) ??
+      normalizeAvatarUrl(args.adminSupabase, embeddedTeacherProfile?.avatar_url ?? relatedTeacherProfile?.avatar_url) ??
       fallbackTeacherAvatarByName(teacherName)
 
     return {

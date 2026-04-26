@@ -23,7 +23,6 @@ import {
 import type { LessonFeedItem, SkillMap } from "@/lib/lesson-analytics/server"
 import { placeholderImages } from "@/lib/placeholders"
 import { cn } from "@/lib/utils"
-import { SkillRadarChart } from "@/components/progress/skill-radar-chart"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
@@ -108,13 +107,8 @@ type MetricHistoryPoint = {
   sentenceLength: number | null
 }
 
-type ProgressTooltipEntry = {
-  dataKey?: string | number
-  name?: string | number
-  value?: number | string | null
-  color?: string
-  payload?: MetricHistoryPoint
-}
+type ChartTooltipPayload = Array<{ payload?: MetricHistoryPoint }>
+type ChartTooltipValue = string | number | Array<string | number> | null | undefined
 
 const SKILL_AXES = {
   speaking: ["speaking", "pronunciation", "tones", "fluency"],
@@ -157,6 +151,10 @@ function analyticsReady(session: LessonFeedItem): boolean {
     session.topicsPracticed.length > 0 ||
     session.averageScore !== null
   )
+}
+
+function hasVisibleProgress(session: LessonFeedItem): boolean {
+  return analyticsReady(session) || session.transcript.length > 0 || session.speakingRatio !== null
 }
 
 function clampInt(value: number, min: number, max: number): number {
@@ -405,6 +403,11 @@ function formatPlainMetricValue(dataKey: string, value: number | string | null |
   }
 }
 
+function normalizeChartTooltipValue(value: ChartTooltipValue): string | number | null | undefined {
+  if (Array.isArray(value)) return value[0] ?? null
+  return value
+}
+
 function metricSeriesLabel(dataKey: string): string {
   switch (dataKey) {
     case "masteryScore":
@@ -422,46 +425,6 @@ function metricSeriesLabel(dataKey: string): string {
     default:
       return dataKey
   }
-}
-
-function ProgressChartTooltip({
-  active,
-  payload,
-}: {
-  active?: boolean
-  payload?: ProgressTooltipEntry[]
-}) {
-  if (!active || !payload?.length) return null
-
-  const validPayload = payload.filter((entry) => entry.value !== null && entry.value !== undefined)
-  if (!validPayload.length) return null
-
-  const dateLabel = validPayload[0]?.payload?.fullDate ?? "Дата уточняется"
-
-  return (
-    <div className="min-w-[180px] rounded-[18px] border border-black/[0.08] bg-[var(--ds-surface)] px-4 py-3 shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-white/10 dark:shadow-[0_18px_40px_rgba(0,0,0,0.32)]">
-      <p className="text-[13px] font-medium text-ds-text-tertiary">{dateLabel}</p>
-      <div className="mt-3 space-y-2">
-        {validPayload.map((entry) => {
-          const dataKey = String(entry.dataKey ?? entry.name ?? "")
-          return (
-            <div key={dataKey} className="flex items-center justify-between gap-4">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span
-                  className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: entry.color ?? "var(--progress-accent-strong)" }}
-                />
-                <span className="truncate text-[13px] text-ds-text-secondary">{metricSeriesLabel(dataKey)}</span>
-              </div>
-              <span className="shrink-0 text-[13px] font-semibold text-ds-ink">
-                {formatPlainMetricValue(dataKey, entry.value)}
-              </span>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
 }
 
 function initials(name: string | null | undefined, fallback: string): string {
@@ -708,12 +671,18 @@ function buildLessonMetrics(
 function statusTone(session: LessonFeedItem): string {
   if (session.status === "failed") return "border-0 bg-[color:rgb(168_85_85/0.12)] text-[#a85b5b] dark:text-[#f0b0b0]"
   if (analyticsReady(session)) return "border-0 bg-[var(--ds-neutral-row)] text-ds-ink"
+  if (hasVisibleProgress(session)) return "border-0 bg-[var(--ds-neutral-row)] text-ds-ink"
+  if (session.status === "done" || session.status === "awaiting_artifacts") {
+    return "border-0 bg-[color:rgb(250_235_214/0.9)] text-[#825617] dark:bg-[color:rgb(130_86_23/0.16)] dark:text-[#f0c27a]"
+  }
   return "border-0 bg-[color:var(--progress-accent-soft)] text-[color:var(--progress-accent-strong)]"
 }
 
 function statusLabel(session: LessonFeedItem): string {
   if (session.status === "failed") return "Разбор не завершён"
   if (analyticsReady(session)) return "Отчёт готов"
+  if (hasVisibleProgress(session)) return "Черновик готов"
+  if (session.status === "done" || session.status === "awaiting_artifacts") return "Ждём данные урока"
   return "Анализ готовится..."
 }
 
@@ -729,11 +698,44 @@ function TooltipHint({ text }: { text: string }) {
           <CircleHelp className="h-4 w-4 transition-transform duration-200 group-hover:scale-105" />
         </button>
       </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-[240px]">
+      <TooltipContent
+        side="top"
+        className="max-w-[240px] rounded-[16px] border border-black/[0.08] bg-[var(--ds-surface)] px-3 py-2 text-[13px] leading-6 text-ds-ink shadow-[0_18px_40px_rgba(15,23,42,0.16)] dark:border-white/10 dark:bg-[#171717] dark:text-white dark:shadow-[0_18px_40px_rgba(0,0,0,0.35)]"
+      >
         {text}
       </TooltipContent>
     </Tooltip>
   )
+}
+
+function chartTooltipLabel(label: string | number | undefined, payload: ChartTooltipPayload | undefined): string {
+  return payload?.[0]?.payload?.fullDate ?? (typeof label === "string" && label.trim() ? label : "Дата уточняется")
+}
+
+function chartTooltipValue(value: ChartTooltipValue, name: string | number): [string, string] {
+  const dataKey = String(name)
+  return [formatPlainMetricValue(dataKey, normalizeChartTooltipValue(value)), metricSeriesLabel(dataKey)]
+}
+
+const chartTooltipContentStyle = {
+  borderRadius: "18px",
+  border: "1px solid color-mix(in srgb, var(--ds-ink) 8%, transparent)",
+  backgroundColor: "var(--ds-surface)",
+  boxShadow: "0 18px 40px rgba(15, 23, 42, 0.14)",
+  padding: "12px 16px",
+}
+
+const chartTooltipLabelStyle = {
+  color: "var(--ds-text-tertiary)",
+  fontSize: "13px",
+  fontWeight: 500,
+  marginBottom: "8px",
+}
+
+const chartTooltipItemStyle = {
+  color: "var(--ds-ink)",
+  fontSize: "13px",
+  fontWeight: 600,
 }
 
 function DeltaBadge({ value, suffix = "" }: { value: number | null; suffix?: string }) {
@@ -841,23 +843,25 @@ function SpeakerLegend({
   align?: "start" | "end"
   compact?: boolean
 }) {
+  const resolvedName = name || fallbackLabel
+
   return (
     <div className={cn("flex min-w-0 items-center gap-2.5", align === "end" ? "justify-end text-right" : "justify-start")}>
       {align === "end" ? (
-        <div className="min-w-0">
-          <p className={cn("truncate font-medium text-ds-ink", compact ? "text-[13px]" : "text-[12px]")}>{name || fallbackLabel}</p>
+        <div className="min-w-0 flex-1">
+          <p className={cn("truncate font-medium text-ds-ink", compact ? "text-[11px] leading-4" : "text-[12px]")}>{resolvedName}</p>
           {!compact ? <p className="truncate text-[11px] text-ds-text-tertiary">{fallbackLabel}</p> : null}
         </div>
       ) : null}
       <Avatar className={cn("shrink-0 ring-1 ring-black/[0.06] dark:ring-white/10", compact ? "h-10 w-10" : "h-9 w-9")}>
-        <AvatarImage src={avatarUrl || undefined} alt={name || fallbackLabel} className="object-cover" />
+        <AvatarImage src={avatarUrl || undefined} alt={resolvedName} className="object-cover" />
         <AvatarFallback className="bg-[var(--ds-neutral-row)] text-[11px] font-semibold text-ds-ink">
           {initials(name, fallbackLabel.slice(0, 2).toUpperCase())}
         </AvatarFallback>
       </Avatar>
       {align === "start" ? (
-        <div className="min-w-0">
-          <p className={cn("truncate font-medium text-ds-ink", compact ? "text-[13px]" : "text-[12px]")}>{name || fallbackLabel}</p>
+        <div className="min-w-0 flex-1">
+          <p className={cn("truncate font-medium text-ds-ink", compact ? "text-[11px] leading-4" : "text-[12px]")}>{resolvedName}</p>
           {!compact ? <p className="truncate text-[11px] text-ds-text-tertiary">{fallbackLabel}</p> : null}
         </div>
       ) : null}
@@ -888,7 +892,7 @@ function SpeakingSplit({
 
   return (
     <div className="w-full">
-      <div className="mb-3 grid grid-cols-2 gap-3">
+      <div className="mb-3 flex flex-col gap-2.5">
         <SpeakerLegend
           name={studentName}
           avatarUrl={studentAvatarUrl || placeholderImages.studentAvatar}
@@ -943,7 +947,7 @@ function MetricCard({
       type="button"
       onClick={onOpen}
       className={cn(
-        "group w-full rounded-[30px] border border-black/[0.06] bg-[var(--ds-surface)] p-5 text-left shadow-[0_12px_34px_rgba(15,23,42,0.04)] transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-0.5 dark:border-white/10 dark:shadow-[0_14px_34px_rgba(0,0,0,0.22)]",
+        "group w-full overflow-hidden rounded-[30px] border border-black/[0.06] bg-[var(--ds-surface)] p-5 text-left shadow-[0_12px_34px_rgba(15,23,42,0.04)] transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-0.5 dark:border-white/10 dark:shadow-[0_14px_34px_rgba(0,0,0,0.22)]",
         active &&
           "border-[color:var(--progress-accent-strong)] shadow-[0_18px_42px_color-mix(in_srgb,var(--progress-accent-strong)_18%,transparent)] dark:border-[color:var(--progress-accent)]"
       )}
@@ -964,7 +968,7 @@ function MetricCard({
           </div>
           <p className="mt-3 max-w-[15rem] text-[14px] leading-6 text-ds-text-secondary">{subtitle}</p>
         </div>
-        <div className={cn(stacked ? "w-full" : "shrink-0")}>{visual}</div>
+        <div className={cn("min-w-0 overflow-hidden", stacked ? "w-full" : "shrink-0")}>{visual}</div>
       </div>
     </button>
   )
@@ -1282,7 +1286,15 @@ function MetricDetailSheet({
                             <CartesianGrid vertical={false} stroke="var(--progress-grid)" strokeDasharray="4 6" />
                             <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
                             <YAxis orientation="right" domain={[0, 100]} tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} tickFormatter={(value: number) => `${value}%`} />
-                            <RechartsTooltip cursor={false} content={<ProgressChartTooltip />} />
+                            <RechartsTooltip
+                              cursor={false}
+                              wrapperStyle={{ zIndex: 40 }}
+                              contentStyle={chartTooltipContentStyle}
+                              labelStyle={chartTooltipLabelStyle}
+                              itemStyle={chartTooltipItemStyle}
+                              labelFormatter={chartTooltipLabel}
+                              formatter={chartTooltipValue}
+                            />
                             <Area type="monotone" dataKey="masteryScore" stroke={historyStroke} strokeWidth={3} fill={historyFill} fillOpacity={1} dot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} activeDot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} />
                           </AreaChart>
                         </ResponsiveContainer>
@@ -1351,7 +1363,15 @@ function MetricDetailSheet({
                         <CartesianGrid vertical={false} stroke="var(--progress-grid)" strokeDasharray="4 6" />
                         <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
                         <YAxis orientation="right" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
-                        <RechartsTooltip cursor={false} content={<ProgressChartTooltip />} />
+                        <RechartsTooltip
+                          cursor={false}
+                          wrapperStyle={{ zIndex: 40 }}
+                          contentStyle={chartTooltipContentStyle}
+                          labelStyle={chartTooltipLabelStyle}
+                          itemStyle={chartTooltipItemStyle}
+                          labelFormatter={chartTooltipLabel}
+                          formatter={chartTooltipValue}
+                        />
                         <Area type="monotone" dataKey="vocabularySize" stroke={historyStroke} strokeWidth={3} fill={historyFill} fillOpacity={1} dot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} activeDot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} />
                       </AreaChart>
                     </ResponsiveContainer>
@@ -1393,7 +1413,15 @@ function MetricDetailSheet({
                         <ReferenceArea y1={90} y2={140} fill={historyFill} fillOpacity={0.9} />
                         <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
                         <YAxis orientation="right" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} tickFormatter={(value: number) => `${value}`} />
-                        <RechartsTooltip cursor={false} content={<ProgressChartTooltip />} />
+                        <RechartsTooltip
+                          cursor={false}
+                          wrapperStyle={{ zIndex: 40 }}
+                          contentStyle={chartTooltipContentStyle}
+                          labelStyle={chartTooltipLabelStyle}
+                          itemStyle={chartTooltipItemStyle}
+                          labelFormatter={chartTooltipLabel}
+                          formatter={chartTooltipValue}
+                        />
                         <Line type="monotone" dataKey="speechSpeed" stroke={historyStroke} strokeWidth={3} dot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} activeDot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} />
                       </RechartsLineChart>
                     </ResponsiveContainer>
@@ -1433,7 +1461,15 @@ function MetricDetailSheet({
                         <CartesianGrid vertical={false} stroke="var(--progress-grid)" strokeDasharray="4 6" />
                         <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
                         <YAxis orientation="right" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} tickFormatter={formatMinutesTick} />
-                        <RechartsTooltip cursor={false} content={<ProgressChartTooltip />} />
+                        <RechartsTooltip
+                          cursor={false}
+                          wrapperStyle={{ zIndex: 40 }}
+                          contentStyle={chartTooltipContentStyle}
+                          labelStyle={chartTooltipLabelStyle}
+                          itemStyle={chartTooltipItemStyle}
+                          labelFormatter={chartTooltipLabel}
+                          formatter={chartTooltipValue}
+                        />
                         <Bar dataKey="studentMinutes" stackId="speech" fill={accent} radius={[10, 10, 0, 0]} />
                         <Bar dataKey="teacherMinutes" stackId="speech" fill="var(--progress-accent-secondary)" radius={[10, 10, 0, 0]} />
                       </BarChart>
@@ -1494,7 +1530,15 @@ function MetricDetailSheet({
                         <CartesianGrid vertical={false} stroke="var(--progress-grid)" strokeDasharray="4 6" />
                         <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
                         <YAxis orientation="right" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
-                        <RechartsTooltip cursor={false} content={<ProgressChartTooltip />} />
+                        <RechartsTooltip
+                          cursor={false}
+                          wrapperStyle={{ zIndex: 40 }}
+                          contentStyle={chartTooltipContentStyle}
+                          labelStyle={chartTooltipLabelStyle}
+                          itemStyle={chartTooltipItemStyle}
+                          labelFormatter={chartTooltipLabel}
+                          formatter={chartTooltipValue}
+                        />
                         <Area type="monotone" dataKey="sentenceLength" stroke={historyStroke} strokeWidth={3} fill={historyFill} fillOpacity={1} dot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} activeDot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} />
                       </AreaChart>
                     </ResponsiveContainer>
@@ -1662,7 +1706,7 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
-                className="group relative !h-auto rounded-[16px] !border-0 !bg-transparent px-4 pb-4 pt-3 text-[15px] font-semibold text-ds-text-secondary shadow-none transition-[color,background-color,transform] duration-200 hover:bg-black/[0.04] hover:text-ds-ink dark:hover:bg-white/[0.06] data-[state=active]:!bg-transparent data-[state=active]:text-ds-ink after:absolute after:bottom-[-1px] after:left-4 after:right-4 after:h-0.5 after:rounded-full after:bg-transparent data-[state=active]:after:bg-[color:var(--progress-accent-strong)]"
+                className="group relative !h-auto rounded-[18px] !border-0 !bg-transparent px-4 pb-4 pt-3 text-[15px] font-semibold text-ds-text-secondary shadow-none transition-[color,background-color,box-shadow,transform] duration-200 hover:!bg-[var(--ds-neutral-row-hover)] hover:text-ds-ink hover:shadow-[0_10px_24px_rgba(15,23,42,0.04)] dark:hover:!bg-white/[0.09] dark:hover:shadow-[0_10px_24px_rgba(0,0,0,0.18)] data-[state=active]:!bg-transparent data-[state=active]:hover:!bg-transparent data-[state=active]:hover:shadow-none data-[state=active]:text-ds-ink after:absolute after:bottom-[-1px] after:left-4 after:right-4 after:h-0.5 after:rounded-full after:bg-transparent data-[state=active]:after:bg-[color:var(--progress-accent-strong)]"
               >
                 <TabLabel label={tab.label} icon={tab.icon} iconOnly={tab.iconOnly} />
               </TabsTrigger>
@@ -1673,7 +1717,7 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
             <div className="space-y-6">
               <p className="max-w-[62rem] text-[18px] leading-8 text-ds-ink">
                 {selectedSession.summary?.trim() ||
-                  "Этот урок уже появился в истории, но подробная аналитика ещё готовится. Как только обработка завершится, здесь откроются итог, графики, ошибки, лексика и практика."}
+                  "Урок уже появился в истории. Разбор будет дополняться по мере обработки, а транскрипция, графики и практика останутся доступны прямо здесь."}
               </p>
 
               <Button
@@ -1708,22 +1752,14 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                         </span>
                       </div>
                       <div className="mt-4">
-                        <div className="h-4 overflow-hidden rounded-full bg-black/[0.07] dark:bg-white/10">
-                          <div className="flex h-full">
-                            <div
-                              className="bg-[color:var(--progress-accent-strong)]"
-                              style={{ width: `${clampRatio(metrics.speakingRatioValue ?? 0.5) * 100}%` }}
-                            />
-                            <div
-                              className="bg-[color:var(--progress-accent-secondary)]"
-                              style={{ width: `${100 - clampRatio(metrics.speakingRatioValue ?? 0.5) * 100}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-4 flex items-center justify-between text-[13px] text-ds-text-secondary">
-                        <span>Ученик</span>
-                        <span>Преподаватель</span>
+                        <SpeakingSplit
+                          studentMinutes={metrics.studentMinutes}
+                          teacherMinutes={metrics.teacherMinutes}
+                          studentName={selectedSession.studentName}
+                          teacherName={selectedSession.teacherName}
+                          studentAvatarUrl={selectedSession.studentAvatarUrl}
+                          teacherAvatarUrl={selectedSession.teacherAvatarUrl}
+                        />
                       </div>
                     </div>
                   </div>
@@ -1941,45 +1977,39 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
               </div>
 
               <section className="rounded-[34px] bg-[var(--ds-neutral-row)] p-5">
-                <div className="grid gap-6 xl:grid-cols-[minmax(320px,0.86fr)_minmax(0,1.14fr)] xl:items-center">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <LineChart className="h-4 w-4 text-ds-text-tertiary" />
-                      <h3 className="text-[22px] font-semibold text-ds-ink">Трекер навыков</h3>
-                      <TooltipHint text="Жёлтый слой — текущее состояние, сиреневый — прошлый сопоставимый урок." />
-                    </div>
-                    <p className="mt-3 max-w-[32rem] text-[15px] leading-7 text-ds-text-secondary">
-                      Эта карта меняется после каждого нового звонка и показывает, куда реально сдвинулась речь ученика.
-                    </p>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <LineChart className="h-4 w-4 text-ds-text-tertiary" />
+                    <h3 className="text-[22px] font-semibold text-ds-ink">Трекер навыков</h3>
+                    <TooltipHint text="Здесь видно, по каким осям урок дал прирост относительно прошлого сопоставимого звонка." />
+                  </div>
+                  <p className="mt-3 max-w-[42rem] text-[15px] leading-7 text-ds-text-secondary">
+                    Верхняя шестигранная карта показывает общий срез сразу, а здесь остаются точные изменения по каждой оси без повторения самой схемы.
+                  </p>
 
-                    <div className="mt-5 space-y-3">
-                      <div className="flex items-center gap-3 text-[14px] text-ds-text-secondary">
-                        <span className="inline-flex h-4 w-4 rounded-full bg-[color:var(--progress-accent-strong)]" />
-                        <span>Текущее состояние после урока</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-[14px] text-ds-text-secondary">
-                        <span className="inline-flex h-4 w-4 rounded-full bg-[color:var(--progress-accent-secondary)]" />
-                        <span>Предыдущий сопоставимый урок</span>
-                      </div>
+                  <div className="mt-5 space-y-3">
+                    <div className="flex items-center gap-3 text-[14px] text-ds-text-secondary">
+                      <span className="inline-flex h-4 w-4 rounded-full bg-[color:var(--progress-accent-strong)]" />
+                      <span>Текущее состояние после урока</span>
                     </div>
-
-                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                      {SKILL_LABELS.map((axis) => (
-                        <div key={axis.key} className="rounded-[22px] bg-[var(--ds-surface)] px-4 py-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="text-[14px] font-semibold text-ds-ink">{axis.label}</p>
-                            <span className="text-[14px] font-semibold text-ds-ink">{selectedSkillMap[axis.key]}</span>
-                          </div>
-                          <p className="mt-1 text-[13px] text-ds-text-secondary">
-                            {previousSkillMap ? `к прошлому уроку: ${formatDelta(selectedSkillMap[axis.key] - previousSkillMap[axis.key])}` : "первая точка сравнения"}
-                          </p>
-                        </div>
-                      ))}
+                    <div className="flex items-center gap-3 text-[14px] text-ds-text-secondary">
+                      <span className="inline-flex h-4 w-4 rounded-full bg-[color:var(--progress-accent-secondary)]" />
+                      <span>Предыдущий сопоставимый урок</span>
                     </div>
                   </div>
 
-                  <div className="rounded-[30px] bg-[var(--ds-surface)] p-3 sm:p-5">
-                    <SkillRadarChart current={selectedSkillMap} previous={previousSkillMap} mode="panel" />
+                  <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {SKILL_LABELS.map((axis) => (
+                      <div key={axis.key} className="rounded-[22px] bg-[var(--ds-surface)] px-4 py-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[14px] font-semibold text-ds-ink">{axis.label}</p>
+                          <span className="text-[14px] font-semibold text-ds-ink">{selectedSkillMap[axis.key]}</span>
+                        </div>
+                        <p className="mt-1 text-[13px] text-ds-text-secondary">
+                          {previousSkillMap ? `к прошлому уроку: ${formatDelta(selectedSkillMap[axis.key] - previousSkillMap[axis.key])}` : "первая точка сравнения"}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </section>

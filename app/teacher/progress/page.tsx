@@ -12,7 +12,17 @@ type TeacherProgressStudentRow = {
   started_at: string | null
   ended_at: string | null
   lessons: Array<{ title: string | null }> | null
-  student_profile: Array<{ full_name: string | null; avatar_url: string | null }> | null
+  student_profile:
+    | { full_name: string | null; avatar_url: string | null }
+    | Array<{ full_name: string | null; avatar_url: string | null }>
+    | null
+}
+
+function resolveEmbeddedProfile(
+  value: TeacherProgressStudentRow["student_profile"]
+): { full_name: string | null; avatar_url: string | null } | null {
+  if (!value) return null
+  return Array.isArray(value) ? value[0] ?? null : value
 }
 
 function initials(name: string | null | undefined): string {
@@ -84,6 +94,23 @@ export default async function TeacherProgressPage() {
 
   if (sessionsError) throw new Error(sessionsError.message)
 
+  const studentIds = [...new Set(((data ?? []) as TeacherProgressStudentRow[]).map((row) => row.student_id).filter((value): value is string => Boolean(value)))]
+  const { data: studentProfilesData, error: studentProfilesError } = studentIds.length
+    ? await adminSupabase
+        .from("profiles")
+        .select("id, full_name, avatar_url")
+        .in("id", studentIds)
+    : { data: [], error: null as { message?: string } | null }
+
+  if (studentProfilesError) throw new Error(studentProfilesError.message)
+
+  const studentProfilesById = new Map(
+    ((studentProfilesData ?? []) as Array<{ id: string; full_name: string | null; avatar_url: string | null }>).map((row) => [
+      row.id,
+      row,
+    ])
+  )
+
   const byStudent = new Map<
     string,
     {
@@ -105,10 +132,13 @@ export default async function TeacherProgressPage() {
       continue
     }
 
+    const embeddedStudentProfile = resolveEmbeddedProfile(row.student_profile)
+    const studentProfile = studentProfilesById.get(row.student_id) ?? embeddedStudentProfile
+
     byStudent.set(row.student_id, {
       studentId: row.student_id,
-      studentName: row.student_profile?.[0]?.full_name?.trim() || "Ученик",
-      studentAvatarUrl: row.student_profile?.[0]?.avatar_url?.trim() || null,
+      studentName: studentProfile?.full_name?.trim() || "Ученик",
+      studentAvatarUrl: studentProfile?.avatar_url?.trim() || null,
       latestLessonTitle: row.lessons?.[0]?.title?.trim() || "Онлайн-занятие",
       latestLessonAt: row.ended_at ?? row.started_at,
       lessonsCount: 1,
@@ -132,10 +162,10 @@ export default async function TeacherProgressPage() {
         </header>
 
         {students.length === 0 ? (
-          <Card className="border-black/[0.08] bg-[var(--ds-surface)] shadow-[0_20px_60px_rgba(15,23,42,0.06)] dark:border-white/10 dark:shadow-[0_20px_60px_rgba(0,0,0,0.24)]">
+          <Card className="border-black/[0.08] bg-white shadow-[0_20px_60px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-[#171717] dark:shadow-[0_20px_60px_rgba(0,0,0,0.24)]">
             <CardHeader>
-              <CardTitle>Пока нет данных для успеваемости</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-ds-ink dark:text-white">Пока нет данных для успеваемости</CardTitle>
+              <CardDescription className="text-ds-text-secondary dark:text-white/[0.72]">
                 Как только по ученикам появятся онлайн-сессии, здесь откроется список для перехода в детальные отчёты.
               </CardDescription>
             </CardHeader>
@@ -145,7 +175,7 @@ export default async function TeacherProgressPage() {
             {students.map((student) => (
               <Card
                 key={student.studentId}
-                className="border-black/[0.08] bg-[var(--ds-surface)] shadow-[0_20px_60px_rgba(15,23,42,0.06)] dark:border-white/10 dark:shadow-[0_20px_60px_rgba(0,0,0,0.24)]"
+                className="border-black/[0.08] bg-white shadow-[0_20px_60px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-[#171717] dark:shadow-[0_20px_60px_rgba(0,0,0,0.24)]"
               >
                 <CardHeader className="gap-3">
                   <div className="flex items-start gap-4">
@@ -156,8 +186,8 @@ export default async function TeacherProgressPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <CardTitle className="truncate">{student.studentName}</CardTitle>
-                      <CardDescription className="mt-2 text-[14px] leading-6">
+                      <CardTitle className="truncate text-ds-ink dark:text-white">{student.studentName}</CardTitle>
+                      <CardDescription className="mt-2 text-[14px] leading-6 text-ds-text-secondary dark:text-white/[0.72]">
                         Последний урок: {student.latestLessonTitle}
                         <br />
                         {formatDate(student.latestLessonAt)}
@@ -167,12 +197,12 @@ export default async function TeacherProgressPage() {
                 </CardHeader>
                 <CardContent className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-[13px] font-medium text-ds-text-tertiary">Онлайн-занятий</p>
-                    <p className="mt-2 text-[30px] font-semibold leading-none text-ds-ink">{student.lessonsCount}</p>
+                    <p className="text-[13px] font-medium text-ds-text-tertiary dark:text-white/[0.56]">Онлайн-занятий</p>
+                    <p className="mt-2 text-[30px] font-semibold leading-none text-ds-ink dark:text-white">{student.lessonsCount}</p>
                   </div>
                   <Link
                     href={`/teacher/students/${student.studentId}/progress`}
-                    className="rounded-full bg-[color:var(--progress-accent-strong)] px-4 py-2.5 text-[14px] font-semibold text-white no-underline transition-[transform,opacity] hover:-translate-y-0.5 hover:opacity-92"
+                    className="rounded-full bg-[color:var(--progress-accent-strong)] px-4 py-2.5 text-[14px] font-semibold text-white no-underline transition-[transform,opacity,box-shadow] hover:-translate-y-0.5 hover:opacity-92 hover:shadow-[0_14px_28px_rgba(15,23,42,0.16)] dark:bg-[color:var(--progress-accent)] dark:text-[#151515] dark:hover:shadow-[0_14px_28px_rgba(0,0,0,0.26)]"
                   >
                     Открыть успеваемость
                   </Link>
