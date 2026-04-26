@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server"
+import { getLatestLessonReportForViewer } from "@/lib/lesson-analytics/server"
+import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
 export async function GET(_: Request, { params }: { params: Promise<{ lessonId: string }> }) {
@@ -9,6 +11,14 @@ export async function GET(_: Request, { params }: { params: Promise<{ lessonId: 
 
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   const { lessonId } = await params
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, role")
+    .eq("id", user.id)
+    .maybeSingle<{ id: string; role: "student" | "teacher" | "curator" }>()
+
+  if (profileError) return NextResponse.json({ error: profileError.message }, { status: 400 })
+  if (!profile) return NextResponse.json({ error: "Profile not found" }, { status: 404 })
 
   const { data: lesson, error: lessonError } = await supabase
     .from("lessons")
@@ -36,6 +46,20 @@ export async function GET(_: Request, { params }: { params: Promise<{ lessonId: 
     .order("order", { ascending: true })
 
   if (blockError) return NextResponse.json({ error: blockError.message }, { status: 400 })
+
+  let latestReport = null
+  try {
+    const adminSupabase = createAdminSupabaseClient()
+    latestReport = await getLatestLessonReportForViewer({
+      adminSupabase,
+      lessonId,
+      viewerId: profile.id,
+      viewerRole: profile.role,
+    })
+  } catch {
+    latestReport = null
+  }
+
   return NextResponse.json({
     lesson: {
       id: lesson.id,
@@ -47,6 +71,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ lessonId: 
       course_cover_style: lesson.courses?.cover_style ?? null,
       course_cover_image_url: lesson.courses?.cover_image_url ?? null,
     },
-    blocks: blocks ?? []
+    blocks: blocks ?? [],
+    latest_report: latestReport,
   })
 }

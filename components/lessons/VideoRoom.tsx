@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import type { DailyEventObjectTranscriptionMessage, DailyParticipant } from "@daily-co/daily-js"
 import {
   DailyAudio,
   DailyProvider,
@@ -40,6 +41,7 @@ type DailyTrackStateLike = {
 
 type DailyParticipantLike = {
   local?: boolean
+  user_id?: string | null
   user_name?: string | null
   tracks?: {
     audio?: DailyTrackStateLike
@@ -51,11 +53,21 @@ type DailyParticipantLike = {
 type VideoRoomProps = {
   roomUrl: string
   meetingToken: string
+  sessionId: string
   lessonTitle: string
   courseTitle?: string | null
   displayName?: string
   onLeave?: () => void
   variant?: "page" | "floating"
+}
+
+type BufferedTranscriptSnippet = {
+  participantId: string
+  participantUserId?: string | null
+  participantName?: string | null
+  trackType?: string | null
+  text: string
+  timestamp: string
 }
 
 type FloatingPosition = {
@@ -341,6 +353,7 @@ function ParticipantInset({ sessionId, className }: { sessionId: string; classNa
 function VideoRoomInner({
   roomUrl,
   meetingToken,
+  sessionId,
   lessonTitle,
   courseTitle,
   displayName,
@@ -365,6 +378,49 @@ function VideoRoomInner({
   const [floatingPosition, setFloatingPosition] = useState<FloatingPosition | null>(null)
   const floatingWindowRef = useRef<HTMLElement | null>(null)
   const dragStateRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null)
+  const transcriptBufferRef = useRef<BufferedTranscriptSnippet[]>([])
+  const transcriptFlushInFlightRef = useRef(false)
+  const completionPostedRef = useRef(false)
+
+  async function flushTranscriptBuffer(options?: { keepalive?: boolean }) {
+    if (!sessionId || transcriptFlushInFlightRef.current || transcriptBufferRef.current.length === 0) return
+
+    const batch = transcriptBufferRef.current.splice(0, transcriptBufferRef.current.length)
+    transcriptFlushInFlightRef.current = true
+
+    try {
+      const response = await fetch(`/api/live-sessions/${sessionId}/transcript`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ snippets: batch }),
+        keepalive: options?.keepalive ?? false,
+      })
+
+      if (!response.ok) {
+        throw new Error("Transcript flush failed")
+      }
+    } catch {
+      transcriptBufferRef.current = [...batch, ...transcriptBufferRef.current]
+    } finally {
+      transcriptFlushInFlightRef.current = false
+    }
+  }
+
+  async function postSessionCompletion(options?: { keepalive?: boolean }) {
+    if (!sessionId || completionPostedRef.current) return
+    completionPostedRef.current = true
+
+    try {
+      await fetch(`/api/live-sessions/${sessionId}/complete`, {
+        method: "POST",
+        keepalive: options?.keepalive ?? false,
+      })
+    } catch {
+      completionPostedRef.current = false
+    }
+  }
 
   useEffect(() => {
     if (!isFloating) return
@@ -414,9 +470,67 @@ function VideoRoomInner({
       call.off("error", handleError)
       call.off("camera-error", handleError)
       call.off("nonfatal-error", handleError)
+      void flushTranscriptBuffer({ keepalive: true })
+      void postSessionCompletion({ keepalive: true })
       void call.leave().catch(() => undefined)
     }
-  }, [copy.defaultJoinError, daily, displayName, joinAttempt, locale, meetingToken, roomUrl])
+  }, [copy.defaultJoinError, daily, displayName, joinAttempt, locale, meetingToken, roomUrl, sessionId])
+
+  useEffect(() => {
+    if (!daily || !sessionId) return
+    const call = daily
+
+    const handleTranscriptionMessage = (event: DailyEventObjectTranscriptionMessage) => {
+      const text = event.text?.trim()
+      if (!text) return
+
+      const participants = (call.participants?.() ?? {}) as Record<string, DailyParticipant | undefined>
+      const participant = participants[event.participantId]
+      transcriptBufferRef.current.push({
+        participantId: event.participantId,
+        participantUserId: participant?.user_id ?? null,
+        participantName: participant?.user_name ?? null,
+        trackType: event.trackType ?? null,
+        text,
+        timestamp:
+          event.timestamp instanceof Date
+            ? event.timestamp.toISOString()
+            : new Date().toISOString(),
+      })
+    }
+
+    const handleLeftMeeting = () => {
+      void flushTranscriptBuffer({ keepalive: true })
+      void postSessionCompletion({ keepalive: true })
+    }
+
+    call.on("transcription-message", handleTranscriptionMessage)
+    call.on("left-meeting", handleLeftMeeting)
+
+    return () => {
+      call.off("transcription-message", handleTranscriptionMessage)
+      call.off("left-meeting", handleLeftMeeting)
+    }
+  }, [daily, sessionId])
+
+  useEffect(() => {
+    if (!sessionId || typeof window === "undefined") return
+
+    const interval = window.setInterval(() => {
+      void flushTranscriptBuffer()
+    }, 4000)
+
+    const handleBeforeUnload = () => {
+      void flushTranscriptBuffer({ keepalive: true })
+      void postSessionCompletion({ keepalive: true })
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener("beforeunload", handleBeforeUnload)
+    }
+  }, [sessionId])
 
   const orderedParticipantIds = useMemo(() => {
     const ids = [...participantIds].filter((value): value is string => typeof value === "string" && value.length > 0)
@@ -512,12 +626,16 @@ function VideoRoomInner({
 
   async function handleLeave() {
     if (!daily) {
+      await flushTranscriptBuffer({ keepalive: true })
+      await postSessionCompletion({ keepalive: true })
       onLeave?.()
       return
     }
 
     await runAction(async () => {
+      await flushTranscriptBuffer({ keepalive: true })
       await daily.leave()
+      await postSessionCompletion({ keepalive: true })
       onLeave?.()
     })
   }

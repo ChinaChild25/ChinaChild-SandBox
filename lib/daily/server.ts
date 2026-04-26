@@ -89,7 +89,7 @@ export function shouldEnforceTeacherStart(): boolean {
   return raw === "1" || raw === "true" || raw === "yes"
 }
 
-function createDailyScopedRoomName(scope: "lesson" | "schedule", id: string): string {
+function createDailyScopedRoomName(scope: "lesson" | "schedule" | "private", id: string): string {
   const normalized = id
     .trim()
     .replace(/[^A-Za-z0-9_-]/g, "-")
@@ -105,6 +105,11 @@ export function createDailyLessonRoomName(lessonId: string): string {
 
 export function createDailyScheduleSlotRoomName(scheduleSlotId: string): string {
   return createDailyScopedRoomName("schedule", scheduleSlotId)
+}
+
+export function createDailyPrivateRoomName(teacherId: string, studentId: string): string {
+  const pair = [teacherId.trim(), studentId.trim()].filter(Boolean).join("-")
+  return createDailyScopedRoomName("private", pair)
 }
 
 export function getDailyRoomNameFromUrl(roomUrl: string | null | undefined): string | null {
@@ -145,6 +150,13 @@ export async function createOrGetDailyScheduleSlotRoom(scheduleSlotId: string): 
   return createOrGetDailyRoomByName(createDailyScheduleSlotRoomName(scheduleSlotId))
 }
 
+export async function createOrGetDailyPrivateRoom(
+  teacherId: string,
+  studentId: string
+): Promise<{ name: string; url: string }> {
+  return createOrGetDailyRoomByName(createDailyPrivateRoomName(teacherId, studentId))
+}
+
 async function createOrGetDailyRoomByName(roomName: string): Promise<{ name: string; url: string }> {
   try {
     const room = await dailyApiRequest<DailyRoomResponse>("/rooms", {
@@ -155,6 +167,7 @@ async function createOrGetDailyRoomByName(roomName: string): Promise<{ name: str
         properties: {
           enable_chat: true,
           enable_screenshare: true,
+          enable_transcription_storage: true,
           start_video_off: false,
           start_audio_off: false
         }
@@ -198,6 +211,12 @@ export async function createDailyLessonMeetingToken({
         is_owner: isOwner,
         exp: now + getDailyTokenTtlSeconds(),
         enable_screenshare: true,
+        auto_start_transcription: isOwner,
+        auto_transcription_settings: isOwner
+          ? {
+              language: "zh"
+            }
+          : undefined,
         start_video_off: false,
         start_audio_off: false
       }

@@ -7,9 +7,11 @@ import { CustomInteractiveLesson } from "@/components/school/custom-interactive-
 import { FigmaAppShell } from "@/components/figma-app-shell"
 import { AppSidebar } from "@/components/app-sidebar"
 import { TeacherSidebar } from "@/components/teacher-sidebar"
+import { LessonAnalyticsCard } from "@/components/lessons/lesson-analytics-card"
 import { JoinLessonButton } from "@/components/lessons/join-lesson-button"
 import { LessonLiveSession } from "@/components/lessons/lesson-live-session"
 import { useAuth } from "@/lib/auth-context"
+import type { LatestLessonReport } from "@/lib/lesson-analytics/server"
 import { useUiLocale } from "@/lib/ui-locale"
 import type { TeacherLessonBlock } from "@/lib/types"
 
@@ -25,6 +27,7 @@ type LessonResponse = {
     course_cover_image_url?: string | null
   }
   blocks?: TeacherLessonBlock[]
+  latest_report?: LatestLessonReport | null
   error?: string
 }
 
@@ -45,6 +48,7 @@ export default function StudentLessonPage() {
   const [courseCoverStyle, setCourseCoverStyle] = useState<string | undefined>(undefined)
   const [courseCoverImageUrl, setCourseCoverImageUrl] = useState<string | undefined>(undefined)
   const [blocks, setBlocks] = useState<TeacherLessonBlock[]>([])
+  const [latestReport, setLatestReport] = useState<LatestLessonReport | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
@@ -77,6 +81,7 @@ export default function StudentLessonPage() {
     setCourseCoverStyle(json.lesson.course_cover_style?.trim() || undefined)
     setCourseCoverImageUrl(json.lesson.course_cover_image_url?.trim() || undefined)
     setBlocks((json.blocks ?? []).sort((a, b) => a.order - b.order))
+    setLatestReport(json.latest_report ?? null)
     setIsLoading(false)
   }
 
@@ -132,24 +137,27 @@ export default function StudentLessonPage() {
             {error}
           </div>
         ) : (
-          <CustomInteractiveLesson
-            lessonId={lessonId}
-            lessonTitle={lessonTitle}
-            courseTitle={courseTitle}
-            courseCoverColor={courseCoverColor}
-            courseCoverStyle={courseCoverStyle}
-            courseCoverImageUrl={courseCoverImageUrl}
-            backHref={backHref}
-            backLabel={backLabel}
-            blocks={blocks}
-            heroActions={
-              <JoinLessonButton
-                lessonId={lessonId}
-                label={callButtonLabel}
-                className="mt-0 h-12 min-h-12 items-center whitespace-normal rounded-[999px] bg-black px-[22px] py-0 text-[15px] font-semibold leading-none text-white hover:bg-black/90 dark:bg-black dark:text-white dark:hover:bg-black/90"
-              />
-            }
-          />
+          <>
+            {latestReport ? <LessonAnalyticsCard report={latestReport} /> : null}
+            <CustomInteractiveLesson
+              lessonId={lessonId}
+              lessonTitle={lessonTitle}
+              courseTitle={courseTitle}
+              courseCoverColor={courseCoverColor}
+              courseCoverStyle={courseCoverStyle}
+              courseCoverImageUrl={courseCoverImageUrl}
+              backHref={backHref}
+              backLabel={backLabel}
+              blocks={blocks}
+              heroActions={
+                <JoinLessonButton
+                  lessonId={lessonId}
+                  label={callButtonLabel}
+                  className="mt-0 h-12 min-h-12 items-center whitespace-normal rounded-[999px] bg-black px-[22px] py-0 text-[15px] font-semibold leading-none text-white hover:bg-black/90 dark:bg-black dark:text-white dark:hover:bg-black/90"
+                />
+              }
+            />
+          </>
         )}
       </SchoolLessonShell>
 

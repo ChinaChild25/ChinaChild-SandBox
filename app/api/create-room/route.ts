@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server"
 import {
   createDailyLessonMeetingToken,
-  createDailyLessonRoomName,
-  createOrGetDailyLessonRoom,
-  createOrGetDailyScheduleSlotRoom,
-  createDailyScheduleSlotRoomName,
-  getDailyRoomNameFromUrl,
   isDailyConfigured,
   isDailyUserPresentInRoom,
   shouldEnforceTeacherStart,
 } from "@/lib/daily/server"
+import {
+  ensureActiveLessonSession,
+  isTeacherProfileRole,
+  resolveRoomForLesson,
+  resolveRoomForScheduleSlot,
+} from "@/lib/live-lessons/server"
 import { wallClockFromSlotAt } from "@/lib/schedule-display-tz"
 import { displayNameFromProfileFields } from "@/lib/supabase/profile"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
@@ -27,7 +28,6 @@ type CreateRoomBody = {
 type LessonAccessRow = {
   id: string
   title: string
-  room_url: string | null
   courses: {
     id: string
     title: string | null
@@ -49,10 +49,6 @@ type ProfileRow = {
   first_name: string | null
   last_name: string | null
   full_name: string | null
-}
-
-function isTeacherRole(role: ProfileRole): boolean {
-  return role === "teacher" || role === "curator"
 }
 
 function formatScheduleSlotSubtitle(slotAt: string): string {
@@ -106,10 +102,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Профиль не найден." }, { status: 404 })
   }
 
+  const adminSupabase = createAdminSupabaseClient()
+
   if (lessonId) {
     const { data: lesson, error: lessonError } = await supabase
       .from("lessons")
-      .select("id, title, room_url, courses(id, title, teacher_id)")
+      .select("id, title, courses(id, title, teacher_id)")
       .eq("id", lessonId)
       .maybeSingle<LessonAccessRow>()
 
@@ -121,42 +119,48 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Урок не найден." }, { status: 404 })
     }
 
-    let roomUrl = lesson.room_url?.trim() || ""
-    let roomName = getDailyRoomNameFromUrl(roomUrl) ?? createDailyLessonRoomName(lessonId)
+    const lessonTeacherId = lesson.courses?.teacher_id?.trim() || null
+    const lessonStudentId = isTeacherProfileRole(profile.role) ? null : profile.id
+    let room: Awaited<ReturnType<typeof resolveRoomForLesson>>
+    let session: Awaited<ReturnType<typeof ensureActiveLessonSession>>
 
-    if (!roomUrl) {
-      try {
-        const room = await createOrGetDailyLessonRoom(lessonId)
-        roomUrl = room.url
-        roomName = room.name
-
-        const adminSupabase = createAdminSupabaseClient()
-        const { error: updateError } = await adminSupabase
-          .from("lessons")
-          .update({ room_url: roomUrl })
-          .eq("id", lessonId)
-
-        if (updateError) {
-          return NextResponse.json({ error: updateError.message }, { status: 500 })
-        }
-      } catch (error) {
-        return NextResponse.json(
-          { error: error instanceof Error ? error.message : "Не удалось создать комнату Daily." },
-          { status: 500 }
-        )
-      }
+    try {
+      room = await resolveRoomForLesson({
+        adminSupabase,
+        lessonId,
+        teacherId: lessonTeacherId,
+        studentId: lessonStudentId,
+      })
+      session = await ensureActiveLessonSession({
+        adminSupabase,
+        roomId: room.id,
+        lessonId,
+        teacherId: lessonTeacherId,
+        studentId: lessonStudentId,
+        context: {
+          source: "lesson",
+          lesson_title: lesson.title,
+          course_title: lesson.courses?.title ?? null,
+          room_scope: room.room_type,
+        },
+      })
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Не удалось подготовить live-сессию." },
+        { status: 500 }
+      )
     }
 
-    if (!isTeacherRole(profile.role) && shouldEnforceTeacherStart()) {
-      const teacherId = lesson.courses?.teacher_id?.trim()
+    if (!isTeacherProfileRole(profile.role) && shouldEnforceTeacherStart()) {
+      const teacherId = lessonTeacherId
       if (teacherId) {
         try {
-          const teacherHasStarted = await isDailyUserPresentInRoom(roomName, teacherId)
+          const teacherHasStarted = await isDailyUserPresentInRoom(room.daily_room_name, teacherId)
           if (!teacherHasStarted) {
             return NextResponse.json(
               {
                 error: "Преподаватель еще не начал занятие.",
-                roomUrl,
+                roomUrl: room.daily_room_url,
                 teacherHasStarted: false
               },
               { status: 409 }
@@ -175,15 +179,16 @@ export async function POST(request: Request) {
 
     try {
       const token = await createDailyLessonMeetingToken({
-        roomName,
+        roomName: room.daily_room_name,
         userId: profile.id,
         userName,
-        isOwner: isTeacherRole(profile.role)
+        isOwner: isTeacherProfileRole(profile.role)
       })
 
       return NextResponse.json({
-        roomUrl,
+        roomUrl: room.daily_room_url,
         token,
+        sessionId: session.id,
         role: profile.role,
         context: {
           title: lesson.title,
@@ -217,7 +222,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Для этого слота еще нет активного занятия." }, { status: 409 })
   }
 
-  if (isTeacherRole(profile.role)) {
+  if (isTeacherProfileRole(profile.role)) {
     if (scheduleSlot.teacher_id !== profile.id) {
       return NextResponse.json({ error: "У вас нет доступа к этому занятию." }, { status: 403 })
     }
@@ -225,26 +230,42 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "У вас нет доступа к этому занятию." }, { status: 403 })
   }
 
-  const scheduleRoomName = createDailyScheduleSlotRoomName(scheduleSlot.id)
-  let scheduleRoomUrl = ""
+  let room: Awaited<ReturnType<typeof resolveRoomForScheduleSlot>>
+  let session: Awaited<ReturnType<typeof ensureActiveLessonSession>>
   try {
-    const room = await createOrGetDailyScheduleSlotRoom(scheduleSlot.id)
-    scheduleRoomUrl = room.url
+    room = await resolveRoomForScheduleSlot({
+      adminSupabase,
+      scheduleSlotId: scheduleSlot.id,
+      teacherId: scheduleSlot.teacher_id,
+      studentId: scheduleSlot.booked_student_id,
+    })
+    session = await ensureActiveLessonSession({
+      adminSupabase,
+      roomId: room.id,
+      scheduleSlotId: scheduleSlot.id,
+      teacherId: scheduleSlot.teacher_id,
+      studentId: scheduleSlot.booked_student_id,
+      context: {
+        source: "schedule",
+        slot_at: scheduleSlot.slot_at,
+        room_scope: room.room_type,
+      },
+    })
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Не удалось создать комнату Daily." },
+      { error: error instanceof Error ? error.message : "Не удалось подготовить live-сессию." },
       { status: 500 }
     )
   }
 
-  if (!isTeacherRole(profile.role) && shouldEnforceTeacherStart()) {
+  if (!isTeacherProfileRole(profile.role) && shouldEnforceTeacherStart()) {
     try {
-      const teacherHasStarted = await isDailyUserPresentInRoom(scheduleRoomName, scheduleSlot.teacher_id)
+      const teacherHasStarted = await isDailyUserPresentInRoom(room.daily_room_name, scheduleSlot.teacher_id)
       if (!teacherHasStarted) {
         return NextResponse.json(
           {
             error: "Преподаватель еще не начал занятие.",
-            roomUrl: scheduleRoomUrl,
+            roomUrl: room.daily_room_url,
             teacherHasStarted: false
           },
           { status: 409 }
@@ -262,15 +283,16 @@ export async function POST(request: Request) {
 
   try {
     const token = await createDailyLessonMeetingToken({
-      roomName: scheduleRoomName,
+      roomName: room.daily_room_name,
       userId: profile.id,
       userName: scheduleUserName,
-      isOwner: isTeacherRole(profile.role)
+      isOwner: isTeacherProfileRole(profile.role)
     })
 
     return NextResponse.json({
-      roomUrl: scheduleRoomUrl,
+      roomUrl: room.daily_room_url,
       token,
+      sessionId: session.id,
       role: profile.role,
       context: {
         title: "Онлайн-занятие",

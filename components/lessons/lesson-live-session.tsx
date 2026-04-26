@@ -19,6 +19,7 @@ type RoomRequestPayload = {
 type LiveRoomResponse = {
   roomUrl?: string
   token?: string
+  sessionId?: string
   error?: string
   context?: {
     title?: string
@@ -127,7 +128,7 @@ export function DailyCallSession({
   const { user } = useAuth()
   const { locale } = useUiLocale()
   const copy = useDailyCallCopy()
-  const [session, setSession] = useState<{ roomUrl: string; token: string } | null>(null)
+  const [session, setSession] = useState<{ roomUrl: string; token: string; sessionId: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [attempt, setAttempt] = useState(0)
@@ -165,7 +166,7 @@ export function DailyCallSession({
         })
 
         const payload = (await response.json().catch(() => null)) as LiveRoomResponse | null
-        if (!response.ok || !payload?.roomUrl || !payload?.token) {
+        if (!response.ok || !payload?.roomUrl || !payload?.token || !payload?.sessionId) {
           if (!cancelled) {
             setSession(null)
             setError(humanizeDailyError(payload?.error, locale, copy.defaultError))
@@ -175,7 +176,7 @@ export function DailyCallSession({
         }
 
         if (!cancelled) {
-          setSession({ roomUrl: payload.roomUrl, token: payload.token })
+          setSession({ roomUrl: payload.roomUrl, token: payload.token, sessionId: payload.sessionId })
           setTitle(payload.context?.title?.trim() || initialTitle)
           setSubtitle(payload.context?.subtitle?.trim() || initialSubtitle?.trim() || "")
           setLoading(false)
@@ -317,6 +318,7 @@ export function DailyCallSession({
     <VideoRoom
       roomUrl={session.roomUrl}
       meetingToken={session.token}
+      sessionId={session.sessionId}
       lessonTitle={title}
       courseTitle={subtitle || null}
       displayName={user?.profileFullName || user?.name || undefined}
