@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server"
-import { processPendingLessonAnalyticsJobs } from "@/lib/lesson-analytics/server"
+import {
+  isLessonAnalyticsConfigured,
+  processPendingLessonAnalyticsJobs,
+} from "@/lib/lesson-analytics/server"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 
 export const runtime = "nodejs"
@@ -13,6 +16,13 @@ function isAuthorized(request: Request): boolean {
 async function handle(request: Request) {
   if (!isAuthorized(request)) {
     return new NextResponse("Unauthorized", { status: 401 })
+  }
+
+  if (!isLessonAnalyticsConfigured()) {
+    return NextResponse.json(
+      { ok: false, skipped: "OPENAI_API_KEY is not configured." },
+      { status: 503 }
+    )
   }
 
   try {

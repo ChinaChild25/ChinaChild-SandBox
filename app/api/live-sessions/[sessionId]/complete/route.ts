@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { processPendingLessonAnalyticsJobsIfConfigured } from "@/lib/lesson-analytics/server"
 import { completeLessonSession, isTeacherProfileRole } from "@/lib/live-lessons/server"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
@@ -62,14 +63,33 @@ export async function POST(_: Request, { params }: { params: Promise<RouteParams
     await completeLessonSession({
       adminSupabase,
       sessionId,
-      queueDelaySeconds: 120,
+      queueDelaySeconds: 0,
       reason: "client_leave",
       contextPatch: {
         completed_from: "client",
       },
     })
 
-    return NextResponse.json({ ok: true })
+    const { count: transcriptCount, error: transcriptCountError } = await adminSupabase
+      .from("lesson_transcripts")
+      .select("id", { head: true, count: "exact" })
+      .eq("session_id", sessionId)
+
+    if (transcriptCountError) {
+      throw new Error(transcriptCountError.message)
+    }
+
+    if ((transcriptCount ?? 0) > 0) {
+      await processPendingLessonAnalyticsJobsIfConfigured({
+        adminSupabase,
+        limit: 3,
+      })
+    }
+
+    return NextResponse.json({
+      ok: true,
+      transcriptCount: transcriptCount ?? 0,
+    })
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Не удалось завершить live-сессию." },

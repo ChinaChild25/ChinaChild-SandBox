@@ -93,6 +93,10 @@ const ANALYTICS_MODEL = process.env.LESSON_ANALYTICS_OPENAI_MODEL?.trim() || "gp
 const MAX_TRANSCRIPT_CHARS = 80_000
 const MAX_JOB_RETRIES = 3
 
+export function isLessonAnalyticsConfigured(): boolean {
+  return Boolean(process.env.OPENAI_API_KEY?.trim())
+}
+
 const LESSON_ANALYTICS_SCHEMA = {
   name: "lesson_analytics_report",
   strict: true,
@@ -552,6 +556,27 @@ export async function processPendingLessonAnalyticsJobs(args: {
   }
 
   return summary
+}
+
+export async function processPendingLessonAnalyticsJobsIfConfigured(args: {
+  adminSupabase: AdminSupabase
+  limit?: number
+}) {
+  if (!isLessonAnalyticsConfigured()) {
+    return {
+      configured: false,
+      claimed: 0,
+      completed: 0,
+      failed: 0,
+      errors: [] as string[],
+    }
+  }
+
+  const summary = await processPendingLessonAnalyticsJobs(args)
+  return {
+    configured: true,
+    ...summary,
+  }
 }
 
 export async function getLatestLessonReportForViewer(args: {

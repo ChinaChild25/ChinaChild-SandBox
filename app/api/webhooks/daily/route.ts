@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto"
 import { NextResponse } from "next/server"
+import { processPendingLessonAnalyticsJobsIfConfigured } from "@/lib/lesson-analytics/server"
 import {
   completeLessonSession,
   findLatestLessonSessionByRoomName,
@@ -76,6 +77,19 @@ function maybeVerifyWebhookHmac(rawBody: string, signatureHeader: string | null,
   })
 }
 
+async function sessionHasTranscriptRows(
+  adminSupabase: ReturnType<typeof createAdminSupabaseClient>,
+  sessionId: string
+): Promise<boolean> {
+  const { count, error } = await adminSupabase
+    .from("lesson_transcripts")
+    .select("id", { head: true, count: "exact" })
+    .eq("session_id", sessionId)
+
+  if (error) throw new Error(error.message)
+  return (count ?? 0) > 0
+}
+
 export async function POST(request: Request) {
   const rawBody = await request.text()
   if (!maybeVerifyBasicAuth(request.headers.get("authorization"))) {
@@ -149,7 +163,7 @@ export async function POST(request: Request) {
         adminSupabase,
         sessionId: session.id,
         endedAt: extractUnixTimestamp(payload.end_ts) ?? new Date().toISOString(),
-        queueDelaySeconds: 45,
+        queueDelaySeconds: 0,
         reason: "daily_meeting_ended",
         contextPatch: {
           daily_meeting_id: typeof payload.meeting_id === "string" ? payload.meeting_id : null,
@@ -189,7 +203,7 @@ export async function POST(request: Request) {
       await queueSessionAnalysis({
         adminSupabase,
         sessionId: session.id,
-        availableAfterSeconds: 20,
+        availableAfterSeconds: 0,
         reason: "daily_transcript_ready",
       })
       break
@@ -276,6 +290,16 @@ export async function POST(request: Request) {
         },
       })
       break
+  }
+
+  if (
+    (eventType === "meeting.ended" || eventType === "transcript.ready-to-download") &&
+    (await sessionHasTranscriptRows(adminSupabase, session.id))
+  ) {
+    await processPendingLessonAnalyticsJobsIfConfigured({
+      adminSupabase,
+      limit: 3,
+    })
   }
 
   return NextResponse.json({ ok: true, matchedSession: true, eventType })

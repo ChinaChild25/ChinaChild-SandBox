@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { processPendingLessonAnalyticsJobsIfConfigured } from "@/lib/lesson-analytics/server"
 import { appendLiveTranscriptSnippets, isTeacherProfileRole, type LiveTranscriptSnippet } from "@/lib/live-lessons/server"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
@@ -52,9 +53,15 @@ export async function POST(request: Request, { params }: { params: Promise<Route
   const adminSupabase = createAdminSupabaseClient()
   const { data: session, error: sessionError } = await adminSupabase
     .from("lesson_sessions")
-    .select("id, teacher_id, student_id")
+    .select("id, teacher_id, student_id, status, ended_at")
     .eq("id", sessionId)
-    .single<{ id: string; teacher_id: string | null; student_id: string | null }>()
+    .single<{
+      id: string
+      teacher_id: string | null
+      student_id: string | null
+      status: "active" | "awaiting_artifacts" | "processing" | "done" | "failed"
+      ended_at: string | null
+    }>()
 
   if (sessionError) {
     return NextResponse.json({ error: sessionError.message }, { status: 400 })
@@ -74,6 +81,15 @@ export async function POST(request: Request, { params }: { params: Promise<Route
       sessionId,
       snippets,
     })
+
+    const shouldAttemptProcessing = session.status !== "active" || Boolean(session.ended_at)
+    if (shouldAttemptProcessing) {
+      await processPendingLessonAnalyticsJobsIfConfigured({
+        adminSupabase,
+        limit: 3,
+      })
+    }
+
     return NextResponse.json({ ok: true, inserted: snippets.length })
   } catch (error) {
     return NextResponse.json(

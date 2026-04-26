@@ -1,10 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "npx pnpm install --no-frozen-lockfile",
-  "crons": [
-    {
-      "path": "/api/internal/lesson-processing",
-      "schedule": "*/5 * * * *"
-    }
-  ]
+  "installCommand": "npx pnpm install --no-frozen-lockfile"
 }
