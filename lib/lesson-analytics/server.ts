@@ -263,6 +263,33 @@ function fallbackTeacherAvatarByName(name: string | null | undefined): string | 
   return null
 }
 
+function contextDisplayName(
+  context: Record<string, unknown> | null | undefined,
+  keys: string[]
+): string | null {
+  if (!context) return null
+
+  for (const key of keys) {
+    const value = context[key]
+    if (typeof value === "string" && value.trim()) return value.trim()
+  }
+
+  return null
+}
+
+function transcriptDisplayName(
+  transcript: LessonTranscriptSegment[],
+  role: LessonTranscriptSegment["speakerRole"]
+): string | null {
+  for (const segment of transcript) {
+    if (segment.speakerRole !== role) continue
+    const label = segment.speakerLabel?.trim()
+    if (label) return label
+  }
+
+  return null
+}
+
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   return value.map((item) => (typeof item === "string" ? item.trim() : "")).filter(Boolean)
@@ -1002,11 +1029,21 @@ export async function getStudentProgressOverview(args: {
 
   const sessions = sessionRows.map<LessonFeedItem>((session) => {
     const analytics = analyticsBySessionId.get(session.id)
+    const transcript = transcriptsBySessionId.get(session.id) ?? []
     const grammarScore = analytics?.grammar_score ?? null
     const vocabularyScore = analytics?.vocabulary_score ?? null
     const fluencyScore = analytics?.fluency_score ?? null
-    const studentName = session.student_profile?.[0]?.full_name?.trim() || profile?.full_name?.trim() || null
-    const teacherName = session.teacher_profile?.[0]?.full_name?.trim() || null
+    const studentName =
+      session.student_profile?.[0]?.full_name?.trim() ||
+      profile?.full_name?.trim() ||
+      contextDisplayName(session.context, ["student_name", "studentName", "student_full_name", "studentFullName"]) ||
+      transcriptDisplayName(transcript, "student") ||
+      null
+    const teacherName =
+      session.teacher_profile?.[0]?.full_name?.trim() ||
+      contextDisplayName(session.context, ["teacher_name", "teacherName", "teacher_full_name", "teacherFullName"]) ||
+      transcriptDisplayName(transcript, "teacher") ||
+      null
     const studentAvatarUrl =
       normalizeAvatarUrl(args.adminSupabase, session.student_profile?.[0]?.avatar_url ?? profile?.avatar_url) ?? null
     const teacherAvatarUrl =
@@ -1037,7 +1074,7 @@ export async function getStudentProgressOverview(args: {
       strengths: asStringArray(analytics?.strengths),
       recommendations: asStringArray(analytics?.recommendations),
       topicsPracticed: asStringArray(analytics?.topics_practiced),
-      transcript: transcriptsBySessionId.get(session.id) ?? [],
+      transcript,
     }
   })
 

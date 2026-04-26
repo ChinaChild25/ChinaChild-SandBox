@@ -108,6 +108,14 @@ type MetricHistoryPoint = {
   sentenceLength: number | null
 }
 
+type ProgressTooltipEntry = {
+  dataKey?: string | number
+  name?: string | number
+  value?: number | string | null
+  color?: string
+  payload?: MetricHistoryPoint
+}
+
 const SKILL_AXES = {
   speaking: ["speaking", "pronunciation", "tones", "fluency"],
   phrases: ["phrases", "chengyu", "expressions", "patterns"],
@@ -355,6 +363,107 @@ function formatSpeakingRatio(value: number | null): string {
   return `${Math.round(value * 100)}%`
 }
 
+function formatRuNumber(value: number, maximumFractionDigits = 1): string {
+  const needsFraction = Math.abs(value % 1) > 0.001
+
+  return new Intl.NumberFormat("ru-RU", {
+    minimumFractionDigits: needsFraction ? 1 : 0,
+    maximumFractionDigits,
+  }).format(value)
+}
+
+function formatMinutes(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return "—"
+  return `${formatRuNumber(value)} мин`
+}
+
+function formatMinutesTick(value: number): string {
+  return `${formatRuNumber(value)} мин`
+}
+
+function formatPlainMetricValue(dataKey: string, value: number | string | null | undefined): string {
+  if (value === null || value === undefined || value === "") return "—"
+
+  if (typeof value !== "number") {
+    return String(value)
+  }
+
+  switch (dataKey) {
+    case "masteryScore":
+      return `${Math.round(value)}%`
+    case "vocabularySize":
+      return value.toLocaleString("ru-RU")
+    case "speechSpeed":
+      return `${Math.round(value)} сл/мин`
+    case "studentMinutes":
+    case "teacherMinutes":
+      return formatMinutes(value)
+    case "sentenceLength":
+      return `${Math.round(value)} ${pluralizeRu(Math.round(value), ["слово", "слова", "слов"])}`
+    default:
+      return formatRuNumber(value)
+  }
+}
+
+function metricSeriesLabel(dataKey: string): string {
+  switch (dataKey) {
+    case "masteryScore":
+      return "Индекс освоения"
+    case "vocabularySize":
+      return "Размер словаря"
+    case "speechSpeed":
+      return "Темп речи"
+    case "studentMinutes":
+      return "Речь ученика"
+    case "teacherMinutes":
+      return "Речь преподавателя"
+    case "sentenceLength":
+      return "Длина реплики"
+    default:
+      return dataKey
+  }
+}
+
+function ProgressChartTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean
+  payload?: ProgressTooltipEntry[]
+}) {
+  if (!active || !payload?.length) return null
+
+  const validPayload = payload.filter((entry) => entry.value !== null && entry.value !== undefined)
+  if (!validPayload.length) return null
+
+  const dateLabel = validPayload[0]?.payload?.fullDate ?? "Дата уточняется"
+
+  return (
+    <div className="min-w-[180px] rounded-[18px] border border-black/[0.08] bg-[var(--ds-surface)] px-4 py-3 shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-white/10 dark:shadow-[0_18px_40px_rgba(0,0,0,0.32)]">
+      <p className="text-[13px] font-medium text-ds-text-tertiary">{dateLabel}</p>
+      <div className="mt-3 space-y-2">
+        {validPayload.map((entry) => {
+          const dataKey = String(entry.dataKey ?? entry.name ?? "")
+          return (
+            <div key={dataKey} className="flex items-center justify-between gap-4">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span
+                  className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: entry.color ?? "var(--progress-accent-strong)" }}
+                />
+                <span className="truncate text-[13px] text-ds-text-secondary">{metricSeriesLabel(dataKey)}</span>
+              </div>
+              <span className="shrink-0 text-[13px] font-semibold text-ds-ink">
+                {formatPlainMetricValue(dataKey, entry.value)}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function initials(name: string | null | undefined, fallback: string): string {
   const cleaned = (name ?? "").trim()
   if (!cleaned) return fallback
@@ -377,8 +486,8 @@ function pluralizeRu(value: number, [one, few, many]: [string, string, string]):
 
 function formatDelta(value: number | null, suffix = ""): string {
   if (value === null) return "новый"
-  if (value > 0) return `+${value}${suffix}`
-  if (value < 0) return `${value}${suffix}`
+  if (value > 0) return `+${formatRuNumber(value)}${suffix}`
+  if (value < 0) return `${formatRuNumber(value)}${suffix}`
   return `0${suffix}`
 }
 
@@ -724,21 +833,23 @@ function SpeakerLegend({
   avatarUrl,
   fallbackLabel,
   align = "start",
+  compact = false,
 }: {
   name: string | null
   avatarUrl: string | null
   fallbackLabel: string
   align?: "start" | "end"
+  compact?: boolean
 }) {
   return (
     <div className={cn("flex min-w-0 items-center gap-2.5", align === "end" ? "justify-end text-right" : "justify-start")}>
       {align === "end" ? (
         <div className="min-w-0">
-          <p className="truncate text-[12px] font-medium text-ds-ink">{name || fallbackLabel}</p>
-          <p className="truncate text-[11px] text-ds-text-tertiary">{fallbackLabel}</p>
+          <p className={cn("truncate font-medium text-ds-ink", compact ? "text-[13px]" : "text-[12px]")}>{name || fallbackLabel}</p>
+          {!compact ? <p className="truncate text-[11px] text-ds-text-tertiary">{fallbackLabel}</p> : null}
         </div>
       ) : null}
-      <Avatar className="h-9 w-9 shrink-0 ring-1 ring-black/[0.06] dark:ring-white/10">
+      <Avatar className={cn("shrink-0 ring-1 ring-black/[0.06] dark:ring-white/10", compact ? "h-10 w-10" : "h-9 w-9")}>
         <AvatarImage src={avatarUrl || undefined} alt={name || fallbackLabel} className="object-cover" />
         <AvatarFallback className="bg-[var(--ds-neutral-row)] text-[11px] font-semibold text-ds-ink">
           {initials(name, fallbackLabel.slice(0, 2).toUpperCase())}
@@ -746,8 +857,8 @@ function SpeakerLegend({
       </Avatar>
       {align === "start" ? (
         <div className="min-w-0">
-          <p className="truncate text-[12px] font-medium text-ds-ink">{name || fallbackLabel}</p>
-          <p className="truncate text-[11px] text-ds-text-tertiary">{fallbackLabel}</p>
+          <p className={cn("truncate font-medium text-ds-ink", compact ? "text-[13px]" : "text-[12px]")}>{name || fallbackLabel}</p>
+          {!compact ? <p className="truncate text-[11px] text-ds-text-tertiary">{fallbackLabel}</p> : null}
         </div>
       ) : null}
     </div>
@@ -776,18 +887,20 @@ function SpeakingSplit({
   const teacherWidth = total > 0 ? `${(teacher / total) * 100}%` : "50%"
 
   return (
-    <div className="w-full min-w-[220px] max-w-[280px]">
-      <div className="mb-3 grid grid-cols-2 gap-2.5">
+    <div className="w-full">
+      <div className="mb-3 grid grid-cols-2 gap-3">
         <SpeakerLegend
           name={studentName}
           avatarUrl={studentAvatarUrl || placeholderImages.studentAvatar}
           fallbackLabel="Ученик"
+          compact
         />
         <SpeakerLegend
           name={teacherName}
           avatarUrl={teacherAvatarUrl || placeholderImages.teacherAvatar}
           fallbackLabel="Преподаватель"
           align="end"
+          compact
         />
       </div>
       <div className="h-4 overflow-hidden rounded-full bg-black/[0.07] dark:bg-white/10">
@@ -797,8 +910,8 @@ function SpeakingSplit({
         </div>
       </div>
       <div className="mt-3 flex items-center justify-between text-[13px] text-ds-text-secondary">
-        <span>{studentMinutes !== null ? `${studentMinutes.toFixed(1)} мин` : "—"}</span>
-        <span>{teacherMinutes !== null ? `${teacherMinutes.toFixed(1)} мин` : "—"}</span>
+        <span>{formatMinutes(studentMinutes)}</span>
+        <span>{formatMinutes(teacherMinutes)}</span>
       </div>
     </div>
   )
@@ -813,6 +926,7 @@ function MetricCard({
   visual,
   onOpen,
   active = false,
+  stacked = false,
 }: {
   title: string
   hint: string
@@ -822,6 +936,7 @@ function MetricCard({
   visual: ReactNode
   onOpen: () => void
   active?: boolean
+  stacked?: boolean
 }) {
   return (
     <button
@@ -841,15 +956,15 @@ function MetricCard({
         <ChevronRight className="mt-1 h-4 w-4 text-ds-text-tertiary transition-transform duration-200 group-hover:translate-x-0.5" />
       </div>
 
-      <div className="mt-6 flex items-end justify-between gap-4">
-        <div>
+      <div className={cn("mt-6 gap-4", stacked ? "flex flex-col items-start" : "flex items-end justify-between")}>
+        <div className={cn(stacked && "w-full")}>
           <div className="flex items-center gap-2">
             <p className="text-[38px] font-semibold leading-none text-ds-ink sm:text-[42px]">{value}</p>
             {delta}
           </div>
           <p className="mt-3 max-w-[15rem] text-[14px] leading-6 text-ds-text-secondary">{subtitle}</p>
         </div>
-        <div className="shrink-0">{visual}</div>
+        <div className={cn(stacked ? "w-full" : "shrink-0")}>{visual}</div>
       </div>
     </button>
   )
@@ -1167,7 +1282,7 @@ function MetricDetailSheet({
                             <CartesianGrid vertical={false} stroke="var(--progress-grid)" strokeDasharray="4 6" />
                             <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
                             <YAxis orientation="right" domain={[0, 100]} tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} tickFormatter={(value: number) => `${value}%`} />
-                            <RechartsTooltip cursor={false} />
+                            <RechartsTooltip cursor={false} content={<ProgressChartTooltip />} />
                             <Area type="monotone" dataKey="masteryScore" stroke={historyStroke} strokeWidth={3} fill={historyFill} fillOpacity={1} dot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} activeDot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} />
                           </AreaChart>
                         </ResponsiveContainer>
@@ -1236,7 +1351,7 @@ function MetricDetailSheet({
                         <CartesianGrid vertical={false} stroke="var(--progress-grid)" strokeDasharray="4 6" />
                         <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
                         <YAxis orientation="right" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
-                        <RechartsTooltip cursor={false} />
+                        <RechartsTooltip cursor={false} content={<ProgressChartTooltip />} />
                         <Area type="monotone" dataKey="vocabularySize" stroke={historyStroke} strokeWidth={3} fill={historyFill} fillOpacity={1} dot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} activeDot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} />
                       </AreaChart>
                     </ResponsiveContainer>
@@ -1278,7 +1393,7 @@ function MetricDetailSheet({
                         <ReferenceArea y1={90} y2={140} fill={historyFill} fillOpacity={0.9} />
                         <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
                         <YAxis orientation="right" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} tickFormatter={(value: number) => `${value}`} />
-                        <RechartsTooltip cursor={false} />
+                        <RechartsTooltip cursor={false} content={<ProgressChartTooltip />} />
                         <Line type="monotone" dataKey="speechSpeed" stroke={historyStroke} strokeWidth={3} dot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} activeDot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} />
                       </RechartsLineChart>
                     </ResponsiveContainer>
@@ -1306,7 +1421,7 @@ function MetricDetailSheet({
                     <p className="text-[16px] text-ds-text-secondary">{currentPoint.fullDate}</p>
                     <div className="mt-4 flex items-center gap-3">
                       <p className="text-[56px] font-semibold leading-none text-ds-ink">
-                        {currentPoint.studentMinutes !== null ? `${Math.round(currentPoint.studentMinutes)} мин` : "—"}
+                        {formatMinutes(currentPoint.studentMinutes)}
                       </p>
                       <DeltaBadge value={speakingTimeDelta} suffix=" мин" />
                     </div>
@@ -1317,8 +1432,8 @@ function MetricDetailSheet({
                       <BarChart data={history}>
                         <CartesianGrid vertical={false} stroke="var(--progress-grid)" strokeDasharray="4 6" />
                         <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
-                        <YAxis orientation="right" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} tickFormatter={(value: number) => `${value} мин`} />
-                        <RechartsTooltip cursor={false} />
+                        <YAxis orientation="right" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} tickFormatter={formatMinutesTick} />
+                        <RechartsTooltip cursor={false} content={<ProgressChartTooltip />} />
                         <Bar dataKey="studentMinutes" stackId="speech" fill={accent} radius={[10, 10, 0, 0]} />
                         <Bar dataKey="teacherMinutes" stackId="speech" fill="var(--progress-accent-secondary)" radius={[10, 10, 0, 0]} />
                       </BarChart>
@@ -1340,13 +1455,13 @@ function MetricDetailSheet({
 
                   <div className="grid gap-6 sm:grid-cols-2">
                     <DetailFact
-                      value={`${Math.round(
+                      value={formatMinutes(
                         history.reduce((total, point) => total + (point.studentMinutes ?? 0), 0) / Math.max(history.length, 1)
-                      )} мин`}
+                      )}
                       label="Среднее время речи ученика"
                     />
                     <DetailFact
-                      value={`${Math.round(Math.max(...history.map((point) => point.studentMinutes ?? 0)))} мин`}
+                      value={formatMinutes(Math.max(...history.map((point) => point.studentMinutes ?? 0)))}
                       label="Самый разговорный урок"
                     />
                   </div>
@@ -1379,7 +1494,7 @@ function MetricDetailSheet({
                         <CartesianGrid vertical={false} stroke="var(--progress-grid)" strokeDasharray="4 6" />
                         <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
                         <YAxis orientation="right" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
-                        <RechartsTooltip cursor={false} />
+                        <RechartsTooltip cursor={false} content={<ProgressChartTooltip />} />
                         <Area type="monotone" dataKey="sentenceLength" stroke={historyStroke} strokeWidth={3} fill={historyFill} fillOpacity={1} dot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} activeDot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} />
                       </AreaChart>
                     </ResponsiveContainer>
@@ -1811,6 +1926,7 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                   }
                   onOpen={() => setActiveMetric("SpeakingTime")}
                   active={activeMetric === "SpeakingTime"}
+                  stacked
                 />
                 <MetricCard
                   title="Длина реплики"

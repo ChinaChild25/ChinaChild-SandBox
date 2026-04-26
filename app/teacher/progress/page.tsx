@@ -126,24 +126,27 @@ export default async function TeacherProgressPage() {
             Живая успеваемость по каждому ученику
           </h1>
           <p className="mt-4 max-w-[44rem] text-[15px] leading-7 text-ds-text-secondary dark:text-white/[0.70]">
-            Здесь собраны ученики, у которых уже были live-уроки. Открывайте карточку ученика, чтобы увидеть карту навыков,
+            Здесь собраны ученики, у которых уже были онлайн-уроки. Открывайте карточку ученика, чтобы увидеть карту навыков,
             историю разборов, ошибки, рекомендации и транскрипции по занятиям.
           </p>
         </header>
 
         {students.length === 0 ? (
-          <Card className="border-black/[0.08] bg-white/[0.95] shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+          <Card className="border-black/[0.08] bg-[var(--ds-surface)] shadow-[0_20px_60px_rgba(15,23,42,0.06)] dark:border-white/10 dark:shadow-[0_20px_60px_rgba(0,0,0,0.24)]">
             <CardHeader>
               <CardTitle>Пока нет данных для успеваемости</CardTitle>
               <CardDescription>
-                Как только по ученикам появятся live-сессии, здесь откроется список для перехода в детальные отчёты.
+                Как только по ученикам появятся онлайн-сессии, здесь откроется список для перехода в детальные отчёты.
               </CardDescription>
             </CardHeader>
           </Card>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
             {students.map((student) => (
-              <Card key={student.studentId} className="border-black/[0.08] bg-white/[0.95] shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
+              <Card
+                key={student.studentId}
+                className="border-black/[0.08] bg-[var(--ds-surface)] shadow-[0_20px_60px_rgba(15,23,42,0.06)] dark:border-white/10 dark:shadow-[0_20px_60px_rgba(0,0,0,0.24)]"
+              >
                 <CardHeader className="gap-3">
                   <div className="flex items-start gap-4">
                     <Avatar className="h-14 w-14 shrink-0 ring-1 ring-black/[0.06] dark:ring-white/10">
@@ -164,7 +167,7 @@ export default async function TeacherProgressPage() {
                 </CardHeader>
                 <CardContent className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-[13px] font-medium text-ds-text-tertiary">Live-занятий</p>
+                    <p className="text-[13px] font-medium text-ds-text-tertiary">Онлайн-занятий</p>
                     <p className="mt-2 text-[30px] font-semibold leading-none text-ds-ink">{student.lessonsCount}</p>
                   </div>
                   <Link
