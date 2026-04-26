@@ -1,16 +1,16 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { type ReactNode, useEffect, useState } from "react"
 import {
-  ArrowRight,
-  AudioLines,
   BookOpen,
   Bookmark,
   CheckCheck,
   ChevronDown,
+  ChevronRight,
   CircleAlert,
-  Grid2x2,
+  CircleHelp,
   GraduationCap,
+  Grid2x2,
   Languages,
   LineChart,
   Mic,
@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 type LessonFeedProps = {
   sessions: LessonFeedItem[]
@@ -51,6 +52,21 @@ type PracticeItem = {
   bullets: string[]
 }
 
+type LessonMetrics = {
+  masteryScore: number | null
+  masteryDelta: number | null
+  speechLevel: string
+  speechLevelHint: string
+  vocabularySize: number
+  vocabularyDelta: number | null
+  speechSpeed: number | null
+  speechSpeedDelta: number | null
+  studentMinutes: number | null
+  teacherMinutes: number | null
+  sentenceLength: number | null
+  sentenceLengthDelta: number | null
+}
+
 const SKILL_AXES = {
   speaking: ["speaking", "pronunciation", "tones", "fluency"],
   phrases: ["phrases", "chengyu", "expressions", "patterns"],
@@ -69,13 +85,18 @@ const SKILL_LABELS: Array<{ key: keyof SkillMap; label: string }> = [
   { key: "reading", label: "Чтение" },
 ]
 
-const INSIGHT_TABS: Array<{ value: InsightTab; label: string; icon?: typeof Grid2x2 }> = [
-  { value: "overview", label: "Overview", icon: Grid2x2 },
-  { value: "recap", label: "Recap" },
-  { value: "progress", label: "Progress" },
-  { value: "feedback", label: "Feedback" },
-  { value: "vocabulary", label: "Vocabulary" },
-  { value: "practice", label: "Practice" },
+const INSIGHT_TABS: Array<{
+  value: InsightTab
+  label: string
+  icon?: typeof Grid2x2
+  iconOnly?: boolean
+}> = [
+  { value: "overview", label: "Обзор", icon: Grid2x2, iconOnly: true },
+  { value: "recap", label: "Итог" },
+  { value: "progress", label: "Прогресс" },
+  { value: "feedback", label: "Разбор" },
+  { value: "vocabulary", label: "Лексика" },
+  { value: "practice", label: "Практика" },
 ]
 
 function analyticsReady(session: LessonFeedItem): boolean {
@@ -97,17 +118,6 @@ function clampInt(value: number, min: number, max: number): number {
 function clampRatio(value: number): number {
   if (!Number.isFinite(value)) return 0
   return Math.max(0, Math.min(1, value))
-}
-
-function createEmptySkillMap(): SkillMap {
-  return {
-    speaking: 0,
-    phrases: 0,
-    vocabulary: 0,
-    listening: 0,
-    grammar: 0,
-    reading: 0,
-  }
 }
 
 function hasSkillMapData(skillMap: SkillMap): boolean {
@@ -189,10 +199,10 @@ function formatSessionDateTime(value: string | null): string {
 }
 
 function formatSessionMeta(session: LessonFeedItem): string {
-  const pieces = ["Китайский"]
-  if (session.teacherName) pieces.push(session.teacherName)
-  pieces.push(formatSessionDateTime(session.endedAt ?? session.startedAt))
-  return pieces.join(" · ")
+  const parts = ["Китайский"]
+  if (session.teacherName) parts.push(session.teacherName)
+  parts.push(formatSessionDateTime(session.endedAt ?? session.startedAt))
+  return parts.join(" · ")
 }
 
 function formatSpeakingRatio(value: number | null): string {
@@ -200,36 +210,64 @@ function formatSpeakingRatio(value: number | null): string {
   return `${Math.round(value * 100)}%`
 }
 
-function formatDelta(value: number): string {
-  if (value > 0) return `+${value}`
-  if (value < 0) return `${value}`
-  return "0"
+function formatDelta(value: number | null, suffix = ""): string {
+  if (value === null) return "новый"
+  if (value > 0) return `+${value}${suffix}`
+  if (value < 0) return `${value}${suffix}`
+  return `0${suffix}`
 }
 
-function statusTone(session: LessonFeedItem): string {
-  if (session.status === "failed") return "border-[#f2ced5] bg-[#fff3f5] text-[#a33f53]"
-  if (analyticsReady(session)) return "border-[#d7dce8] bg-white text-ds-ink"
-  return "border-[#f0d7a6] bg-[#fff7eb] text-[#935d15]"
+function extractTerms(text: string): string[] {
+  return text.toLowerCase().match(/[\u3400-\u9fff]+|[a-zа-яё0-9]+/giu) ?? []
 }
 
-function statusLabel(session: LessonFeedItem): string {
-  if (session.status === "failed") return "Разбор не завершён"
-  if (analyticsReady(session)) return "Отчёт готов"
-  return "Анализ готовится..."
+function countTerms(text: string): number {
+  return extractTerms(text).length
 }
 
-function buildTopicList(session: LessonFeedItem): string[] {
-  if (session.topicsPracticed.length > 0) return session.topicsPracticed.slice(0, 6)
+function estimateSessionDurationMinutes(session: LessonFeedItem): number | null {
+  const started = session.startedAt ? new Date(session.startedAt).getTime() : Number.NaN
+  const ended = session.endedAt ? new Date(session.endedAt).getTime() : Number.NaN
 
-  const fallback = new Set<string>()
-  if (session.mistakes.some((item) => item.type === "grammar")) fallback.add("Разбор грамматики")
-  if (session.mistakes.some((item) => item.type === "vocabulary")) fallback.add("Работа над лексикой")
-  if (session.mistakes.some((item) => item.type === "tones" || item.type === "pronunciation")) {
-    fallback.add("Произношение и тоны")
+  if (Number.isFinite(started) && Number.isFinite(ended) && ended > started) {
+    return Math.max((ended - started) / 60_000, 1)
   }
-  if (session.transcript.length > 0) fallback.add("Диалог по уроку")
 
-  return [...fallback].slice(0, 6)
+  const transcriptSeconds = session.transcript.reduce((maxValue, segment) => {
+    const candidate = segment.endedAtSec ?? segment.startedAtSec ?? 0
+    return Math.max(maxValue, candidate)
+  }, 0)
+
+  return transcriptSeconds > 0 ? Math.max(transcriptSeconds / 60, 1) : null
+}
+
+function estimateSpeakerMinutes(session: LessonFeedItem, role: "student" | "teacher"): number | null {
+  const segments = session.transcript.filter((segment) => segment.speakerRole === role)
+  const explicitSeconds = segments.reduce((total, segment) => {
+    if (segment.startedAtSec === null || segment.endedAtSec === null) return total
+    if (segment.endedAtSec <= segment.startedAtSec) return total
+    return total + (segment.endedAtSec - segment.startedAtSec)
+  }, 0)
+
+  if (explicitSeconds > 0) return explicitSeconds / 60
+
+  const sessionDuration = estimateSessionDurationMinutes(session)
+  if (sessionDuration === null) return null
+  if (session.speakingRatio === null) return role === "teacher" ? sessionDuration / 2 : sessionDuration / 2
+
+  const ratio = clampRatio(session.speakingRatio)
+  return role === "student" ? sessionDuration * ratio : sessionDuration * (1 - ratio)
+}
+
+function resolveSpeechLevel(score: number | null): { value: string; hint: string } {
+  if (score === null) {
+    return { value: "—", hint: "Недостаточно данных для уровня речи" }
+  }
+
+  if (score >= 85) return { value: "HSK 4+", hint: "Речь звучит уверенно и свободнее обычного" }
+  if (score >= 72) return { value: "HSK 3", hint: "Речь уже уверенная, но ещё растёт в точности" }
+  if (score >= 58) return { value: "HSK 2", hint: "База сформирована, нужен следующий словарный рывок" }
+  return { value: "HSK 1", hint: "Фундамент строится, важно закреплять шаблоны" }
 }
 
 function buildVocabularyItems(session: LessonFeedItem): VocabularyItem[] {
@@ -238,11 +276,11 @@ function buildVocabularyItems(session: LessonFeedItem): VocabularyItem[] {
 
   for (const mistake of session.mistakes) {
     const phrase = mistake.correction.trim()
-    const fingerprint = `mistake:${phrase.toLowerCase()}`
-    if (!phrase || seen.has(fingerprint)) continue
-    seen.add(fingerprint)
+    const id = `mistake:${phrase.toLowerCase()}`
+    if (!phrase || seen.has(id)) continue
+    seen.add(id)
     items.push({
-      id: fingerprint,
+      id,
       phrase,
       hskLevel: mistake.hsk_level,
       note: mistake.explanation,
@@ -252,19 +290,19 @@ function buildVocabularyItems(session: LessonFeedItem): VocabularyItem[] {
 
   for (const topic of session.topicsPracticed) {
     const phrase = topic.trim()
-    const fingerprint = `topic:${phrase.toLowerCase()}`
-    if (!phrase || seen.has(fingerprint)) continue
-    seen.add(fingerprint)
+    const id = `topic:${phrase.toLowerCase()}`
+    if (!phrase || seen.has(id)) continue
+    seen.add(id)
     items.push({
-      id: fingerprint,
+      id,
       phrase,
       hskLevel: null,
-      note: "Тема или языковой паттерн, который появился в этом уроке.",
+      note: "Тема или паттерн, который действительно появился в этом уроке.",
       sourceLabel: "Тема урока",
     })
   }
 
-  return items.slice(0, 12)
+  return items.slice(0, 14)
 }
 
 function buildPracticeItems(session: LessonFeedItem): PracticeItem[] {
@@ -274,7 +312,7 @@ function buildPracticeItems(session: LessonFeedItem): PracticeItem[] {
     items.push({
       id: `recommendation-${index}`,
       title: recommendation,
-      description: "Личная рекомендация на следующий короткий цикл повторения.",
+      description: "Это главный следующий фокус после текущего урока.",
       bullets: session.topicsPracticed.slice(0, 2).map((topic) => `Сделайте 2-3 фразы на тему «${topic}».`),
     })
   })
@@ -282,33 +320,36 @@ function buildPracticeItems(session: LessonFeedItem): PracticeItem[] {
   session.mistakes.slice(0, 3).forEach((mistake, index) => {
     items.push({
       id: `mistake-${index}`,
-      title: `Отработайте фразу: ${mistake.correction}`,
-      description: `Исправьте и повторите то место, где раньше было: ${mistake.original}`,
-      bullets: [mistake.explanation, `Составьте ещё одну новую фразу с таким же паттерном.`],
+      title: `Повторите: ${mistake.correction}`,
+      description: `Раньше здесь звучало: ${mistake.original}`,
+      bullets: [mistake.explanation, "Скажите новую фразу с тем же паттерном ещё 3 раза."],
     })
   })
-
-  if (items.length === 0 && session.topicsPracticed.length > 0) {
-    session.topicsPracticed.slice(0, 3).forEach((topic, index) => {
-      items.push({
-        id: `topic-${index}`,
-        title: `Повторите тему «${topic}»`,
-        description: "Небольшая самостоятельная практика до следующего звонка.",
-        bullets: ["Сделайте 3 коротких примера вслух.", "Повторите лексику и 1 диалог на эту тему."],
-      })
-    })
-  }
 
   return items.slice(0, 6)
 }
 
+function buildTopicList(session: LessonFeedItem): string[] {
+  if (session.topicsPracticed.length > 0) return session.topicsPracticed.slice(0, 6)
+
+  const topics = new Set<string>()
+  if (session.mistakes.some((item) => item.type === "grammar")) topics.add("Грамматические конструкции")
+  if (session.mistakes.some((item) => item.type === "vocabulary")) topics.add("Расширение словаря")
+  if (session.mistakes.some((item) => item.type === "tones" || item.type === "pronunciation")) {
+    topics.add("Произношение и тоны")
+  }
+  if (session.transcript.length > 0) topics.add("Живой диалог по теме урока")
+
+  return [...topics].slice(0, 6)
+}
+
 function splitFeedback(session: LessonFeedItem): {
-  positive: string[]
-  improvement: LessonFeedItem["mistakes"]
+  strengths: string[]
+  mistakes: LessonFeedItem["mistakes"]
 } {
   return {
-    positive: session.strengths.slice(0, 6),
-    improvement: session.mistakes.slice(0, 6),
+    strengths: session.strengths.slice(0, 6),
+    mistakes: session.mistakes.slice(0, 6),
   }
 }
 
@@ -316,68 +357,274 @@ function transcriptPreview(session: LessonFeedItem): LessonFeedItem["transcript"
   return session.transcript.filter((segment) => segment.text.trim()).slice(0, 8)
 }
 
-function TranscriptTone({ speakerRole }: { speakerRole: LessonFeedItem["transcript"][number]["speakerRole"] }) {
-  if (speakerRole === "student") return <span className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-[#F5C542]" />
-  if (speakerRole === "teacher") return <span className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-[#93C5FD]" />
-  return <span className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-black/20" />
+function buildLessonMetrics(
+  session: LessonFeedItem,
+  previousSession: LessonFeedItem | null,
+  vocabularyItems: VocabularyItem[]
+): LessonMetrics {
+  const previousVocabularyItems = previousSession ? buildVocabularyItems(previousSession) : []
+  const studentSegments = session.transcript.filter((segment) => segment.speakerRole === "student")
+  const studentTerms = studentSegments.reduce((total, segment) => total + countTerms(segment.text), 0)
+  const studentMinutes = estimateSpeakerMinutes(session, "student")
+  const teacherMinutes = estimateSpeakerMinutes(session, "teacher")
+  const sentenceLength = studentSegments.length > 0 ? clampInt(studentTerms / studentSegments.length, 1, 999) : null
+  const speechSpeed =
+    studentMinutes && studentMinutes > 0 ? clampInt(studentTerms / studentMinutes, 0, 999) : null
+
+  const previousStudentSegments = previousSession
+    ? previousSession.transcript.filter((segment) => segment.speakerRole === "student")
+    : []
+  const previousStudentTerms = previousStudentSegments.reduce((total, segment) => total + countTerms(segment.text), 0)
+  const previousStudentMinutes = previousSession ? estimateSpeakerMinutes(previousSession, "student") : null
+  const previousSentenceLength =
+    previousStudentSegments.length > 0 ? clampInt(previousStudentTerms / previousStudentSegments.length, 1, 999) : null
+  const previousSpeechSpeed =
+    previousStudentMinutes && previousStudentMinutes > 0
+      ? clampInt(previousStudentTerms / previousStudentMinutes, 0, 999)
+      : null
+
+  const speechLevel = resolveSpeechLevel(session.averageScore)
+  const previousAverage = previousSession?.averageScore ?? null
+
+  const transcriptVocabulary = new Set(
+    session.transcript
+      .filter((segment) => segment.speakerRole === "student")
+      .flatMap((segment) => extractTerms(segment.text))
+      .filter(Boolean)
+  )
+
+  const previousTranscriptVocabulary = new Set(
+    (previousSession?.transcript ?? [])
+      .filter((segment) => segment.speakerRole === "student")
+      .flatMap((segment) => extractTerms(segment.text))
+      .filter(Boolean)
+  )
+
+  const vocabularySize = vocabularyItems.length > 0 ? vocabularyItems.length : transcriptVocabulary.size
+  const previousVocabularySize =
+    previousVocabularyItems.length > 0 ? previousVocabularyItems.length : previousTranscriptVocabulary.size
+
+  return {
+    masteryScore: session.averageScore,
+    masteryDelta:
+      session.averageScore !== null && previousAverage !== null ? session.averageScore - previousAverage : null,
+    speechLevel: speechLevel.value,
+    speechLevelHint: speechLevel.hint,
+    vocabularySize,
+    vocabularyDelta: previousSession ? vocabularySize - previousVocabularySize : null,
+    speechSpeed,
+    speechSpeedDelta: speechSpeed !== null && previousSpeechSpeed !== null ? speechSpeed - previousSpeechSpeed : null,
+    studentMinutes,
+    teacherMinutes,
+    sentenceLength,
+    sentenceLengthDelta:
+      sentenceLength !== null && previousSentenceLength !== null ? sentenceLength - previousSentenceLength : null,
+  }
+}
+
+function statusTone(session: LessonFeedItem): string {
+  if (session.status === "failed") return "border-black/[0.08] bg-[#fff3f5] text-[#a33f53]"
+  if (analyticsReady(session)) return "border-black/[0.08] bg-[var(--ds-neutral-row)] text-ds-ink"
+  return "border-black/[0.08] bg-[#fff7eb] text-[#935d15]"
+}
+
+function statusLabel(session: LessonFeedItem): string {
+  if (session.status === "failed") return "Разбор не завершён"
+  if (analyticsReady(session)) return "Отчёт готов"
+  return "Анализ готовится..."
+}
+
+function TooltipHint({ text }: { text: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex h-5 w-5 items-center justify-center rounded-full text-ds-text-tertiary transition-colors hover:text-ds-ink"
+          aria-label={text}
+        >
+          <CircleHelp className="h-4 w-4" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-[240px]">
+        {text}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+function DeltaBadge({ value, suffix = "" }: { value: number | null; suffix?: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex rounded-full px-2 py-1 text-[12px] font-semibold",
+        value === null
+          ? "bg-[var(--ds-neutral-row)] text-ds-text-tertiary"
+          : value > 0
+            ? "bg-[#e5f6ec] text-[#2e8e53]"
+            : value < 0
+              ? "bg-[#fff2de] text-[#a96a12]"
+              : "bg-[var(--ds-neutral-row)] text-ds-text-tertiary"
+      )}
+    >
+      {formatDelta(value, suffix)}
+    </span>
+  )
+}
+
+function RingChart({ value }: { value: number | null }) {
+  const progress = value === null ? 0 : clampInt(value, 0, 100)
+
+  return (
+    <div
+      className="relative h-20 w-20 rounded-full"
+      style={{
+        background: `conic-gradient(#1f1f22 ${progress * 3.6}deg, rgba(0,0,0,0.08) ${progress * 3.6}deg)`,
+      }}
+    >
+      <div className="absolute inset-[9px] rounded-full bg-white" />
+    </div>
+  )
+}
+
+function LevelBars({ value }: { value: number | null }) {
+  const activeBars =
+    value === null ? 0 : value >= 85 ? 5 : value >= 72 ? 4 : value >= 58 ? 3 : value >= 42 ? 2 : 1
+
+  return (
+    <div className="flex h-16 items-end gap-1">
+      {[1, 2, 3, 4, 5].map((bar) => (
+        <span
+          key={bar}
+          className={cn(
+            "w-3 rounded-full bg-black/[0.07] transition-all duration-300",
+            bar <= activeBars ? "bg-[#ea7ca6]" : ""
+          )}
+          style={{ height: `${18 + bar * 8}px` }}
+        />
+      ))}
+    </div>
+  )
+}
+
+function TrendLine({ up }: { up: boolean }) {
+  return (
+    <svg viewBox="0 0 110 48" className="h-14 w-[110px]" aria-hidden>
+      <path
+        d={up ? "M4 36 L54 24 L106 10" : "M4 14 L54 24 L106 36"}
+        fill="none"
+        stroke="#1f1f22"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      <circle cx="106" cy={up ? "10" : "36"} r="5.5" fill="#ffffff" stroke="#1f1f22" strokeWidth="2.5" />
+      <path d={up ? "M4 36 L54 24 L106 10 L106 48 L4 48 Z" : "M4 14 L54 24 L106 36 L106 48 L4 48 Z"} fill="#f7dbe9" />
+    </svg>
+  )
+}
+
+function Gauge({ value }: { value: number | null }) {
+  const progress = value === null ? 0 : clampRatio(value / 200)
+  const degrees = 180 * progress
+
+  return (
+    <div className="relative h-16 w-28 overflow-hidden">
+      <div className="absolute inset-x-0 bottom-0 h-14 rounded-t-full border-[10px] border-b-0 border-black/[0.08]" />
+      <div
+        className="absolute inset-x-0 bottom-0 h-14 rounded-t-full border-[10px] border-b-0 border-transparent"
+        style={{
+          borderTopColor: "#79d7c2",
+          transform: `rotate(${degrees - 180}deg)`,
+          transformOrigin: "center bottom",
+        }}
+      />
+    </div>
+  )
+}
+
+function SpeakingSplit({
+  studentMinutes,
+  teacherMinutes,
+}: {
+  studentMinutes: number | null
+  teacherMinutes: number | null
+}) {
+  const student = studentMinutes ?? 0
+  const teacher = teacherMinutes ?? 0
+  const total = student + teacher
+  const studentWidth = total > 0 ? `${(student / total) * 100}%` : "50%"
+  const teacherWidth = total > 0 ? `${(teacher / total) * 100}%` : "50%"
+
+  return (
+    <div className="w-full max-w-[220px]">
+      <div className="h-4 overflow-hidden rounded-full bg-black/[0.07]">
+        <div className="flex h-full">
+          <div className="bg-[#f08cb5]" style={{ width: studentWidth }} />
+          <div className="bg-[#b44574]" style={{ width: teacherWidth }} />
+        </div>
+      </div>
+      <div className="mt-3 flex items-center justify-between text-[13px] text-ds-text-secondary">
+        <span>{studentMinutes !== null ? `${studentMinutes.toFixed(1)} мин` : "—"}</span>
+        <span>{teacherMinutes !== null ? `${teacherMinutes.toFixed(1)} мин` : "—"}</span>
+      </div>
+    </div>
+  )
 }
 
 function MetricCard({
-  label,
+  title,
+  hint,
   value,
-  detail,
+  subtitle,
+  delta,
+  visual,
 }: {
-  label: string
+  title: string
+  hint: string
   value: string
-  detail: string
+  subtitle: string
+  delta: ReactNode
+  visual: ReactNode
 }) {
   return (
-    <div className="rounded-[28px] border border-black/[0.06] bg-white px-5 py-5 shadow-[0_12px_34px_rgba(15,23,42,0.04)]">
-      <p className="text-[13px] font-medium text-ds-text-secondary">{label}</p>
-      <p className="mt-4 text-[38px] font-semibold leading-none text-ds-ink">{value}</p>
-      <p className="mt-3 text-[14px] leading-6 text-ds-text-secondary">{detail}</p>
-    </div>
+    <article className="rounded-[30px] border border-black/[0.06] bg-white p-5 shadow-[0_12px_34px_rgba(15,23,42,0.04)] transition-transform duration-300 hover:-translate-y-0.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <p className="text-[16px] font-semibold text-ds-ink">{title}</p>
+          <TooltipHint text={hint} />
+        </div>
+        <ChevronRight className="mt-1 h-4 w-4 text-ds-text-tertiary" />
+      </div>
+
+      <div className="mt-6 flex items-end justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <p className="text-[44px] font-semibold leading-none text-ds-ink">{value}</p>
+            {delta}
+          </div>
+          <p className="mt-3 max-w-[15rem] text-[14px] leading-6 text-ds-text-secondary">{subtitle}</p>
+        </div>
+        <div className="shrink-0">{visual}</div>
+      </div>
+    </article>
   )
+}
+
+function TranscriptTone({ speakerRole }: { speakerRole: LessonFeedItem["transcript"][number]["speakerRole"] }) {
+  if (speakerRole === "student") return <span className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-[#f4c65c]" />
+  if (speakerRole === "teacher") return <span className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-[#b9adeb]" />
+  return <span className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-black/18" />
 }
 
 function EmptyLessonInsights() {
   return (
     <div className="rounded-[40px] border border-black/[0.06] bg-white/[0.95] p-8 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
-      <h2 className="text-[28px] font-semibold text-ds-ink">Пока нет lesson insights</h2>
+      <h2 className="text-[28px] font-semibold text-ds-ink">Пока нет разборов уроков</h2>
       <p className="mt-3 max-w-[42rem] text-[15px] leading-7 text-ds-text-secondary">
-        Когда после звонка появятся транскрипция и AI-разбор, здесь откроется история уроков с табами, графиками,
-        ошибками, словарём и полной расшифровкой.
+        Когда после звонка появятся транскрипция и AI-разбор, здесь откроется история уроков с вкладками, графиками,
+        ошибками, лексикой и полной расшифровкой.
       </p>
     </div>
-  )
-}
-
-function InsightPreviewCard({
-  title,
-  subtitle,
-  onOpen,
-  children,
-}: {
-  title: string
-  subtitle: string
-  onOpen: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="group rounded-[30px] border border-black/[0.08] bg-white p-5 text-left shadow-[0_12px_36px_rgba(15,23,42,0.04)] transition-transform hover:-translate-y-0.5"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-[17px] font-semibold text-ds-ink">{title}</h3>
-          <p className="mt-1 text-[14px] leading-6 text-ds-text-secondary">{subtitle}</p>
-        </div>
-        <ArrowRight className="mt-1 h-5 w-5 shrink-0 text-ds-text-tertiary transition-transform group-hover:translate-x-0.5" />
-      </div>
-      <div className="mt-5">{children}</div>
-    </button>
   )
 }
 
@@ -447,6 +694,64 @@ function LessonSelector({
   )
 }
 
+function OverviewCard({
+  title,
+  onOpen,
+  children,
+}: {
+  title: string
+  onOpen: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group rounded-[30px] border border-black/[0.08] bg-white p-5 text-left shadow-[0_12px_36px_rgba(15,23,42,0.04)] transition-transform duration-300 hover:-translate-y-0.5"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-[18px] font-semibold text-ds-ink">{title}</h3>
+        <ArrowHint />
+      </div>
+      <div className="mt-4">{children}</div>
+    </button>
+  )
+}
+
+function ArrowHint() {
+  return <ChevronRight className="h-5 w-5 shrink-0 text-ds-text-tertiary transition-transform group-hover:translate-x-0.5" />
+}
+
+function TabLabel({
+  label,
+  iconOnly,
+  icon: Icon,
+}: {
+  label: string
+  iconOnly?: boolean
+  icon?: typeof Grid2x2
+}) {
+  if (iconOnly && Icon) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex items-center justify-center">
+            <Icon className="h-4 w-4" />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top">{label}</TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  return (
+    <>
+      {Icon ? <Icon className="h-4 w-4" /> : null}
+      <span>{label}</span>
+    </>
+  )
+}
+
 export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
   const [selectedSessionId, setSelectedSessionId] = useState(sessions[0]?.sessionId ?? "")
   const [activeTab, setActiveTab] = useState<InsightTab>("overview")
@@ -458,8 +763,8 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
       return
     }
 
-    const stillExists = sessions.some((session) => session.sessionId === selectedSessionId)
-    if (!stillExists) {
+    const sessionStillExists = sessions.some((session) => session.sessionId === selectedSessionId)
+    if (!sessionStillExists) {
       setSelectedSessionId(sessions[0].sessionId)
     }
   }, [selectedSessionId, sessions])
@@ -469,6 +774,12 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
   const selectedSession = sessions.find((session) => session.sessionId === selectedSessionId) ?? sessions[0]
   const selectedIndex = sessions.findIndex((session) => session.sessionId === selectedSession.sessionId)
   const previousSession = selectedIndex >= 0 ? sessions[selectedIndex + 1] ?? null : null
+  const topics = buildTopicList(selectedSession)
+  const feedback = splitFeedback(selectedSession)
+  const vocabularyItems = buildVocabularyItems(selectedSession)
+  const previewSegments = transcriptPreview(selectedSession)
+  const practiceItems = buildPracticeItems(selectedSession)
+  const metrics = buildLessonMetrics(selectedSession, previousSession, vocabularyItems)
   const selectedSkillMap = hasSkillMapData(buildSkillMapFromSession(selectedSession))
     ? buildSkillMapFromSession(selectedSession)
     : current
@@ -476,28 +787,20 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
     previousSession && hasSkillMapData(buildSkillMapFromSession(previousSession))
       ? buildSkillMapFromSession(previousSession)
       : previous ?? null
-  const vocabularyItems = buildVocabularyItems(selectedSession)
-  const practiceItems = buildPracticeItems(selectedSession)
-  const feedback = splitFeedback(selectedSession)
-  const topics = buildTopicList(selectedSession)
-  const previewSegments = transcriptPreview(selectedSession)
-  const selectedStatusLabel = statusLabel(selectedSession)
-  const selectedStatusTone = statusTone(selectedSession)
-  const lessonAverageScore = selectedSession.averageScore ?? "—"
 
   return (
-    <div className="overflow-hidden rounded-[42px] border border-black/[0.06] bg-white shadow-[0_28px_90px_rgba(15,23,42,0.07)]">
-      <div className="border-b border-black/[0.06] bg-[linear-gradient(90deg,rgba(206,224,255,0.8),rgba(248,220,234,0.8))] px-5 py-4 sm:px-8">
+    <section className="overflow-hidden rounded-[42px] border border-black/[0.06] bg-white shadow-[0_28px_90px_rgba(15,23,42,0.07)]">
+      <div className="border-b border-black/[0.06] bg-[linear-gradient(90deg,rgba(213,227,255,0.72),rgba(249,223,236,0.76))] px-5 py-4 sm:px-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1.5 text-sm font-semibold text-ds-ink">
+          <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1.5 text-sm font-semibold text-ds-ink">
             <Sparkles className="h-4 w-4" />
-            Lesson Insights
+            Разбор урока
           </div>
           <Badge
             variant="outline"
-            className="rounded-full border-black/[0.08] bg-white/80 px-3 py-1 text-[12px] font-semibold text-ds-ink"
+            className="rounded-full border-black/[0.08] bg-white/80 px-3 py-1.5 text-[12px] font-semibold text-ds-ink"
           >
-            AI beta
+            ИИ-бета
           </Badge>
         </div>
       </div>
@@ -505,8 +808,8 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
       <div className="border-b border-black/[0.06] px-5 py-4 sm:px-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <LessonSelector sessions={sessions} selectedSessionId={selectedSession.sessionId} onSelect={setSelectedSessionId} />
-          <Badge variant="outline" className={cn("rounded-full border px-3 py-1.5 text-[12px] font-semibold", selectedStatusTone)}>
-            {selectedStatusLabel}
+          <Badge variant="outline" className={cn("rounded-full border px-3 py-1.5 text-[12px] font-semibold", statusTone(selectedSession))}>
+            {statusLabel(selectedSession)}
           </Badge>
         </div>
       </div>
@@ -517,155 +820,125 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as InsightTab)} className="mt-8 gap-0">
           <TabsList className="flex h-auto w-full flex-wrap items-end gap-6 rounded-none border-b border-black/[0.08] bg-transparent p-0 text-left">
-            {INSIGHT_TABS.map((tab) => {
-              const Icon = tab.icon
-              return (
-                <TabsTrigger
-                  key={tab.value}
-                  value={tab.value}
-                  className="h-auto rounded-none border-b-2 border-transparent bg-transparent px-0 pb-4 pt-0 text-[15px] font-semibold text-ds-text-secondary data-[state=active]:border-[#ea7ca6] data-[state=active]:bg-transparent data-[state=active]:text-ds-ink"
-                >
-                  {Icon ? <Icon className="h-4 w-4" /> : null}
-                  {!Icon ? tab.label : null}
-                </TabsTrigger>
-              )
-            })}
+            {INSIGHT_TABS.map((tab) => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className="h-auto rounded-none border-b-2 border-transparent bg-transparent px-0 pb-4 pt-0 text-[15px] font-semibold text-ds-text-secondary data-[state=active]:border-[#ea7ca6] data-[state=active]:bg-transparent data-[state=active]:text-ds-ink"
+              >
+                <TabLabel label={tab.label} icon={tab.icon} iconOnly={tab.iconOnly} />
+              </TabsTrigger>
+            ))}
           </TabsList>
 
-          <TabsContent value="overview" className="pt-8">
+          <TabsContent value="overview" className="animate-in fade-in-0 slide-in-from-bottom-2 pt-8 duration-300">
             <div className="space-y-6">
               <p className="max-w-[62rem] text-[18px] leading-8 text-ds-ink">
                 {selectedSession.summary?.trim() ||
-                  "Этот урок уже появился в истории, но подробная AI-аналитика ещё догружается. Как только обработка завершится, здесь откроются summary, ошибки, рекомендации, словарь и практика."}
+                  "Этот урок уже появился в истории, но подробная аналитика ещё готовится. Как только обработка завершится, здесь откроются итог, графики, ошибки, лексика и практика."}
               </p>
 
+              <Button
+                variant="link"
+                className="h-auto p-0 text-[17px] font-semibold text-ds-ink"
+                onClick={() => setActiveTab("recap")}
+              >
+                Открыть полный итог урока
+              </Button>
+
               <div className="grid gap-5 xl:grid-cols-2">
-                <InsightPreviewCard
-                  title="Recap"
-                  subtitle="Краткий пересказ урока и темы, которые действительно обсуждали в звонке."
-                  onOpen={() => setActiveTab("recap")}
-                >
-                  <div className="space-y-3">
+                <OverviewCard title="Итог" onOpen={() => setActiveTab("recap")}>
+                  <div className="space-y-3 rounded-[24px] bg-[var(--ds-neutral-row)] p-3">
                     {topics.slice(0, 3).map((topic, index) => (
-                      <div key={`${topic}-${index}`} className="flex items-start gap-3 rounded-[20px] bg-[var(--ds-neutral-row)] px-4 py-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-sm font-semibold text-ds-ink">
+                      <div key={`${topic}-${index}`} className="flex items-start gap-3 rounded-[20px] bg-white px-4 py-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--ds-neutral-row)] text-[16px] font-semibold text-ds-ink">
                           {index + 1}
                         </div>
                         <p className="pt-2 text-[15px] font-medium text-ds-ink">{topic}</p>
                       </div>
                     ))}
                   </div>
-                </InsightPreviewCard>
+                </OverviewCard>
 
-                <InsightPreviewCard
-                  title="Progress"
-                  subtitle="Баллы урока и карта навыков после разбора этой сессии."
-                  onOpen={() => setActiveTab("progress")}
-                >
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-[22px] bg-[var(--ds-neutral-row)] px-4 py-4">
-                      <p className="text-[12px] text-ds-text-secondary">Общий балл</p>
-                      <p className="mt-2 text-[30px] font-semibold text-ds-ink">{lessonAverageScore}</p>
-                    </div>
-                    <div className="rounded-[22px] bg-[var(--ds-neutral-row)] px-4 py-4">
-                      <p className="text-[12px] text-ds-text-secondary">Говорил ученик</p>
-                      <p className="mt-2 text-[30px] font-semibold text-ds-ink">
-                        {formatSpeakingRatio(selectedSession.speakingRatio)}
-                      </p>
-                    </div>
-                    <div className="rounded-[22px] bg-[var(--ds-neutral-row)] px-4 py-4">
-                      <p className="text-[12px] text-ds-text-secondary">Темы</p>
-                      <p className="mt-2 text-[30px] font-semibold text-ds-ink">{topics.length || "—"}</p>
+                <OverviewCard title="Прогресс" onOpen={() => setActiveTab("progress")}>
+                  <div className="rounded-[24px] bg-[var(--ds-neutral-row)] p-4">
+                    <div className="rounded-[20px] bg-white px-4 py-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-[15px] font-semibold text-ds-ink">Говорил ученик</p>
+                        <span className="text-[15px] font-semibold text-ds-ink">
+                          {formatSpeakingRatio(selectedSession.speakingRatio)}
+                        </span>
+                      </div>
+                      <div className="mt-4">
+                        <div className="h-4 overflow-hidden rounded-full bg-black/[0.07]">
+                          <div className="flex h-full">
+                            <div
+                              className="bg-[#f08cb5]"
+                              style={{ width: `${clampRatio(selectedSession.speakingRatio ?? 0.5) * 100}%` }}
+                            />
+                            <div
+                              className="bg-[#b44574]"
+                              style={{ width: `${100 - clampRatio(selectedSession.speakingRatio ?? 0.5) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-4 flex items-center justify-between text-[13px] text-ds-text-secondary">
+                        <span>Ученик</span>
+                        <span>Преподаватель</span>
+                      </div>
                     </div>
                   </div>
-                </InsightPreviewCard>
+                </OverviewCard>
 
-                <InsightPreviewCard
-                  title="Feedback"
-                  subtitle="Что уже получилось и где именно ещё есть ошибки."
-                  onOpen={() => setActiveTab("feedback")}
-                >
-                  <div className="grid gap-3">
-                    {feedback.positive[0] ? (
-                      <div className="rounded-[20px] border border-[#c8e6d2] bg-[#f3fbf6] px-4 py-3 text-[14px] leading-6 text-[#27553b]">
-                        {feedback.positive[0]}
+                <OverviewCard title="Разбор" onOpen={() => setActiveTab("feedback")}>
+                  <div className="space-y-3">
+                    {feedback.strengths[0] ? (
+                      <div className="rounded-[20px] bg-[#f3fbf6] px-4 py-3 text-[14px] leading-6 text-[#27553b]">
+                        {feedback.strengths[0]}
                       </div>
                     ) : null}
-                    {feedback.improvement[0] ? (
-                      <div className="rounded-[20px] border border-[#f0d9a7] bg-[#fff8eb] px-4 py-3 text-[14px] leading-6 text-[#825617]">
-                        {feedback.improvement[0].original} → {feedback.improvement[0].correction}
+                    {feedback.mistakes[0] ? (
+                      <div className="rounded-[20px] bg-[#fff8eb] px-4 py-3 text-[14px] leading-6 text-[#825617]">
+                        {feedback.mistakes[0].original} → {feedback.mistakes[0].correction}
                       </div>
-                    ) : null}
-                    {!feedback.positive[0] && !feedback.improvement[0] ? (
-                      <p className="text-[14px] leading-6 text-ds-text-secondary">
-                        Дождитесь завершения обработки, чтобы здесь появились сильные стороны и точечные исправления.
-                      </p>
                     ) : null}
                   </div>
-                </InsightPreviewCard>
+                </OverviewCard>
 
-                <InsightPreviewCard
-                  title="Vocabulary"
-                  subtitle="Фразы и языковые паттерны, которые появились в lesson insight."
-                  onOpen={() => setActiveTab("vocabulary")}
-                >
-                  <div className="flex flex-wrap gap-2">
+                <OverviewCard title="Лексика" onOpen={() => setActiveTab("vocabulary")}>
+                  <div className="flex flex-wrap gap-2 rounded-[24px] bg-[var(--ds-neutral-row)] p-3">
                     {vocabularyItems.slice(0, 8).map((item) => (
                       <span
                         key={item.id}
-                        className="rounded-[14px] border border-black/[0.08] bg-[var(--ds-neutral-row)] px-3 py-2 text-[14px] font-medium text-ds-ink"
+                        className="rounded-[14px] bg-white px-3 py-2 text-[14px] font-medium text-ds-ink"
                       >
                         {item.phrase}
                       </span>
                     ))}
                     {vocabularyItems.length === 0 ? (
-                      <p className="text-[14px] leading-6 text-ds-text-secondary">
-                        Лексика появится после того, как AI соберёт исправления, ключевые выражения и темы урока.
+                      <p className="px-2 py-1 text-[14px] leading-6 text-ds-text-secondary">
+                        Лексика появится после готового разбора.
                       </p>
                     ) : null}
                   </div>
-                </InsightPreviewCard>
-
-                <InsightPreviewCard
-                  title="Practice"
-                  subtitle="Следующие конкретные шаги после этого урока."
-                  onOpen={() => setActiveTab("practice")}
-                >
-                  <div className="space-y-3">
-                    {practiceItems.slice(0, 2).map((item, index) => (
-                      <div key={item.id} className="flex items-start gap-3 rounded-[20px] bg-[var(--ds-neutral-row)] px-4 py-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-sm font-semibold text-ds-ink">
-                          {index + 1}
-                        </div>
-                        <div>
-                          <p className="text-[15px] font-semibold text-ds-ink">{item.title}</p>
-                          <p className="mt-1 text-[14px] leading-6 text-ds-text-secondary">{item.description}</p>
-                        </div>
-                      </div>
-                    ))}
-                    {practiceItems.length === 0 ? (
-                      <p className="text-[14px] leading-6 text-ds-text-secondary">
-                        Практика заполнится рекомендациями после финальной обработки отчёта.
-                      </p>
-                    ) : null}
-                  </div>
-                </InsightPreviewCard>
+                </OverviewCard>
               </div>
             </div>
           </TabsContent>
 
-          <TabsContent value="recap" className="pt-8">
+          <TabsContent value="recap" className="animate-in fade-in-0 slide-in-from-bottom-2 pt-8 duration-300">
             <div className="space-y-10">
               <section>
-                <h3 className="text-[22px] font-semibold text-ds-ink">Summary</h3>
+                <h3 className="text-[22px] font-semibold text-ds-ink">Итог урока</h3>
                 <p className="mt-4 max-w-[64rem] text-[17px] leading-8 text-ds-ink">
                   {selectedSession.summary?.trim() ||
-                    "Краткий пересказ урока появится здесь сразу после завершения AI-обработки звонка."}
+                    "Когда обработка завершится, здесь появится сжатый и понятный итог этого урока."}
                 </p>
               </section>
 
               <section>
-                <h3 className="text-[22px] font-semibold text-ds-ink">Topics discussed</h3>
+                <h3 className="text-[22px] font-semibold text-ds-ink">Что разбирали</h3>
                 <div className="mt-5 space-y-5">
                   {topics.length > 0 ? (
                     topics.map((topic, index) => (
@@ -678,23 +951,23 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                           <p className="mt-2 text-[15px] leading-7 text-ds-text-secondary">
                             {selectedSession.recommendations[index] ||
                               selectedSession.strengths[index] ||
-                              "Тема была частью разговора, исправлений и последующего AI-разбора этого урока."}
+                              "Тема появилась в разговоре, исправлениях и последующем разборе урока."}
                           </p>
                         </div>
                       </div>
                     ))
                   ) : (
                     <p className="text-[15px] leading-7 text-ds-text-secondary">
-                      Как только AI отчёт соберёт темы урока, здесь появится структурированный recap разговора.
+                      Темы урока появятся здесь после завершения AI-аналитики.
                     </p>
                   )}
                 </div>
               </section>
 
               <section>
-                <h3 className="text-[22px] font-semibold text-ds-ink">Key learnings</h3>
+                <h3 className="text-[22px] font-semibold text-ds-ink">Ключевые выводы</h3>
                 <Accordion type="single" collapsible className="mt-5 rounded-[28px] border border-black/[0.08] bg-white">
-                  {[...feedback.positive.slice(0, 2), ...selectedSession.recommendations.slice(0, 2)].map((item, index) => (
+                  {[...feedback.strengths.slice(0, 2), ...selectedSession.recommendations.slice(0, 2)].map((item, index) => (
                     <AccordionItem key={`${item}-${index}`} value={`learning-${index}`} className="px-5">
                       <AccordionTrigger className="py-5 text-[16px] font-semibold text-ds-ink hover:no-underline">
                         <span className="flex items-center gap-4">
@@ -705,14 +978,13 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                         </span>
                       </AccordionTrigger>
                       <AccordionContent className="pl-16 pr-4 text-[14px] leading-7 text-ds-text-secondary">
-                        Вернитесь к этой мысли перед следующим уроком: используйте её как мини-фокус для повторения и
-                        для самостоятельной устной практики.
+                        Это одна из мыслей, к которой стоит вернуться перед следующим уроком и в самостоятельной практике.
                       </AccordionContent>
                     </AccordionItem>
                   ))}
-                  {feedback.positive.length === 0 && selectedSession.recommendations.length === 0 ? (
+                  {feedback.strengths.length === 0 && selectedSession.recommendations.length === 0 ? (
                     <div className="px-5 py-5 text-[14px] leading-7 text-ds-text-secondary">
-                      Здесь появятся ключевые выводы, когда разбор урока будет полностью готов.
+                      Ключевые выводы появятся здесь после завершения разбора.
                     </div>
                   ) : null}
                 </Accordion>
@@ -724,19 +996,16 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                   <h3 className="text-[22px] font-semibold text-ds-ink">Полная транскрипция</h3>
                 </div>
                 {selectedSession.transcript.length > 0 ? (
-                  <ScrollArea className="mt-5 h-[420px] rounded-[28px] border border-black/[0.08] bg-[var(--ds-neutral-row)] p-4">
+                  <ScrollArea className="mt-5 h-[420px] rounded-[28px] bg-[var(--ds-neutral-row)] p-4">
                     <div className="space-y-3 pr-3">
                       {selectedSession.transcript.map((segment) => (
-                        <article
-                          key={`${segment.sequence}-${segment.startedAtSec ?? "na"}`}
-                          className="rounded-[22px] border border-black/[0.06] bg-white px-4 py-4"
-                        >
+                        <article key={`${segment.sequence}-${segment.startedAtSec ?? "na"}`} className="rounded-[22px] bg-white px-4 py-4">
                           <div className="flex items-start gap-3">
                             <TranscriptTone speakerRole={segment.speakerRole} />
                             <div className="min-w-0">
                               <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-ds-text-tertiary">
                                 {segment.speakerLabel?.trim() || segment.speakerRole}
-                                {segment.startedAtSec !== null ? ` · ${segment.startedAtSec.toFixed(1)}s` : ""}
+                                {segment.startedAtSec !== null ? ` · ${segment.startedAtSec.toFixed(1)}с` : ""}
                               </p>
                               <p className="mt-2 text-[15px] leading-7 text-ds-ink">{segment.text}</p>
                             </div>
@@ -747,92 +1016,120 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                   </ScrollArea>
                 ) : (
                   <p className="mt-4 text-[15px] leading-7 text-ds-text-secondary">
-                    Транскрипция ещё не загрузилась. После обработки Daily она появится прямо здесь.
+                    Транскрипция пока не загрузилась. Она появится сразу после обработки звонка.
                   </p>
                 )}
               </section>
             </div>
           </TabsContent>
 
-          <TabsContent value="progress" className="pt-8">
+          <TabsContent value="progress" className="animate-in fade-in-0 slide-in-from-bottom-2 pt-8 duration-300">
             <div className="space-y-8">
-              <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
-                <MetricCard label="Общий балл" value={String(lessonAverageScore)} detail="Среднее по грамматике, лексике и беглости в этом уроке." />
+              <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
                 <MetricCard
-                  label="Грамматика"
-                  value={selectedSession.grammarScore !== null ? String(selectedSession.grammarScore) : "—"}
-                  detail="Насколько уверенно студент строил конструкции в живом диалоге."
+                  title="Индекс освоения"
+                  hint="Среднее по грамматике, лексике и беглости именно в этом уроке."
+                  value={metrics.masteryScore !== null ? String(metrics.masteryScore) : "—"}
+                  subtitle="Насколько уверенно ученик прошёл этот урок в целом."
+                  delta={<DeltaBadge value={metrics.masteryDelta} />}
+                  visual={<RingChart value={metrics.masteryScore} />}
                 />
                 <MetricCard
-                  label="Лексика"
-                  value={selectedSession.vocabularyScore !== null ? String(selectedSession.vocabularyScore) : "—"}
-                  detail="Насколько богато и точно использовались слова и выражения."
+                  title="Уровень речи"
+                  hint="Оценка темпа и качества устной речи по текущей сессии."
+                  value={metrics.speechLevel}
+                  subtitle={metrics.speechLevelHint}
+                  delta={<DeltaBadge value={metrics.masteryDelta} />}
+                  visual={<LevelBars value={metrics.masteryScore} />}
                 />
                 <MetricCard
-                  label="Говорил ученик"
+                  title="Лексика урока"
+                  hint="Количество слов, фраз и паттернов, которые вошли в lesson insight."
+                  value={String(metrics.vocabularySize)}
+                  subtitle="Сюда попадают исправления, ключевые выражения и темы."
+                  delta={<DeltaBadge value={metrics.vocabularyDelta} />}
+                  visual={<TrendLine up={(metrics.vocabularyDelta ?? 0) >= 0} />}
+                />
+                <MetricCard
+                  title="Темп речи"
+                  hint="Оценка количества слов или фраз в минуту у ученика."
+                  value={metrics.speechSpeed !== null ? `${metrics.speechSpeed}` : "—"}
+                  subtitle="Сколько единиц речи в минуту давал именно ученик."
+                  delta={<DeltaBadge value={metrics.speechSpeedDelta} />}
+                  visual={<Gauge value={metrics.speechSpeed} />}
+                />
+                <MetricCard
+                  title="Время речи"
+                  hint="Как распределилось время разговора между учеником и преподавателем."
                   value={formatSpeakingRatio(selectedSession.speakingRatio)}
-                  detail="Доля времени, в которую говорил ученик, а не преподаватель."
+                  subtitle="Баланс живой беседы внутри урока."
+                  delta={<DeltaBadge value={selectedSession.speakingRatio !== null ? Math.round((selectedSession.speakingRatio - 0.5) * 100) : null} suffix="%" />}
+                  visual={<SpeakingSplit studentMinutes={metrics.studentMinutes} teacherMinutes={metrics.teacherMinutes} />}
+                />
+                <MetricCard
+                  title="Длина реплики"
+                  hint="Среднее число слов или фраз в одной реплике ученика."
+                  value={metrics.sentenceLength !== null ? `${metrics.sentenceLength}` : "—"}
+                  subtitle="Показывает, насколько развернуто студент отвечает."
+                  delta={<DeltaBadge value={metrics.sentenceLengthDelta} />}
+                  visual={<TrendLine up={(metrics.sentenceLengthDelta ?? 0) >= 0} />}
                 />
               </div>
 
-              <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-                <div className="rounded-[34px] border border-black/[0.08] bg-[linear-gradient(135deg,rgba(245,197,66,0.12),rgba(147,197,253,0.12),rgba(255,255,255,0.95))] p-5">
-                  <SkillRadarChart current={selectedSkillMap} previous={previousSkillMap} />
-                </div>
+              <section className="rounded-[34px] bg-[var(--ds-neutral-row)] p-5">
+                <div className="grid gap-6 xl:grid-cols-[minmax(320px,0.86fr)_minmax(0,1.14fr)] xl:items-center">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <LineChart className="h-4 w-4 text-ds-text-tertiary" />
+                      <h3 className="text-[22px] font-semibold text-ds-ink">Трекер навыков</h3>
+                      <TooltipHint text="Жёлтый слой — текущее состояние, сиреневый — прошлый сопоставимый урок." />
+                    </div>
+                    <p className="mt-3 max-w-[32rem] text-[15px] leading-7 text-ds-text-secondary">
+                      Эта карта меняется после каждого нового звонка и показывает, куда реально сдвинулась речь ученика.
+                    </p>
 
-                <div className="rounded-[34px] border border-black/[0.08] bg-[var(--ds-neutral-row)] p-5">
-                  <div className="flex items-center gap-2 text-[15px] font-semibold text-ds-ink">
-                    <LineChart className="h-4 w-4" />
-                    Сравнение по осям
-                  </div>
-                  <div className="mt-5 space-y-3">
-                    {SKILL_LABELS.map((axis) => {
-                      const currentValue = selectedSkillMap[axis.key]
-                      const previousValue = previousSkillMap?.[axis.key] ?? 0
-                      const delta = currentValue - previousValue
+                    <div className="mt-5 space-y-3">
+                      <div className="flex items-center gap-3 text-[14px] text-ds-text-secondary">
+                        <span className="inline-flex h-4 w-4 rounded-full bg-[#f5d783]" />
+                        <span>Текущее состояние после урока</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[14px] text-ds-text-secondary">
+                        <span className="inline-flex h-4 w-4 rounded-full bg-[#c8bff3]" />
+                        <span>Предыдущий сопоставимый урок</span>
+                      </div>
+                    </div>
 
-                      return (
-                        <div
-                          key={axis.key}
-                          className="flex items-center justify-between rounded-[22px] border border-black/[0.06] bg-white px-4 py-3"
-                        >
-                          <div>
+                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                      {SKILL_LABELS.map((axis) => (
+                        <div key={axis.key} className="rounded-[22px] bg-white px-4 py-3">
+                          <div className="flex items-center justify-between gap-2">
                             <p className="text-[14px] font-semibold text-ds-ink">{axis.label}</p>
-                            <p className="mt-1 text-[13px] text-ds-text-secondary">
-                              {previousValue > 0 ? `к прошлому уроку: ${formatDelta(delta)}` : "первая точка сравнения"}
-                            </p>
+                            <span className="text-[14px] font-semibold text-ds-ink">{selectedSkillMap[axis.key]}</span>
                           </div>
-                          <div className="text-right">
-                            <p className="text-[20px] font-semibold text-ds-ink">{currentValue}</p>
-                            <p
-                              className={cn(
-                                "text-[12px] font-semibold",
-                                delta > 0 ? "text-[#2d9150]" : delta < 0 ? "text-[#a85c10]" : "text-ds-text-tertiary"
-                              )}
-                            >
-                              {previousValue > 0 ? formatDelta(delta) : "новый"}
-                            </p>
-                          </div>
+                          <p className="mt-1 text-[13px] text-ds-text-secondary">
+                            {previousSkillMap ? `к прошлому уроку: ${formatDelta(selectedSkillMap[axis.key] - previousSkillMap[axis.key])}` : "первая точка сравнения"}
+                          </p>
                         </div>
-                      )
-                    })}
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[30px] bg-white p-3 sm:p-5">
+                    <SkillRadarChart current={selectedSkillMap} previous={previousSkillMap} mode="panel" />
                   </div>
                 </div>
-              </div>
+              </section>
             </div>
           </TabsContent>
 
-          <TabsContent value="feedback" className="pt-8">
+          <TabsContent value="feedback" className="animate-in fade-in-0 slide-in-from-bottom-2 pt-8 duration-300">
             <div className="grid gap-6 xl:grid-cols-2">
               <section>
-                <h3 className="text-[22px] font-semibold text-ds-ink">What you did well</h3>
+                <h3 className="text-[22px] font-semibold text-ds-ink">Что уже получается</h3>
                 <div className="mt-5 space-y-4">
-                  {feedback.positive.length > 0 ? (
-                    feedback.positive.map((item, index) => (
-                      <article
-                        key={`${item}-${index}`}
-                        className="rounded-[28px] border border-[#c9e7d3] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.04)]"
-                      >
+                  {feedback.strengths.length > 0 ? (
+                    feedback.strengths.map((item, index) => (
+                      <article key={`${item}-${index}`} className="rounded-[28px] border border-black/[0.06] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.04)]">
                         <div className="flex items-center gap-3 text-[14px] text-[#2d9150]">
                           <Sparkles className="h-4 w-4" />
                           <span>Сильная сторона</span>
@@ -841,39 +1138,36 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                       </article>
                     ))
                   ) : (
-                    <p className="rounded-[28px] border border-black/[0.06] bg-[var(--ds-neutral-row)] px-5 py-5 text-[15px] leading-7 text-ds-text-secondary">
-                      После готового разбора здесь появятся конкретные моменты, которые у ученика уже получаются хорошо.
+                    <p className="rounded-[28px] bg-[var(--ds-neutral-row)] px-5 py-5 text-[15px] leading-7 text-ds-text-secondary">
+                      После готового разбора здесь появятся сильные стороны именно по этому уроку.
                     </p>
                   )}
                 </div>
               </section>
 
               <section>
-                <h3 className="text-[22px] font-semibold text-ds-ink">What you can improve</h3>
+                <h3 className="text-[22px] font-semibold text-ds-ink">Что поправить</h3>
                 <div className="mt-5 space-y-4">
-                  {feedback.improvement.length > 0 ? (
-                    feedback.improvement.map((mistake, index) => (
-                      <article
-                        key={`${mistake.original}-${index}`}
-                        className="rounded-[28px] border border-[#f0d7a6] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.04)]"
-                      >
+                  {feedback.mistakes.length > 0 ? (
+                    feedback.mistakes.map((mistake, index) => (
+                      <article key={`${mistake.original}-${index}`} className="rounded-[28px] border border-black/[0.06] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.04)]">
                         <div className="flex flex-wrap items-center gap-2 text-[14px] text-[#a26a15]">
                           <CircleAlert className="h-4 w-4" />
                           <span>{mistake.type}</span>
-                          <Badge variant="outline" className="border-[#f0d7a6] bg-[#fff8eb] text-[#a26a15]">
+                          <Badge variant="outline" className="border-black/[0.08] bg-[var(--ds-neutral-row)] text-ds-ink">
                             HSK {mistake.hsk_level}
                           </Badge>
                         </div>
                         <p className="mt-4 text-[17px] leading-8 text-ds-ink">{mistake.original}</p>
                         <p className="mt-3 text-[15px] leading-7 text-ds-text-secondary">
-                          <span className="font-semibold text-ds-ink">Правильно:</span> {mistake.correction}
+                          <span className="font-semibold text-ds-ink">Исправление:</span> {mistake.correction}
                         </p>
                         <p className="mt-3 text-[15px] leading-7 text-ds-text-secondary">{mistake.explanation}</p>
                       </article>
                     ))
                   ) : (
-                    <p className="rounded-[28px] border border-black/[0.06] bg-[var(--ds-neutral-row)] px-5 py-5 text-[15px] leading-7 text-ds-text-secondary">
-                      Когда AI отчёт закончит разбор, здесь появятся спорные фразы, исправления и пояснения по ним.
+                    <p className="rounded-[28px] bg-[var(--ds-neutral-row)] px-5 py-5 text-[15px] leading-7 text-ds-text-secondary">
+                      Когда AI закончит разбор, здесь появятся спорные места, исправления и объяснения.
                     </p>
                   )}
                 </div>
@@ -881,22 +1175,19 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
 
               <section className="xl:col-span-2">
                 <div className="flex items-center gap-2">
-                  <Target className="h-5 w-5 text-[#4c7fe6]" />
-                  <h3 className="text-[22px] font-semibold text-ds-ink">Next focus</h3>
+                  <Target className="h-5 w-5 text-ds-text-tertiary" />
+                  <h3 className="text-[22px] font-semibold text-ds-ink">Следующий фокус</h3>
                 </div>
                 <div className="mt-5 grid gap-4 lg:grid-cols-2">
                   {selectedSession.recommendations.length > 0 ? (
                     selectedSession.recommendations.map((item, index) => (
-                      <div
-                        key={`${item}-${index}`}
-                        className="rounded-[24px] border border-[#cad7f9] bg-[#f3f7ff] px-5 py-4 text-[15px] leading-7 text-[#2d4d8c]"
-                      >
+                      <div key={`${item}-${index}`} className="rounded-[24px] bg-[#f3f7ff] px-5 py-4 text-[15px] leading-7 text-[#2d4d8c]">
                         {item}
                       </div>
                     ))
                   ) : (
-                    <p className="rounded-[28px] border border-black/[0.06] bg-[var(--ds-neutral-row)] px-5 py-5 text-[15px] leading-7 text-ds-text-secondary">
-                      Блок рекомендаций появится автоматически после финальной AI-обработки урока.
+                    <p className="rounded-[28px] bg-[var(--ds-neutral-row)] px-5 py-5 text-[15px] leading-7 text-ds-text-secondary">
+                      Персональные рекомендации по следующему уроку появятся после финального отчёта.
                     </p>
                   )}
                 </div>
@@ -904,7 +1195,7 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
             </div>
           </TabsContent>
 
-          <TabsContent value="vocabulary" className="pt-8">
+          <TabsContent value="vocabulary" className="animate-in fade-in-0 slide-in-from-bottom-2 pt-8 duration-300">
             <div className="space-y-8">
               <section className="rounded-[30px] bg-[var(--ds-neutral-row)] px-5 py-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -913,15 +1204,15 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                       <Languages className="h-6 w-6 text-ds-ink" />
                     </div>
                     <div>
-                      <h3 className="text-[22px] font-semibold text-ds-ink">Vocabulary</h3>
+                      <h3 className="text-[22px] font-semibold text-ds-ink">Лексика урока</h3>
                       <p className="mt-2 max-w-[40rem] text-[15px] leading-7 text-ds-text-secondary">
-                        Здесь собраны слова, фразы и языковые паттерны, которые AI вытащил из исправлений и тем этого урока.
+                        Здесь собраны слова, выражения и паттерны, которые появились в исправлениях и темах этого урока.
                       </p>
                     </div>
                   </div>
-                  <Button variant="outline" className="rounded-full border border-black px-5">
+                  <Button variant="outline" className="rounded-full border-black px-5">
                     <Bookmark className="h-4 w-4" />
-                    Сохранить слова ({vocabularyItems.length})
+                    Сохранить все ({vocabularyItems.length})
                   </Button>
                 </div>
               </section>
@@ -932,7 +1223,7 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                     <AccordionItem key={item.id} value={item.id} className="px-5">
                       <AccordionTrigger className="py-5 hover:no-underline">
                         <div className="flex min-w-0 items-center gap-4">
-                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border border-[#d6deee] bg-white">
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border border-black/[0.06] bg-white">
                             <Volume2 className="h-5 w-5 text-[#4c7fe6]" />
                           </div>
                           <div className="min-w-0">
@@ -955,32 +1246,29 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                   ))}
                 </Accordion>
               ) : (
-                <p className="rounded-[28px] border border-black/[0.06] bg-[var(--ds-neutral-row)] px-5 py-5 text-[15px] leading-7 text-ds-text-secondary">
-                  Пока AI не собрал лексику для этого урока. После готового отчёта здесь появятся слова и фразы из разбора.
+                <p className="rounded-[28px] bg-[var(--ds-neutral-row)] px-5 py-5 text-[15px] leading-7 text-ds-text-secondary">
+                  Пока AI не собрал лексику для этого урока. После готового отчёта здесь появятся слова и выражения.
                 </p>
               )}
             </div>
           </TabsContent>
 
-          <TabsContent value="practice" className="pt-8">
+          <TabsContent value="practice" className="animate-in fade-in-0 slide-in-from-bottom-2 pt-8 duration-300">
             <div className="space-y-8">
               <section>
                 <div className="flex items-center gap-2">
                   <GraduationCap className="h-5 w-5 text-ds-text-tertiary" />
-                  <h3 className="text-[22px] font-semibold text-ds-ink">Practice</h3>
+                  <h3 className="text-[22px] font-semibold text-ds-ink">Что потренировать</h3>
                 </div>
                 <p className="mt-3 max-w-[50rem] text-[15px] leading-7 text-ds-text-secondary">
-                  Это короткий список того, что полезно повторить после урока, пока материал ещё свежий.
+                  Это короткий практический план после урока, чтобы закрепить проблемные места, пока материал ещё свежий.
                 </p>
               </section>
 
               <div className="grid gap-4 xl:grid-cols-2">
                 {practiceItems.length > 0 ? (
                   practiceItems.map((item, index) => (
-                    <article
-                      key={item.id}
-                      className="rounded-[30px] border border-black/[0.08] bg-white p-5 shadow-[0_12px_36px_rgba(15,23,42,0.04)]"
-                    >
+                    <article key={item.id} className="rounded-[30px] border border-black/[0.06] bg-white p-5 shadow-[0_12px_36px_rgba(15,23,42,0.04)]">
                       <div className="flex items-start gap-4">
                         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--ds-neutral-row)] text-[18px] font-semibold text-ds-ink">
                           {index + 1}
@@ -1003,16 +1291,16 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                     </article>
                   ))
                 ) : (
-                  <p className="rounded-[28px] border border-black/[0.06] bg-[var(--ds-neutral-row)] px-5 py-5 text-[15px] leading-7 text-ds-text-secondary">
-                    После финальной AI-обработки здесь появятся упражнения и следующие шаги именно по этому уроку.
+                  <p className="rounded-[28px] bg-[var(--ds-neutral-row)] px-5 py-5 text-[15px] leading-7 text-ds-text-secondary">
+                    После завершения AI-разбора здесь появятся следующие шаги именно по этому уроку.
                   </p>
                 )}
               </div>
 
-              <section className="rounded-[30px] border border-black/[0.08] bg-[var(--ds-neutral-row)] p-5">
+              <section className="rounded-[30px] bg-[var(--ds-neutral-row)] p-5">
                 <div className="flex items-center gap-2 text-[15px] font-semibold text-ds-ink">
                   <Mic className="h-4 w-4" />
-                  Фрагменты для повторения вслух
+                  Фразы для повторения вслух
                 </div>
                 {previewSegments.length > 0 ? (
                   <div className="mt-4 space-y-3">
@@ -1032,7 +1320,7 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                   </div>
                 ) : (
                   <p className="mt-4 text-[15px] leading-7 text-ds-text-secondary">
-                    После загрузки транскрипции сюда можно будет вернуться и повторить ключевые фразы вслух.
+                    После загрузки транскрипции сюда можно будет вернуться и быстро повторить ключевые фразы вслух.
                   </p>
                 )}
               </section>
@@ -1040,6 +1328,6 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
+    </section>
   )
 }
