@@ -299,7 +299,7 @@ function ParticipantTile({
       >
         <span className="truncate font-medium">{participant?.user_name?.trim() || copy.fallbackGuest}</span>
         {participant?.local ? (
-          <span className="rounded-full bg-white/12 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]">
+          <span className="rounded-full bg-white/12 px-2 py-1 text-[11px] font-semibold">
             {copy.localBadge}
           </span>
         ) : null}
@@ -548,7 +548,7 @@ function VideoRoomInner({
 
       <aside className={cn("flex flex-col gap-3", isFloating && "min-h-0")}>
         <div className="rounded-[24px] bg-black/[0.04] p-4 dark:bg-white/[0.05]">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-ds-text-tertiary dark:text-white/45">
+          <p className="text-[11px] font-medium text-ds-text-tertiary dark:text-white/45">
             {copy.callStatus}
           </p>
           <p className="mt-2 text-lg font-semibold text-ds-ink dark:text-white">{meetingStateLabel}</p>
@@ -558,7 +558,7 @@ function VideoRoomInner({
         </div>
 
         <div className="rounded-[24px] bg-black/[0.04] p-4 dark:bg-white/[0.05]">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-ds-text-tertiary dark:text-white/45">
+          <p className="text-[11px] font-medium text-ds-text-tertiary dark:text-white/45">
             {copy.youLabel}
           </p>
           <p className="mt-2 truncate text-base font-semibold text-ds-ink dark:text-white">
@@ -601,7 +601,7 @@ function VideoRoomInner({
 
       <aside className="flex flex-col gap-3">
         <div className="rounded-[24px] bg-black/[0.04] p-4 dark:bg-white/[0.05]">
-          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.24em] text-ds-text-tertiary dark:text-white/45">
+          <div className="flex items-center gap-2 text-[11px] font-medium text-ds-text-tertiary dark:text-white/45">
             <Waves className="h-4 w-4" aria-hidden />
             {copy.callStatus}
           </div>
@@ -649,7 +649,7 @@ function VideoRoomInner({
       )}
     >
       <div className="w-full max-w-xl">
-        <p className="text-sm uppercase tracking-[0.22em] text-[#b15462] dark:text-[#ffb6c3]">{copy.errorEyebrow}</p>
+        <p className="text-sm font-medium text-[#b15462] dark:text-[#ffb6c3]">{copy.errorEyebrow}</p>
         <h2 className="mt-3 text-2xl font-semibold text-[#7e2031] dark:text-white">{copy.errorTitle}</h2>
         <p className="mt-3 text-sm leading-6 text-[#8d4150] dark:text-white/72">{joinError}</p>
         <div className="mt-6 flex flex-wrap gap-3">
@@ -723,7 +723,7 @@ function VideoRoomInner({
           <div className={cn(shellClassName, "flex min-h-0 flex-1 flex-col p-4 sm:p-5")}>
             <header className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate text-[11px] font-semibold uppercase tracking-[0.24em] text-ds-text-tertiary dark:text-white/45">
+                <p className="truncate text-[11px] font-medium text-ds-text-tertiary dark:text-white/45">
                   {titleLine}
                 </p>
                 <h1 className="mt-1 text-lg font-semibold text-ds-ink dark:text-white">{lessonTitle}</h1>
@@ -791,7 +791,7 @@ function VideoRoomInner({
         <section className={cn(shellClassName, "flex min-h-screen flex-col p-4 md:p-6")}>
           <header className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
-              <p className="truncate text-sm uppercase tracking-[0.24em] text-ds-text-tertiary dark:text-white/45">
+              <p className="truncate text-sm font-medium text-ds-text-tertiary dark:text-white/45">
                 {titleLine}
               </p>
               <h1 className="mt-1 text-2xl font-semibold text-ds-ink dark:text-white md:text-3xl">{lessonTitle}</h1>

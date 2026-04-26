@@ -36,7 +36,7 @@ export function LearningResources() {
         <div className="space-y-6">
           {Object.entries(groupedResources).map(([category, resources]) => (
             <div key={category}>
-              <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              <h3 className="mb-3 text-[10px] font-semibold text-muted-foreground">
                 {category}
               </h3>
               <div className="space-y-2">
@@ -60,7 +60,7 @@ export function LearningResources() {
                           {resource.titleChinese}
                         </p>
                       </div>
-                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2 py-0.5 rounded-md bg-muted shrink-0">
+                      <span className="text-[10px] font-medium text-muted-foreground px-2 py-0.5 rounded-md bg-muted shrink-0">
                         {resource.type}
                       </span>
                       <Button 
@@ -80,7 +80,7 @@ export function LearningResources() {
 
         {/* Quick Links */}
         <div className="mt-6 pt-6 border-t border-border">
-          <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+          <h3 className="mb-3 text-[10px] font-semibold text-muted-foreground">
             External Resources
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

@@ -48,7 +48,7 @@ export function LessonCard({ lesson }: LessonCardProps) {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2 py-0.5 rounded-md bg-background border border-border">
+              <span className="text-[10px] font-medium text-muted-foreground px-2 py-0.5 rounded-md bg-background border border-border">
                 {lesson.type}
               </span>
             </div>

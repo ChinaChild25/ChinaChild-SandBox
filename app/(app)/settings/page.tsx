@@ -520,7 +520,7 @@ export default function SettingsPage() {
                       className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-full bg-black/0 transition-colors duration-200 group-hover:bg-black/45"
                       aria-hidden
                     >
-                      <span className="max-w-[76px] px-1 text-center text-[10px] font-semibold uppercase leading-tight tracking-wide text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                      <span className="max-w-[76px] px-1 text-center text-[10px] font-semibold leading-tight text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                         {t("settings.avatarOverlay")}
                       </span>
                     </div>

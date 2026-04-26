@@ -369,7 +369,7 @@ export default function DashboardPage() {
                           />
                         </div>
                         <div className="min-w-0 flex-1 overflow-hidden">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-[#888] dark:text-ds-text-tertiary">
+                          <div className="text-[11px] font-semibold text-[#888] dark:text-ds-text-tertiary">
                             {kind === "curator" ? t("dashboard.roleCurator") : t("dashboard.roleTeacher")}
                           </div>
                           <div className="mb-0.5 min-w-0 hyphens-auto text-[18px] font-semibold leading-snug text-ds-ink">

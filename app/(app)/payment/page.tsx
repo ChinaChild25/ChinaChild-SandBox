@@ -352,7 +352,7 @@ export default function PaymentPage() {
                   Ваш тариф
                 </h2>
                 <div className="mt-5 px-1 pb-1 pt-2">
-                  <div className="text-[13px] uppercase tracking-[0.08em] text-ds-text-tertiary">
+                  <div className="text-[13px] font-medium text-ds-text-tertiary">
                     {summary.tariffProfile?.tariffName || "Персональная настройка"}
                   </div>
                   <div className="mt-3 text-[clamp(2rem,6vw,2.5rem)] font-semibold leading-none tracking-tight text-ds-ink">
@@ -416,7 +416,7 @@ export default function PaymentPage() {
                           <div className="inline-flex h-9 items-center rounded-full bg-[var(--ds-neutral-row)] px-4 text-[13px] font-medium text-ds-ink">
                             {pkg.totalLessons} {formatLessonUnit(pkg.totalLessons)}
                           </div>
-                          <div className="text-[11px] font-medium uppercase tracking-[0.08em] text-ds-text-tertiary sm:text-[12px]">
+                          <div className="text-[11px] font-medium text-ds-text-tertiary sm:text-[12px]">
                             По тарифу
                           </div>
                         </div>

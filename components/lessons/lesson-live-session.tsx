@@ -202,7 +202,7 @@ export function DailyCallSession({
         <>
           <div className="pointer-events-none fixed inset-0 z-50">
             <div className="pointer-events-auto fixed right-3 bottom-3 w-[min(calc(100vw-1.5rem),28rem)] rounded-[28px] bg-[rgba(255,255,255,0.96)] p-5 text-ds-ink shadow-[0_28px_90px_rgba(15,23,42,0.18)] backdrop-blur-xl md:right-6 md:bottom-6 dark:bg-[#171717]/96 dark:text-white">
-              <div className="flex items-center gap-3 text-sm uppercase tracking-[0.22em] text-ds-text-tertiary dark:text-white/45">
+              <div className="flex items-center gap-3 text-sm font-medium text-ds-text-tertiary dark:text-white/45">
                 <Video className="h-4 w-4" aria-hidden />
                 {copy.eyebrow}
               </div>
@@ -278,7 +278,7 @@ export function DailyCallSession({
       <div className="min-h-screen bg-ds-canvas px-4 py-10 text-ds-ink md:px-6 dark:bg-ds-canvas dark:text-white">
         <div className="mx-auto flex min-h-[80vh] max-w-xl items-center justify-center">
           <div className="w-full rounded-[32px] bg-[rgba(255,255,255,0.96)] p-8 shadow-[0_28px_90px_rgba(15,23,42,0.16)] backdrop-blur-xl dark:bg-[#171717]/96">
-            <div className="flex items-center gap-3 text-sm uppercase tracking-[0.22em] text-ds-text-tertiary dark:text-white/45">
+            <div className="flex items-center gap-3 text-sm font-medium text-ds-text-tertiary dark:text-white/45">
               <Video className="h-4 w-4" aria-hidden />
               {copy.eyebrow}
             </div>

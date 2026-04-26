@@ -21,7 +21,7 @@ export default function ProfilePage() {
     <div className="ds-figma-page">
       <div className="mx-auto flex w-full max-w-[var(--ds-shell-max-width)] flex-col gap-4">
         <section className="ek-surface bg-ds-panel-muted px-7 py-6">
-          <p className="text-sm uppercase tracking-[0.18em] text-black/45">Личный кабинет</p>
+          <p className="text-sm font-medium text-black/45">Личный кабинет</p>
           <h1 className="mt-3 text-[2.6rem] leading-none font-semibold tracking-[-0.05em] text-ds-ink">
             Профиль
           </h1>

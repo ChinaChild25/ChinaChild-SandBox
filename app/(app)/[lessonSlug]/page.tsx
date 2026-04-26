@@ -48,7 +48,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
           <div className="mb-8 flex flex-col gap-4 border-b border-black/[0.06] pb-6 dark:border-white/10">
             <div className="flex flex-wrap items-center gap-3">
               <span
-                className="inline-flex items-center rounded-[var(--ds-radius-md)] px-3 py-1.5 text-[12px] font-semibold tracking-wide text-ds-ink"
+                className="inline-flex items-center rounded-[var(--ds-radius-md)] px-3 py-1.5 text-[12px] font-semibold text-ds-ink"
                 style={{ backgroundColor: coursePillBg }}
               >
                 {courseLevelLabel}

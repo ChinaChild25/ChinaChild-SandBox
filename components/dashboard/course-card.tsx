@@ -22,10 +22,10 @@ export function CourseCard({ course, variant = "default" }: CourseCardProps) {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2 py-0.5 rounded-md bg-background border border-border">
+                <span className="text-[10px] font-medium text-muted-foreground px-2 py-0.5 rounded-md bg-background border border-border">
                   {course.level}
                 </span>
-                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                <span className="text-[10px] font-medium text-muted-foreground">
                   {course.category}
                 </span>
               </div>
@@ -53,13 +53,13 @@ export function CourseCard({ course, variant = "default" }: CourseCardProps) {
         <div className="h-32 bg-gradient-to-br from-muted to-background relative flex items-center justify-center border-b border-border">
           <BookOpen className="h-12 w-12 text-muted-foreground/30" />
           <div className="absolute top-3 left-3 flex gap-2">
-            <span className="text-[10px] font-medium text-foreground uppercase tracking-wider px-2.5 py-1 rounded-lg bg-background border border-border">
+            <span className="text-[10px] font-medium text-foreground px-2.5 py-1 rounded-lg bg-background border border-border">
               {course.level}
             </span>
           </div>
           {course.progress === 100 && (
             <div className="absolute top-3 right-3">
-              <span className="text-[10px] font-medium text-background uppercase tracking-wider px-2.5 py-1 rounded-lg bg-foreground">
+              <span className="text-[10px] font-medium text-background px-2.5 py-1 rounded-lg bg-foreground">
                 Completed
               </span>
             </div>
@@ -67,7 +67,7 @@ export function CourseCard({ course, variant = "default" }: CourseCardProps) {
         </div>
       </CardHeader>
       <CardContent className="p-4">
-        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+        <span className="text-[10px] font-medium text-muted-foreground">
           {course.category}
         </span>
         <h3 className="font-medium text-base mt-1 leading-snug">{course.title}</h3>

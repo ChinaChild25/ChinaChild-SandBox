@@ -46,14 +46,14 @@ export function EnrolledCourses() {
               
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider px-2 py-0.5 rounded-md bg-muted">
+                  <span className="text-[10px] font-medium text-muted-foreground px-2 py-0.5 rounded-md bg-muted">
                     {course.level}
                   </span>
-                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  <span className="text-[10px] font-medium text-muted-foreground">
                     {course.category}
                   </span>
                   {course.progress === 100 && (
-                    <span className="text-[10px] font-medium text-background uppercase tracking-wider px-2 py-0.5 rounded-md bg-foreground">
+                    <span className="text-[10px] font-medium text-background px-2 py-0.5 rounded-md bg-foreground">
                       Completed
                     </span>
                   )}
@@ -102,13 +102,13 @@ export function EnrolledCourses() {
             <p className="text-2xl font-semibold">
               {enrolledCourses.length}
             </p>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Active Courses</p>
+            <p className="mt-1 text-xs text-muted-foreground">Active Courses</p>
           </div>
           <div className="text-center">
             <p className="text-2xl font-semibold">
               {enrolledCourses.filter((c) => c.progress === 100).length}
             </p>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Completed</p>
+            <p className="mt-1 text-xs text-muted-foreground">Completed</p>
           </div>
           <div className="text-center">
             <p className="text-2xl font-semibold">
@@ -117,7 +117,7 @@ export function EnrolledCourses() {
                   enrolledCourses.length
               )}%
             </p>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider mt-1">Avg. Progress</p>
+            <p className="mt-1 text-xs text-muted-foreground">Avg. Progress</p>
           </div>
         </div>
       </CardContent>

@@ -80,7 +80,7 @@ export function ProfileForm() {
             <div>
               <h3 className="font-semibold">{formData.name || "Your Name"}</h3>
               <p className="text-sm text-muted-foreground">{formData.email}</p>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-1">
+              <p className="mt-1 text-xs font-medium text-muted-foreground">
                 {user?.level} Level
               </p>
             </div>
