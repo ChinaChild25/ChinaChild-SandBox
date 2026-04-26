@@ -16,6 +16,8 @@ import {
   Mic,
   Sparkles,
   Target,
+  ThumbsDown,
+  ThumbsUp,
   Volume2,
 } from "lucide-react"
 import type { LessonFeedItem, SkillMap } from "@/lib/lesson-analytics/server"
@@ -28,8 +30,23 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart as RechartsLineChart,
+  ReferenceArea,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+  XAxis,
+  YAxis,
+} from "recharts"
 
 type LessonFeedProps = {
   sessions: LessonFeedItem[]
@@ -68,6 +85,27 @@ type LessonMetrics = {
   teacherMinutes: number | null
   sentenceLength: number | null
   sentenceLengthDelta: number | null
+}
+
+type ProgressMetricKey =
+  | "MasteryScore"
+  | "SpeakingLevel"
+  | "VocabularySize"
+  | "SpeakingSpeed"
+  | "SpeakingTime"
+  | "SentenceLength"
+
+type MetricHistoryPoint = {
+  sessionId: string
+  shortDate: string
+  fullDate: string
+  masteryScore: number | null
+  speechLevelScore: number | null
+  vocabularySize: number
+  speechSpeed: number | null
+  studentMinutes: number | null
+  teacherMinutes: number | null
+  sentenceLength: number | null
 }
 
 const SKILL_AXES = {
@@ -208,6 +246,110 @@ function formatSessionMeta(session: LessonFeedItem): string {
   return parts.join(" · ")
 }
 
+function formatHistoryShortDate(value: string | null): string {
+  if (!value) return "—"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "—"
+
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "short",
+  }).format(date)
+}
+
+function formatHistoryFullDate(value: string | null): string {
+  if (!value) return "Дата уточняется"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "Дата уточняется"
+
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date)
+}
+
+function parseProgressMetricKey(value: string | null | undefined): ProgressMetricKey | null {
+  if (
+    value === "MasteryScore" ||
+    value === "SpeakingLevel" ||
+    value === "VocabularySize" ||
+    value === "SpeakingSpeed" ||
+    value === "SpeakingTime" ||
+    value === "SentenceLength"
+  ) {
+    return value
+  }
+
+  return null
+}
+
+function buildMetricHistory(sessions: LessonFeedItem[]): MetricHistoryPoint[] {
+  const vocabularySet = new Set<string>()
+
+  return sessions.map((session) => {
+    const vocabularyItems = buildVocabularyItems(session)
+    const metrics = buildLessonMetrics(session, null, vocabularyItems)
+    const transcriptTerms = session.transcript
+      .filter((segment) => segment.speakerRole === "student")
+      .flatMap((segment) => extractTerms(segment.text))
+      .filter(Boolean)
+
+    const vocabularyTerms = vocabularyItems.flatMap((item) => extractTerms(item.phrase)).filter(Boolean)
+    const lessonTerms = new Set([...transcriptTerms, ...vocabularyTerms])
+
+    for (const term of lessonTerms) {
+      vocabularySet.add(term)
+    }
+
+    return {
+      sessionId: session.sessionId,
+      shortDate: formatHistoryShortDate(session.endedAt ?? session.startedAt),
+      fullDate: formatHistoryFullDate(session.endedAt ?? session.startedAt),
+      masteryScore: metrics.masteryScore,
+      speechLevelScore: session.averageScore,
+      vocabularySize: vocabularySet.size,
+      speechSpeed: metrics.speechSpeed,
+      studentMinutes: metrics.studentMinutes,
+      teacherMinutes: metrics.teacherMinutes,
+      sentenceLength: metrics.sentenceLength,
+    }
+  })
+}
+
+function resolveLevelScale(score: number | null): {
+  code: string
+  label: string
+  bandIndex: number
+  stepIndex: number
+  rangeStart: number
+  rangeEnd: number
+} {
+  const normalized = clampInt(score ?? 0, 0, 100)
+  const bandIndex = Math.min(5, Math.floor(normalized / 17))
+  const stepIndex = Math.min(3, Math.floor((normalized % 17) / 4.25))
+  const rangeStart = bandIndex * 4 + 1
+  const rangeEnd = Math.min(rangeStart + 1, 24)
+
+  const labels = [
+    "старт речи",
+    "базовая опора",
+    "разговорная база",
+    "устойчивая речь",
+    "уверенный разговор",
+    "сильная самостоятельность",
+  ]
+
+  return {
+    code: `HSK ${bandIndex + 1}.${stepIndex + 1}`,
+    label: labels[bandIndex] ?? "рост уровня",
+    bandIndex,
+    stepIndex,
+    rangeStart,
+    rangeEnd,
+  }
+}
+
 function formatSpeakingRatio(value: number | null): string {
   if (value === null) return "—"
   return `${Math.round(value * 100)}%`
@@ -222,6 +364,15 @@ function initials(name: string | null | undefined, fallback: string): string {
     .filter(Boolean)
     .slice(0, 2)
     .join("")
+}
+
+function pluralizeRu(value: number, [one, few, many]: [string, string, string]): string {
+  const abs = Math.abs(value) % 100
+  const last = abs % 10
+  if (abs > 10 && abs < 20) return many
+  if (last > 1 && last < 5) return few
+  if (last === 1) return one
+  return many
 }
 
 function formatDelta(value: number | null, suffix = ""): string {
@@ -580,15 +731,25 @@ function SpeakerLegend({
   align?: "start" | "end"
 }) {
   return (
-    <div className={cn("flex items-center gap-2.5", align === "end" ? "justify-end text-right" : "justify-start")}>
-      {align === "end" ? <span className="truncate text-[12px] font-medium text-ds-text-secondary">{name || fallbackLabel}</span> : null}
-      <Avatar className="h-8 w-8 ring-1 ring-black/[0.06] dark:ring-white/10">
+    <div className={cn("flex min-w-0 items-center gap-2.5", align === "end" ? "justify-end text-right" : "justify-start")}>
+      {align === "end" ? (
+        <div className="min-w-0">
+          <p className="truncate text-[12px] font-medium text-ds-ink">{name || fallbackLabel}</p>
+          <p className="truncate text-[11px] text-ds-text-tertiary">{fallbackLabel}</p>
+        </div>
+      ) : null}
+      <Avatar className="h-9 w-9 shrink-0 ring-1 ring-black/[0.06] dark:ring-white/10">
         <AvatarImage src={avatarUrl || undefined} alt={name || fallbackLabel} className="object-cover" />
         <AvatarFallback className="bg-[var(--ds-neutral-row)] text-[11px] font-semibold text-ds-ink">
           {initials(name, fallbackLabel.slice(0, 2).toUpperCase())}
         </AvatarFallback>
       </Avatar>
-      {align === "start" ? <span className="truncate text-[12px] font-medium text-ds-text-secondary">{name || fallbackLabel}</span> : null}
+      {align === "start" ? (
+        <div className="min-w-0">
+          <p className="truncate text-[12px] font-medium text-ds-ink">{name || fallbackLabel}</p>
+          <p className="truncate text-[11px] text-ds-text-tertiary">{fallbackLabel}</p>
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -615,8 +776,8 @@ function SpeakingSplit({
   const teacherWidth = total > 0 ? `${(teacher / total) * 100}%` : "50%"
 
   return (
-    <div className="w-full max-w-[240px]">
-      <div className="mb-3 flex items-center justify-between gap-3">
+    <div className="w-full min-w-[220px] max-w-[280px]">
+      <div className="mb-3 grid grid-cols-2 gap-2.5">
         <SpeakerLegend
           name={studentName}
           avatarUrl={studentAvatarUrl || placeholderImages.studentAvatar}
@@ -650,6 +811,8 @@ function MetricCard({
   subtitle,
   delta,
   visual,
+  onOpen,
+  active = false,
 }: {
   title: string
   hint: string
@@ -657,9 +820,19 @@ function MetricCard({
   subtitle: string
   delta: ReactNode
   visual: ReactNode
+  onOpen: () => void
+  active?: boolean
 }) {
   return (
-    <article className="group rounded-[30px] border border-black/[0.06] bg-[var(--ds-surface)] p-5 shadow-[0_12px_34px_rgba(15,23,42,0.04)] transition-transform duration-300 hover:-translate-y-0.5 dark:border-white/10 dark:shadow-[0_14px_34px_rgba(0,0,0,0.22)]">
+    <button
+      type="button"
+      onClick={onOpen}
+      className={cn(
+        "group w-full rounded-[30px] border border-black/[0.06] bg-[var(--ds-surface)] p-5 text-left shadow-[0_12px_34px_rgba(15,23,42,0.04)] transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-0.5 dark:border-white/10 dark:shadow-[0_14px_34px_rgba(0,0,0,0.22)]",
+        active &&
+          "border-[color:var(--progress-accent-strong)] shadow-[0_18px_42px_color-mix(in_srgb,var(--progress-accent-strong)_18%,transparent)] dark:border-[color:var(--progress-accent)]"
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <p className="text-[16px] font-semibold text-ds-ink">{title}</p>
@@ -678,7 +851,7 @@ function MetricCard({
         </div>
         <div className="shrink-0">{visual}</div>
       </div>
-    </article>
+    </button>
   )
 }
 
@@ -824,14 +997,457 @@ function TabLabel({
   )
 }
 
+function DetailFact({ value, label }: { value: ReactNode; label: string }) {
+  return (
+    <div>
+      <p className="text-[36px] font-semibold leading-none text-ds-ink">{value}</p>
+      <p className="mt-2 text-[15px] text-ds-text-secondary">{label}</p>
+    </div>
+  )
+}
+
+function LevelScaleStrip({ score }: { score: number | null }) {
+  const level = resolveLevelScale(score)
+  const segments = Array.from({ length: 24 }, (_, index) => index + 1)
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-6 gap-3 text-[14px] font-semibold text-ds-ink">
+        {["HSK 1", "HSK 2", "HSK 3", "HSK 4", "HSK 5", "HSK 6"].map((label) => (
+          <span key={label}>{label}</span>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-24 gap-1.5">
+        {segments.map((segment) => {
+          const active = segment === level.bandIndex * 4 + level.stepIndex + 1
+          const inRange = segment >= level.rangeStart && segment <= level.rangeEnd
+
+          return (
+            <div
+              key={segment}
+              className={cn(
+                "relative flex h-10 items-center justify-center rounded-[10px] text-[13px] font-semibold transition-colors",
+                active
+                  ? "bg-[color:var(--progress-accent-strong)] text-white"
+                  : inRange
+                    ? "bg-[color:var(--progress-accent-soft)] text-[color:var(--progress-accent-strong)]"
+                    : "bg-[var(--ds-neutral-row)] text-ds-text-tertiary"
+              )}
+            >
+              {((segment - 1) % 4) + 1}
+              {active ? (
+                <span className="absolute -top-4 left-1/2 h-0 w-0 -translate-x-1/2 border-x-[8px] border-t-[10px] border-x-transparent border-t-[color:var(--progress-accent-strong)]" />
+              ) : null}
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="flex items-center justify-between text-[15px] text-ds-text-secondary">
+        <span>Старт</span>
+        <span>Свободная речь</span>
+      </div>
+    </div>
+  )
+}
+
+function MetricDetailSheet({
+  metric,
+  onClose,
+  history,
+  selectedSession,
+  metrics,
+}: {
+  metric: ProgressMetricKey | null
+  onClose: () => void
+  history: MetricHistoryPoint[]
+  selectedSession: LessonFeedItem
+  metrics: LessonMetrics
+}) {
+  const currentPoint = history[history.length - 1] ?? null
+  const previousPoint = history.length > 1 ? history[history.length - 2] : null
+
+  if (!metric || !currentPoint) {
+    return (
+      <Sheet open={false} onOpenChange={() => undefined}>
+        <SheetContent side="right" />
+      </Sheet>
+    )
+  }
+
+  const metricTitle =
+    metric === "MasteryScore"
+      ? "Индекс освоения"
+      : metric === "SpeakingLevel"
+        ? "Уровень речи"
+        : metric === "VocabularySize"
+          ? "Размер словаря"
+          : metric === "SpeakingSpeed"
+            ? "Темп речи"
+            : metric === "SpeakingTime"
+              ? "Время речи"
+              : "Длина реплики"
+
+  const historyStroke = "var(--ds-ink)"
+  const historyFill = "var(--progress-accent-soft)"
+  const accent = "var(--progress-accent-strong)"
+
+  const masteryHistory = history.filter((point) => point.masteryScore !== null)
+  const vocabularyGrowth = previousPoint ? currentPoint.vocabularySize - previousPoint.vocabularySize : null
+  const masteryDelta =
+    currentPoint.masteryScore !== null && previousPoint && previousPoint.masteryScore !== null
+      ? currentPoint.masteryScore - previousPoint.masteryScore
+      : null
+  const speakingTimeDelta =
+    currentPoint.studentMinutes !== null && previousPoint && previousPoint.studentMinutes !== null
+      ? Number((currentPoint.studentMinutes - previousPoint.studentMinutes).toFixed(1))
+      : null
+  const sentenceDelta =
+    currentPoint.sentenceLength !== null && previousPoint && previousPoint.sentenceLength !== null
+      ? currentPoint.sentenceLength - previousPoint.sentenceLength
+      : null
+  const speakingSpeedDelta =
+    currentPoint.speechSpeed !== null && previousPoint && previousPoint.speechSpeed !== null
+      ? currentPoint.speechSpeed - previousPoint.speechSpeed
+      : null
+
+  return (
+    <Sheet open={Boolean(metric)} onOpenChange={(open) => (!open ? onClose() : undefined)}>
+      <SheetContent
+        side="right"
+        sheetTitle={metricTitle}
+        className="w-[min(96vw,760px)] max-w-[760px] gap-0 rounded-l-[34px] rounded-r-none border-l border-black/[0.08] bg-[var(--ds-surface)] p-0 shadow-[0_24px_80px_rgba(15,23,42,0.14)] dark:border-white/10 dark:shadow-[0_24px_80px_rgba(0,0,0,0.35)]"
+      >
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="border-b border-black/[0.08] px-7 py-6 dark:border-white/10">
+            <SheetTitle className="pr-12 text-[22px] font-semibold text-ds-ink">{metricTitle}</SheetTitle>
+          </div>
+
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="space-y-8 px-7 py-8">
+              {metric === "MasteryScore" ? (
+                <>
+                  {masteryHistory.length < 4 ? (
+                    <>
+                      <div>
+                        <p className="text-[16px] text-ds-text-secondary">{currentPoint.fullDate}</p>
+                        <p className="mt-4 text-[46px] font-semibold leading-none text-ds-ink">Недостаточно данных</p>
+                        <p className="mt-4 max-w-[34rem] text-[16px] leading-8 text-ds-text-secondary">
+                          Мы начнём считать стабильный индекс после четырёх разобранных уроков. Сейчас не хватает ещё{" "}
+                          {Math.max(0, 4 - masteryHistory.length)}{" "}
+                          {pluralizeRu(Math.max(0, 4 - masteryHistory.length), ["урока", "уроков", "уроков"])}.
+                        </p>
+                      </div>
+
+                      <div className="h-[260px] rounded-[26px] bg-[var(--ds-neutral-row)] p-5">
+                        <div className="flex h-full flex-col justify-between">
+                          {[100, 75, 50, 25, 0].map((value) => (
+                            <div key={value} className="flex items-center justify-between gap-4">
+                              <div className="h-px flex-1 border-t border-dashed border-black/[0.08] dark:border-white/10" />
+                              <span className="text-[13px] text-ds-text-tertiary">{value}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <p className="text-[16px] text-ds-text-secondary">{currentPoint.fullDate}</p>
+                        <div className="mt-4 flex items-center gap-3">
+                          <p className="text-[56px] font-semibold leading-none text-ds-ink">{currentPoint.masteryScore}%</p>
+                          <DeltaBadge value={masteryDelta} suffix="%" />
+                        </div>
+                      </div>
+
+                      <div className="h-[260px] rounded-[26px] bg-[var(--ds-neutral-row)] p-4">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={masteryHistory}>
+                            <CartesianGrid vertical={false} stroke="var(--progress-grid)" strokeDasharray="4 6" />
+                            <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
+                            <YAxis orientation="right" domain={[0, 100]} tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} tickFormatter={(value: number) => `${value}%`} />
+                            <RechartsTooltip cursor={false} />
+                            <Area type="monotone" dataKey="masteryScore" stroke={historyStroke} strokeWidth={3} fill={historyFill} fillOpacity={1} dot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} activeDot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                      <div className="grid gap-6 sm:grid-cols-2">
+                        <DetailFact
+                          value={`${Math.round(masteryHistory.reduce((total, point) => total + (point.masteryScore ?? 0), 0) / masteryHistory.length)}%`}
+                          label="Средний индекс освоения"
+                        />
+                        <DetailFact
+                          value={`${Math.max(...masteryHistory.map((point) => point.masteryScore ?? 0))}%`}
+                          label="Лучший результат"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  <section>
+                    <h4 className="text-[18px] font-semibold text-ds-ink">Как считается индекс</h4>
+                    <p className="mt-3 text-[16px] leading-8 text-ds-text-secondary">
+                      Индекс освоения собирается из грамматики, лексики и беглости именно по живому уроку. Чем больше
+                      стабильных разборов подряд, тем точнее видно, где навык растёт и где проседает.
+                    </p>
+                  </section>
+                </>
+              ) : null}
+
+              {metric === "SpeakingLevel" ? (
+                <>
+                  <div>
+                    <p className="text-[16px] text-ds-text-secondary">{currentPoint.fullDate}</p>
+                    <div className="mt-4 flex flex-wrap items-end gap-3">
+                      <p className="text-[56px] font-semibold leading-none text-ds-ink">{resolveLevelScale(currentPoint.speechLevelScore).code}</p>
+                      <p className="pb-1 text-[30px] font-semibold text-ds-ink">{resolveLevelScale(currentPoint.speechLevelScore).label}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-[26px] bg-[var(--ds-neutral-row)] p-5">
+                    <LevelScaleStrip score={currentPoint.speechLevelScore} />
+                  </div>
+
+                  <section>
+                    <h4 className="text-[18px] font-semibold text-ds-ink">Как считается уровень речи</h4>
+                    <p className="mt-3 text-[16px] leading-8 text-ds-text-secondary">
+                      Мы смотрим на качество устной речи именно в живом разговоре: насколько уверенно строятся фразы,
+                      хватает ли слов и как стабильно звучит ответ без подсказки преподавателя.
+                    </p>
+                  </section>
+                </>
+              ) : null}
+
+              {metric === "VocabularySize" ? (
+                <>
+                  <div>
+                    <p className="text-[16px] text-ds-text-secondary">{currentPoint.fullDate}</p>
+                    <div className="mt-4 flex items-center gap-3">
+                      <p className="text-[56px] font-semibold leading-none text-ds-ink">{currentPoint.vocabularySize.toLocaleString("ru-RU")}</p>
+                      <DeltaBadge value={vocabularyGrowth} />
+                    </div>
+                  </div>
+
+                  <div className="h-[260px] rounded-[26px] bg-[var(--ds-neutral-row)] p-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={history}>
+                        <CartesianGrid vertical={false} stroke="var(--progress-grid)" strokeDasharray="4 6" />
+                        <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
+                        <YAxis orientation="right" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
+                        <RechartsTooltip cursor={false} />
+                        <Area type="monotone" dataKey="vocabularySize" stroke={historyStroke} strokeWidth={3} fill={historyFill} fillOpacity={1} dot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} activeDot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <section>
+                    <h4 className="text-[18px] font-semibold text-ds-ink">Что входит в размер словаря</h4>
+                    <p className="mt-3 text-[16px] leading-8 text-ds-text-secondary">
+                      Здесь копятся уникальные слова и выражения из ученических реплик, исправлений и активной лексики
+                      урока. Поэтому кривая растёт не от одного красивого ответа, а от устойчивого накопления речи.
+                    </p>
+                  </section>
+                </>
+              ) : null}
+
+              {metric === "SpeakingSpeed" ? (
+                <>
+                  <div>
+                    <p className="text-[16px] text-ds-text-secondary">{currentPoint.fullDate}</p>
+                    <div className="mt-4 flex items-center gap-3">
+                      <p className="text-[56px] font-semibold leading-none text-ds-ink">
+                        {currentPoint.speechSpeed ?? 0} сл/мин
+                      </p>
+                      <DeltaBadge
+                        value={speakingSpeedDelta}
+                      />
+                    </div>
+                    <p className="mt-3 text-[16px] italic text-ds-text-secondary">
+                      {currentPoint.speechSpeed !== null && currentPoint.speechSpeed >= 90 && currentPoint.speechSpeed <= 140
+                        ? "Рабочий и понятный темп"
+                        : "Темп ещё формируется"}
+                    </p>
+                  </div>
+
+                  <div className="h-[280px] rounded-[26px] bg-[var(--ds-neutral-row)] p-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsLineChart data={history}>
+                        <CartesianGrid vertical={false} stroke="var(--progress-grid)" strokeDasharray="4 6" />
+                        <ReferenceArea y1={90} y2={140} fill={historyFill} fillOpacity={0.9} />
+                        <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
+                        <YAxis orientation="right" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} tickFormatter={(value: number) => `${value}`} />
+                        <RechartsTooltip cursor={false} />
+                        <Line type="monotone" dataKey="speechSpeed" stroke={historyStroke} strokeWidth={3} dot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} activeDot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} />
+                      </RechartsLineChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div className="flex flex-wrap gap-5 text-[15px] text-ds-text-secondary">
+                    <span>Спокойно: 60–90 сл/мин</span>
+                    <span>Рабочий темп: 90–140 сл/мин</span>
+                    <span>Быстро: 140+ сл/мин</span>
+                  </div>
+
+                  <section>
+                    <h4 className="text-[18px] font-semibold text-ds-ink">Что показывает темп речи</h4>
+                    <p className="mt-3 text-[16px] leading-8 text-ds-text-secondary">
+                      Темп показывает, насколько легко ученик собирает ответ без длинных пауз. Слишком низкий темп
+                      обычно означает неуверенность, а слишком высокий может бить по чёткости и контролю конструкции.
+                    </p>
+                  </section>
+                </>
+              ) : null}
+
+              {metric === "SpeakingTime" ? (
+                <>
+                  <div>
+                    <p className="text-[16px] text-ds-text-secondary">{currentPoint.fullDate}</p>
+                    <div className="mt-4 flex items-center gap-3">
+                      <p className="text-[56px] font-semibold leading-none text-ds-ink">
+                        {currentPoint.studentMinutes !== null ? `${Math.round(currentPoint.studentMinutes)} мин` : "—"}
+                      </p>
+                      <DeltaBadge value={speakingTimeDelta} suffix=" мин" />
+                    </div>
+                  </div>
+
+                  <div className="h-[280px] rounded-[26px] bg-[var(--ds-neutral-row)] p-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={history}>
+                        <CartesianGrid vertical={false} stroke="var(--progress-grid)" strokeDasharray="4 6" />
+                        <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
+                        <YAxis orientation="right" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} tickFormatter={(value: number) => `${value} мин`} />
+                        <RechartsTooltip cursor={false} />
+                        <Bar dataKey="studentMinutes" stackId="speech" fill={accent} radius={[10, 10, 0, 0]} />
+                        <Bar dataKey="teacherMinutes" stackId="speech" fill="var(--progress-accent-secondary)" radius={[10, 10, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-6">
+                    <SpeakerLegend
+                      name={selectedSession.studentName}
+                      avatarUrl={selectedSession.studentAvatarUrl || placeholderImages.studentAvatar}
+                      fallbackLabel="Ученик"
+                    />
+                    <SpeakerLegend
+                      name={selectedSession.teacherName}
+                      avatarUrl={selectedSession.teacherAvatarUrl || placeholderImages.teacherAvatar}
+                      fallbackLabel="Преподаватель"
+                    />
+                  </div>
+
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <DetailFact
+                      value={`${Math.round(
+                        history.reduce((total, point) => total + (point.studentMinutes ?? 0), 0) / Math.max(history.length, 1)
+                      )} мин`}
+                      label="Среднее время речи ученика"
+                    />
+                    <DetailFact
+                      value={`${Math.round(Math.max(...history.map((point) => point.studentMinutes ?? 0)))} мин`}
+                      label="Самый разговорный урок"
+                    />
+                  </div>
+
+                  <section>
+                    <h4 className="text-[18px] font-semibold text-ds-ink">Как читать баланс разговора</h4>
+                    <p className="mt-3 text-[16px] leading-8 text-ds-text-secondary">
+                      Эта метрика показывает, кто реально занимал эфир внутри урока. Идеальный баланс не всегда 50/50:
+                      где-то преподаватель объясняет, а где-то ученик должен держать речь почти сам.
+                    </p>
+                  </section>
+                </>
+              ) : null}
+
+              {metric === "SentenceLength" ? (
+                <>
+                  <div>
+                    <p className="text-[16px] text-ds-text-secondary">{currentPoint.fullDate}</p>
+                    <div className="mt-4 flex items-center gap-3">
+                      <p className="text-[56px] font-semibold leading-none text-ds-ink">
+                        {currentPoint.sentenceLength ?? 0} {pluralizeRu(currentPoint.sentenceLength ?? 0, ["слово", "слова", "слов"])}
+                      </p>
+                      <DeltaBadge value={sentenceDelta} />
+                    </div>
+                  </div>
+
+                  <div className="h-[260px] rounded-[26px] bg-[var(--ds-neutral-row)] p-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={history}>
+                        <CartesianGrid vertical={false} stroke="var(--progress-grid)" strokeDasharray="4 6" />
+                        <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
+                        <YAxis orientation="right" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
+                        <RechartsTooltip cursor={false} />
+                        <Area type="monotone" dataKey="sentenceLength" stroke={historyStroke} strokeWidth={3} fill={historyFill} fillOpacity={1} dot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} activeDot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div className="grid gap-6 sm:grid-cols-2">
+                    <DetailFact
+                      value={`${Math.round(
+                        history.reduce((total, point) => total + (point.sentenceLength ?? 0), 0) / Math.max(history.length, 1)
+                      )} ${pluralizeRu(
+                        Math.round(history.reduce((total, point) => total + (point.sentenceLength ?? 0), 0) / Math.max(history.length, 1)),
+                        ["слово", "слова", "слов"]
+                      )}`}
+                      label="Средняя длина реплики"
+                    />
+                    <DetailFact
+                      value={`${Math.max(...history.map((point) => point.sentenceLength ?? 0))} ${pluralizeRu(Math.max(...history.map((point) => point.sentenceLength ?? 0)), ["слово", "слова", "слов"])}`}
+                      label="Личный рекорд"
+                    />
+                  </div>
+
+                  <section>
+                    <h4 className="text-[18px] font-semibold text-ds-ink">О чём говорит длина реплики</h4>
+                    <p className="mt-3 text-[16px] leading-8 text-ds-text-secondary">
+                      Чем длиннее и устойчивее реплика, тем легче ученику связывать слова в полноценный ответ. Рост
+                      здесь показывает не только словарь, но и уверенность держать мысль до конца.
+                    </p>
+                  </section>
+                </>
+              ) : null}
+
+              <div className="border-t border-black/[0.08] pt-6 dark:border-white/10">
+                <p className="text-[16px] text-ds-ink">Полезно ли это объяснение?</p>
+                <div className="mt-4 flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[var(--ds-neutral-row)] text-ds-ink transition-transform duration-200 hover:-translate-y-0.5"
+                    aria-label="Полезно"
+                  >
+                    <ThumbsUp className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[var(--ds-neutral-row)] text-ds-ink transition-transform duration-200 hover:-translate-y-0.5"
+                    aria-label="Не полезно"
+                  >
+                    <ThumbsDown className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
 export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
   const [selectedSessionId, setSelectedSessionId] = useState(sessions[0]?.sessionId ?? "")
   const [activeTab, setActiveTab] = useState<InsightTab>("overview")
+  const [activeMetric, setActiveMetric] = useState<ProgressMetricKey | null>(null)
 
   useEffect(() => {
     if (!sessions.length) {
       setSelectedSessionId("")
       setActiveTab("overview")
+      setActiveMetric(null)
       return
     }
 
@@ -841,17 +1457,49 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
     }
   }, [selectedSessionId, sessions])
 
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const params = new URLSearchParams(window.location.search)
+    const panel = parseProgressMetricKey(params.get("progress-panel"))
+    if (panel) {
+      setActiveTab("progress")
+      setActiveMetric(panel)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+
+    const url = new URL(window.location.href)
+    if (activeMetric) {
+      url.searchParams.set("progress-panel", activeMetric)
+    } else {
+      url.searchParams.delete("progress-panel")
+    }
+
+    window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`)
+  }, [activeMetric])
+
+  useEffect(() => {
+    if (activeTab !== "progress" && activeMetric) {
+      setActiveMetric(null)
+    }
+  }, [activeMetric, activeTab])
+
   if (sessions.length === 0) return <EmptyLessonInsights />
 
   const selectedSession = sessions.find((session) => session.sessionId === selectedSessionId) ?? sessions[0]
   const selectedIndex = sessions.findIndex((session) => session.sessionId === selectedSession.sessionId)
   const previousSession = selectedIndex >= 0 ? sessions[selectedIndex + 1] ?? null : null
+  const historySessions =
+    selectedIndex >= 0 ? sessions.slice(selectedIndex).reverse() : [...sessions].reverse()
   const topics = buildTopicList(selectedSession)
   const feedback = splitFeedback(selectedSession)
   const vocabularyItems = buildVocabularyItems(selectedSession)
   const previewSegments = transcriptPreview(selectedSession)
   const practiceItems = buildPracticeItems(selectedSession)
   const metrics = buildLessonMetrics(selectedSession, previousSession, vocabularyItems)
+  const metricHistory = buildMetricHistory(historySessions)
   const selectedSkillMap = hasSkillMapData(buildSkillMapFromSession(selectedSession))
     ? buildSkillMapFromSession(selectedSession)
     : current
@@ -870,7 +1518,7 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
           </div>
           <Badge
             variant="outline"
-            className="rounded-full border-0 bg-[var(--ds-surface)]/80 px-3 py-1.5 text-[12px] font-semibold text-ds-ink shadow-none backdrop-blur-sm"
+            className="rounded-full !border-0 bg-[var(--ds-surface)]/80 px-3 py-1.5 text-[12px] font-semibold text-ds-ink shadow-none backdrop-blur-sm"
           >
             ИИ-бета
           </Badge>
@@ -880,7 +1528,10 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
       <div className="border-b border-black/[0.06] px-5 py-4 dark:border-white/10 sm:px-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <LessonSelector sessions={sessions} selectedSessionId={selectedSession.sessionId} onSelect={setSelectedSessionId} />
-          <Badge variant="outline" className={cn("rounded-full px-3 py-1.5 text-[12px] font-semibold shadow-none", statusTone(selectedSession))}>
+          <Badge
+            variant="outline"
+            className={cn("rounded-full !border-0 px-3 py-1.5 text-[12px] font-semibold shadow-none", statusTone(selectedSession))}
+          >
             {statusLabel(selectedSession)}
           </Badge>
         </div>
@@ -888,7 +1539,7 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
 
       <div className="px-5 py-6 sm:px-8 sm:py-8">
         <p className="text-[15px] leading-7 text-ds-text-secondary sm:text-[16px]">{formatSessionMeta(selectedSession)}</p>
-        <h2 className="mt-3 text-[30px] font-bold leading-[1.04] text-ds-ink sm:text-[42px]">{selectedSession.title}</h2>
+        <h2 className="mt-3 text-[28px] font-bold leading-[1.05] text-ds-ink sm:text-[36px]">{selectedSession.title}</h2>
 
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as InsightTab)} className="mt-8 gap-0">
           <TabsList className="flex h-auto w-full flex-wrap items-end gap-6 rounded-none border-b border-black/[0.08] bg-transparent p-0 text-left dark:border-white/10">
@@ -896,7 +1547,7 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
-                className="group !h-auto rounded-none !border-0 !border-b-2 !border-transparent !bg-transparent px-0 pb-4 pt-0 text-[15px] font-semibold text-ds-text-secondary shadow-none transition-[color,border-color,transform] duration-200 hover:text-ds-ink data-[state=active]:!border-[color:var(--progress-accent-strong)] data-[state=active]:!bg-transparent data-[state=active]:text-ds-ink"
+                className="group relative !h-auto rounded-[16px] !border-0 !bg-transparent px-4 pb-4 pt-3 text-[15px] font-semibold text-ds-text-secondary shadow-none transition-[color,background-color,transform] duration-200 hover:bg-black/[0.04] hover:text-ds-ink dark:hover:bg-white/[0.06] data-[state=active]:!bg-transparent data-[state=active]:text-ds-ink after:absolute after:bottom-[-1px] after:left-4 after:right-4 after:h-0.5 after:rounded-full after:bg-transparent data-[state=active]:after:bg-[color:var(--progress-accent-strong)]"
               >
                 <TabLabel label={tab.label} icon={tab.icon} iconOnly={tab.iconOnly} />
               </TabsTrigger>
@@ -1109,6 +1760,8 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                   subtitle="Насколько уверенно ученик прошёл этот урок в целом."
                   delta={<DeltaBadge value={metrics.masteryDelta} />}
                   visual={<RingChart value={metrics.masteryScore} />}
+                  onOpen={() => setActiveMetric("MasteryScore")}
+                  active={activeMetric === "MasteryScore"}
                 />
                 <MetricCard
                   title="Уровень речи"
@@ -1117,6 +1770,8 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                   subtitle={metrics.speechLevelHint}
                   delta={<DeltaBadge value={metrics.masteryDelta} />}
                   visual={<LevelBars value={metrics.masteryScore} />}
+                  onOpen={() => setActiveMetric("SpeakingLevel")}
+                  active={activeMetric === "SpeakingLevel"}
                 />
                 <MetricCard
                   title="Лексика урока"
@@ -1125,6 +1780,8 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                   subtitle="Сюда попадают исправления, ключевые выражения и темы."
                   delta={<DeltaBadge value={metrics.vocabularyDelta} />}
                   visual={<TrendLine up={(metrics.vocabularyDelta ?? 0) >= 0} />}
+                  onOpen={() => setActiveMetric("VocabularySize")}
+                  active={activeMetric === "VocabularySize"}
                 />
                 <MetricCard
                   title="Темп речи"
@@ -1133,6 +1790,8 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                   subtitle="Сколько единиц речи в минуту давал именно ученик."
                   delta={<DeltaBadge value={metrics.speechSpeedDelta} />}
                   visual={<Gauge value={metrics.speechSpeed} />}
+                  onOpen={() => setActiveMetric("SpeakingSpeed")}
+                  active={activeMetric === "SpeakingSpeed"}
                 />
                 <MetricCard
                   title="Время речи"
@@ -1150,6 +1809,8 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                       teacherAvatarUrl={selectedSession.teacherAvatarUrl}
                     />
                   }
+                  onOpen={() => setActiveMetric("SpeakingTime")}
+                  active={activeMetric === "SpeakingTime"}
                 />
                 <MetricCard
                   title="Длина реплики"
@@ -1158,6 +1819,8 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                   subtitle="Показывает, насколько развернуто студент отвечает."
                   delta={<DeltaBadge value={metrics.sentenceLengthDelta} />}
                   visual={<TrendLine up={(metrics.sentenceLengthDelta ?? 0) >= 0} />}
+                  onOpen={() => setActiveMetric("SentenceLength")}
+                  active={activeMetric === "SentenceLength"}
                 />
               </div>
 
@@ -1417,6 +2080,14 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
           </TabsContent>
         </Tabs>
       </div>
+
+      <MetricDetailSheet
+        metric={activeMetric}
+        onClose={() => setActiveMetric(null)}
+        history={metricHistory}
+        selectedSession={selectedSession}
+        metrics={metrics}
+      />
     </section>
   )
 }

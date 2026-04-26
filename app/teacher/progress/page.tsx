@@ -1,6 +1,8 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { placeholderImages } from "@/lib/placeholders"
 import { createAdminSupabaseClient } from "@/lib/supabase/admin"
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 
@@ -10,7 +12,19 @@ type TeacherProgressStudentRow = {
   started_at: string | null
   ended_at: string | null
   lessons: Array<{ title: string | null }> | null
-  student_profile: Array<{ full_name: string | null }> | null
+  student_profile: Array<{ full_name: string | null; avatar_url: string | null }> | null
+}
+
+function initials(name: string | null | undefined): string {
+  const cleaned = (name ?? "").trim()
+  if (!cleaned) return "У"
+
+  return cleaned
+    .split(/\s+/)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
 }
 
 function formatDate(value: string | null): string {
@@ -36,9 +50,9 @@ export default async function TeacherProgressPage() {
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("id, role")
+    .select("id, role, ui_accent")
     .eq("id", user.id)
-    .maybeSingle<{ id: string; role: "student" | "teacher" | "curator" }>()
+    .maybeSingle<{ id: string; role: "student" | "teacher" | "curator"; ui_accent: "sage" | "pink" | "blue" | "orange" | null }>()
 
   if (error) throw new Error(error.message)
   if (!profile) redirect("/")
@@ -53,12 +67,12 @@ export default async function TeacherProgressPage() {
       ? adminSupabase
           .from("lesson_sessions")
           .select(
-            "id, student_id, started_at, ended_at, lessons(title), student_profile:profiles!lesson_sessions_student_id_fkey(full_name)"
+            "id, student_id, started_at, ended_at, lessons(title), student_profile:profiles!lesson_sessions_student_id_fkey(full_name, avatar_url)"
           )
       : adminSupabase
           .from("lesson_sessions")
           .select(
-            "id, student_id, started_at, ended_at, lessons(title), student_profile:profiles!lesson_sessions_student_id_fkey(full_name)"
+            "id, student_id, started_at, ended_at, lessons(title), student_profile:profiles!lesson_sessions_student_id_fkey(full_name, avatar_url)"
           )
           .eq("teacher_id", profile.id)
 
@@ -75,6 +89,7 @@ export default async function TeacherProgressPage() {
     {
       studentId: string
       studentName: string
+      studentAvatarUrl: string | null
       latestLessonTitle: string
       latestLessonAt: string | null
       lessonsCount: number
@@ -93,6 +108,7 @@ export default async function TeacherProgressPage() {
     byStudent.set(row.student_id, {
       studentId: row.student_id,
       studentName: row.student_profile?.[0]?.full_name?.trim() || "Ученик",
+      studentAvatarUrl: row.student_profile?.[0]?.avatar_url?.trim() || null,
       latestLessonTitle: row.lessons?.[0]?.title?.trim() || "Онлайн-занятие",
       latestLessonAt: row.ended_at ?? row.started_at,
       lessonsCount: 1,
@@ -102,10 +118,10 @@ export default async function TeacherProgressPage() {
   const students = [...byStudent.values()]
 
   return (
-    <div className="ds-figma-page">
+    <div className="ds-figma-page" data-progress-accent={profile.ui_accent ?? "sage"}>
       <div className="mx-auto w-full max-w-[min(100%,1440px)] space-y-6">
-        <header className="rounded-[34px] bg-[linear-gradient(135deg,rgba(147,197,253,0.16),rgba(245,197,66,0.12),rgba(255,255,255,0.96))] p-6 ring-1 ring-black/[0.05] dark:bg-[linear-gradient(135deg,rgba(147,197,253,0.10),rgba(245,197,66,0.08),rgba(20,20,24,0.95))] dark:ring-white/[0.06] sm:p-8">
-          <p className="text-[13px] font-semibold uppercase tracking-[0.14em] text-ds-text-tertiary">Прогресс учеников</p>
+        <header className="rounded-[34px] bg-[var(--ds-neutral-row)] p-6 ring-1 ring-black/[0.05] dark:ring-white/[0.06] sm:p-8">
+          <p className="text-[14px] font-semibold text-ds-text-tertiary">Прогресс учеников</p>
           <h1 className="mt-3 text-[34px] font-bold leading-[1.02] text-ds-ink dark:text-white sm:text-[48px]">
             Живая успеваемость по каждому ученику
           </h1>
@@ -129,21 +145,31 @@ export default async function TeacherProgressPage() {
             {students.map((student) => (
               <Card key={student.studentId} className="border-black/[0.08] bg-white/[0.95] shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
                 <CardHeader className="gap-3">
-                  <CardTitle>{student.studentName}</CardTitle>
-                  <CardDescription className="text-[14px] leading-6">
-                    Последний урок: {student.latestLessonTitle}
-                    <br />
-                    {formatDate(student.latestLessonAt)}
-                  </CardDescription>
+                  <div className="flex items-start gap-4">
+                    <Avatar className="h-14 w-14 shrink-0 ring-1 ring-black/[0.06] dark:ring-white/10">
+                      <AvatarImage src={student.studentAvatarUrl || placeholderImages.studentAvatar} alt={student.studentName} className="object-cover" />
+                      <AvatarFallback className="bg-[var(--ds-neutral-row)] text-[15px] font-semibold text-ds-ink">
+                        {initials(student.studentName)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <CardTitle className="truncate">{student.studentName}</CardTitle>
+                      <CardDescription className="mt-2 text-[14px] leading-6">
+                        Последний урок: {student.latestLessonTitle}
+                        <br />
+                        {formatDate(student.latestLessonAt)}
+                      </CardDescription>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent className="flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-[12px] font-medium uppercase tracking-[0.08em] text-ds-text-tertiary">Live-занятий</p>
+                    <p className="text-[13px] font-medium text-ds-text-tertiary">Live-занятий</p>
                     <p className="mt-2 text-[30px] font-semibold leading-none text-ds-ink">{student.lessonsCount}</p>
                   </div>
                   <Link
                     href={`/teacher/students/${student.studentId}/progress`}
-                    className="rounded-full bg-ds-ink px-4 py-2.5 text-[14px] font-semibold text-white no-underline transition-opacity hover:opacity-92 dark:bg-white dark:text-[#1a1a1a]"
+                    className="rounded-full bg-[color:var(--progress-accent-strong)] px-4 py-2.5 text-[14px] font-semibold text-white no-underline transition-[transform,opacity] hover:-translate-y-0.5 hover:opacity-92"
                   >
                     Открыть успеваемость
                   </Link>

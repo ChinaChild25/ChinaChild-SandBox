@@ -18,9 +18,9 @@ export default async function TeacherStudentProgressPage({
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("id, role")
+    .select("id, role, ui_accent")
     .eq("id", user.id)
-    .maybeSingle<{ id: string; role: "student" | "teacher" | "curator" }>()
+    .maybeSingle<{ id: string; role: "student" | "teacher" | "curator"; ui_accent: "sage" | "pink" | "blue" | "orange" | null }>()
 
   if (error) throw new Error(error.message)
   if (!profile) redirect("/")
@@ -61,7 +61,7 @@ export default async function TeacherStudentProgressPage({
     <ProgressOverview
       title={overview.studentName ? `Успеваемость: ${overview.studentName}` : "Успеваемость ученика"}
       subtitle="После каждого live-занятия сюда попадают summary, ошибки, рекомендации, темы урока и полная транскрипция, чтобы преподаватель видел динамику по каждому разбору."
-      accent={overview.studentAccent}
+      accent={profile.ui_accent}
       current={overview.skillMap}
       previous={overview.previousSkillMap}
       sessions={overview.sessions}
