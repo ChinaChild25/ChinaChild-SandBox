@@ -15,13 +15,12 @@ import {
   useScreenShare,
 } from "@daily-co/daily-react"
 import {
-  ArrowDownRight,
-  ArrowUpLeft,
-  ChevronsDownUp,
   LoaderCircle,
+  GripHorizontal,
   Maximize2,
   Mic,
   MicOff,
+  Minimize2,
   MonitorUp,
   PhoneOff,
   Users,
@@ -59,12 +58,27 @@ type VideoRoomProps = {
   variant?: "page" | "floating"
 }
 
-type FloatingDock = "top-left" | "bottom-right"
+type FloatingPosition = {
+  x: number
+  y: number
+}
 
-const FLOATING_DOCK_STORAGE_KEY = "chinachild-daily-floating-dock"
+const FLOATING_EDGE_PADDING = 12
 
 function isTrackEnabled(track: DailyTrackStateLike | undefined): boolean {
   return track?.state != null && track.state !== "off" && track.state !== "blocked"
+}
+
+function clampFloatingPosition(position: FloatingPosition, size: { width: number; height: number }): FloatingPosition {
+  if (typeof window === "undefined") return position
+
+  const maxX = Math.max(FLOATING_EDGE_PADDING, window.innerWidth - size.width - FLOATING_EDGE_PADDING)
+  const maxY = Math.max(FLOATING_EDGE_PADDING, window.innerHeight - size.height - FLOATING_EDGE_PADDING)
+
+  return {
+    x: Math.min(Math.max(position.x, FLOATING_EDGE_PADDING), maxX),
+    y: Math.min(Math.max(position.y, FLOATING_EDGE_PADDING), maxY),
+  }
 }
 
 function prettifyMeetingState(meetingState: string): string {
@@ -113,10 +127,9 @@ function useVideoRoomCopy() {
         defaultJoinError: "Unable to join the call.",
         callTab: "Call",
         boardTab: "Board",
-        collapse: "Collapse",
-        returnToCall: "Return to call",
-        moveToTopLeft: "Move to top left",
-        moveToBottomRight: "Move to bottom right",
+        minimizeWindow: "Switch to mini player",
+        expandWindow: "Open full call window",
+        dragWindow: "Drag window",
         boardHint: "Use the board to sketch characters, tones, or examples while staying in the call.",
         boardLocalHint: "MVP board: this drawing stays in your current browser tab.",
         boardTitle: "Whiteboard",
@@ -167,10 +180,9 @@ function useVideoRoomCopy() {
         defaultJoinError: "无法加入通话。",
         callTab: "通话",
         boardTab: "白板",
-        collapse: "收起",
-        returnToCall: "返回通话",
-        moveToTopLeft: "移动到左上角",
-        moveToBottomRight: "移动到右下角",
+        minimizeWindow: "切换为迷你窗口",
+        expandWindow: "展开通话窗口",
+        dragWindow: "拖动窗口",
         boardHint: "可在通话过程中练习汉字、笔画和临时示意。",
         boardLocalHint: "MVP 白板：当前版本只保存在本浏览器标签页内。",
         boardTitle: "白板",
@@ -220,10 +232,9 @@ function useVideoRoomCopy() {
       defaultJoinError: "Не удалось подключиться к звонку.",
       callTab: "Звонок",
       boardTab: "Доска",
-      collapse: "Свернуть",
-      returnToCall: "Вернуться в звонок",
-      moveToTopLeft: "Перенести в левый верхний угол",
-      moveToBottomRight: "Перенести в правый нижний угол",
+      minimizeWindow: "Переключить в мини-режим",
+      expandWindow: "Развернуть окно звонка",
+      dragWindow: "Перетащить окно",
       boardHint: "Можно быстро рисовать иероглифы, тоновые схемы и короткие пояснения прямо во время занятия.",
       boardLocalHint: "MVP-доска: рисунок пока сохраняется только в этой вкладке браузера.",
       boardTitle: "Доска",
@@ -308,6 +319,25 @@ function ParticipantTile({
   )
 }
 
+function ParticipantInset({ sessionId, className }: { sessionId: string; className?: string }) {
+  const participant = (useParticipant(sessionId) as DailyParticipantLike | undefined) ?? undefined
+  const isVideoEnabled = isTrackEnabled(participant?.tracks?.video)
+
+  return (
+    <div className={cn("relative overflow-hidden rounded-[18px] bg-[#111215]", className)}>
+      <DailyVideo
+        sessionId={sessionId}
+        type="video"
+        fit="cover"
+        automirror
+        className="h-full w-full bg-transparent object-cover"
+        playableStyle={{ objectFit: "cover" }}
+      />
+      {!isVideoEnabled ? <div className="absolute inset-0 bg-[#101114]/85" /> : null}
+    </div>
+  )
+}
+
 function VideoRoomInner({
   roomUrl,
   meetingToken,
@@ -330,51 +360,23 @@ function VideoRoomInner({
   const [joinError, setJoinError] = useState<string | null>(null)
   const [isBusy, setIsBusy] = useState(false)
   const [activePanel, setActivePanel] = useState<"call" | "board">("call")
-  const [dock, setDock] = useState<FloatingDock>("bottom-right")
-  const [isCollapsed, setIsCollapsed] = useState(false)
-  const [isCompactViewport, setIsCompactViewport] = useState(false)
-  const hasInitializedFloatingState = useRef(false)
-
-  useEffect(() => {
-    if (!isFloating) return
-
-    const storedDock =
-      typeof window !== "undefined" ? window.localStorage.getItem(FLOATING_DOCK_STORAGE_KEY) : null
-    if (storedDock === "top-left" || storedDock === "bottom-right") {
-      setDock(storedDock)
-    }
-
-    const mediaQuery = window.matchMedia("(max-width: 767px)")
-    const syncCompactState = () => {
-      setIsCompactViewport(mediaQuery.matches)
-      if (!hasInitializedFloatingState.current) {
-        setIsCollapsed(false)
-        hasInitializedFloatingState.current = true
-      }
-    }
-
-    syncCompactState()
-    mediaQuery.addEventListener("change", syncCompactState)
-
-    return () => mediaQuery.removeEventListener("change", syncCompactState)
-  }, [isFloating])
+  const [isMiniMode, setIsMiniMode] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+  const [floatingPosition, setFloatingPosition] = useState<FloatingPosition | null>(null)
+  const floatingWindowRef = useRef<HTMLElement | null>(null)
+  const dragStateRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null)
 
   useEffect(() => {
     if (!isFloating) return
 
     const handleReturnToCall = () => {
-      setIsCollapsed(false)
+      setIsMiniMode(false)
       setActivePanel("call")
     }
 
     window.addEventListener("chinachild:return-to-call", handleReturnToCall)
     return () => window.removeEventListener("chinachild:return-to-call", handleReturnToCall)
   }, [isFloating])
-
-  useEffect(() => {
-    if (!isFloating || typeof window === "undefined") return
-    window.localStorage.setItem(FLOATING_DOCK_STORAGE_KEY, dock)
-  }, [dock, isFloating])
 
   useEffect(() => {
     if (!daily) return
@@ -444,6 +446,43 @@ function VideoRoomInner({
   const participantCountLabel =
     orderedParticipantIds.length === 1 ? copy.participantSingle : copy.participantPlural
   const titleLine = courseTitle?.trim() || copy.fallbackCourseTitle
+  const primaryMiniSessionId =
+    activeScreenSessionId ?? orderedParticipantIds.find((sessionId) => sessionId !== localSessionId) ?? localSessionId ?? orderedParticipantIds[0] ?? null
+  const primaryMiniTrackType = activeScreenSessionId && primaryMiniSessionId === activeScreenSessionId ? "screenVideo" : "video"
+  const secondaryMiniSessionId =
+    localSessionId && localSessionId !== primaryMiniSessionId
+      ? localSessionId
+      : cameraParticipantIds.find((sessionId) => sessionId !== primaryMiniSessionId) ?? null
+
+  useEffect(() => {
+    if (!isFloating || typeof window === "undefined") return
+
+    const syncFloatingPosition = () => {
+      const node = floatingWindowRef.current
+      if (!node) return
+
+      const rect = node.getBoundingClientRect()
+      const fallbackPosition = {
+        x: window.innerWidth - rect.width - FLOATING_EDGE_PADDING,
+        y: window.innerHeight - rect.height - FLOATING_EDGE_PADDING,
+      }
+
+      setFloatingPosition((current) => {
+        const next = clampFloatingPosition(current ?? fallbackPosition, {
+          width: rect.width,
+          height: rect.height,
+        })
+
+        if (current && current.x === next.x && current.y === next.y) return current
+        return next
+      })
+    }
+
+    syncFloatingPosition()
+    window.addEventListener("resize", syncFloatingPosition)
+
+    return () => window.removeEventListener("resize", syncFloatingPosition)
+  }, [activePanel, activeScreenSessionId, isFloating, isMiniMode, joinError, orderedParticipantIds.length, showLoading])
 
   async function runAction(action: () => unknown | Promise<unknown>) {
     if (isBusy) return
@@ -483,14 +522,60 @@ function VideoRoomInner({
     })
   }
 
-  function toggleDockPosition() {
-    setDock((current) => (current === "bottom-right" ? "top-left" : "bottom-right"))
+  function handleMinimizeWindow() {
+    setActivePanel("call")
+    setIsMiniMode(true)
   }
 
-  const floatingPositionClass =
-    dock === "bottom-right"
-      ? "bottom-3 right-3 md:bottom-6 md:right-6"
-      : "left-3 top-[calc(env(safe-area-inset-top)+4.75rem)] md:left-4 lg:left-[calc(280px+2rem)] lg:top-6"
+  function handleExpandWindow() {
+    setIsMiniMode(false)
+  }
+
+  function handleDragStart(event: React.PointerEvent<HTMLDivElement>) {
+    if (!isFloating || !floatingWindowRef.current) return
+    if (event.pointerType === "mouse" && event.button !== 0) return
+
+    const rect = floatingWindowRef.current.getBoundingClientRect()
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+    }
+    setIsDragging(true)
+    event.currentTarget.setPointerCapture(event.pointerId)
+    event.preventDefault()
+  }
+
+  function handleDragMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (!dragStateRef.current || dragStateRef.current.pointerId !== event.pointerId || !floatingWindowRef.current) return
+
+    const next = clampFloatingPosition(
+      {
+        x: event.clientX - dragStateRef.current.offsetX,
+        y: event.clientY - dragStateRef.current.offsetY,
+      },
+      {
+        width: floatingWindowRef.current.offsetWidth,
+        height: floatingWindowRef.current.offsetHeight,
+      }
+    )
+
+    setFloatingPosition((current) => {
+      if (current && current.x === next.x && current.y === next.y) return current
+      return next
+    })
+  }
+
+  function handleDragEnd(event: React.PointerEvent<HTMLDivElement>) {
+    if (dragStateRef.current?.pointerId !== event.pointerId) return
+
+    dragStateRef.current = null
+    setIsDragging(false)
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId)
+    }
+  }
 
   const shellClassName = cn(
     "overflow-hidden rounded-[28px] bg-[rgba(255,255,255,0.96)] text-ds-ink shadow-[0_28px_90px_rgba(15,23,42,0.18)] backdrop-blur-xl dark:bg-[#171717]/96 dark:text-white"
@@ -505,6 +590,13 @@ function VideoRoomInner({
     "bg-black text-white hover:bg-black/92 dark:bg-white dark:text-black dark:hover:bg-white/92"
   const controlButtonClass =
     "h-auto min-h-11 whitespace-normal rounded-[16px] bg-black/[0.05] px-4 py-3 text-left text-[14px] font-semibold text-ds-ink shadow-none hover:bg-black/[0.08] dark:bg-white/[0.08] dark:text-white dark:hover:bg-white/[0.12]"
+  const miniChromeButtonClass =
+    "grid h-10 w-10 place-items-center rounded-full bg-black/38 text-white backdrop-blur-sm transition-colors hover:bg-black/48 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+  const miniControlButtonClass =
+    "grid h-11 w-full place-items-center rounded-[14px] bg-black/[0.05] text-ds-ink transition-colors hover:bg-black/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 dark:bg-white/[0.08] dark:text-white dark:hover:bg-white/[0.12] dark:focus-visible:ring-white/20"
+  const floatingWindowStyle = floatingPosition
+    ? { left: floatingPosition.x, top: floatingPosition.y }
+    : { left: FLOATING_EDGE_PADDING, top: FLOATING_EDGE_PADDING, visibility: "hidden" as const }
 
   const callPanel = (
     <div className={cn("min-h-0", isFloating ? "flex min-h-0 flex-col gap-3" : "grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]")}>
@@ -681,104 +773,163 @@ function VideoRoomInner({
     </div>
   )
 
-  if (isFloating && isCollapsed) {
-    return (
-      <div className="pointer-events-none fixed inset-0 z-50">
-        <DailyAudio />
-        <div className={cn("pointer-events-auto fixed", floatingPositionClass)}>
-          <div className="flex items-center gap-2 rounded-full bg-black px-2 py-2 text-white shadow-[0_24px_80px_rgba(0,0,0,0.28)]">
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold"
-              onClick={() => setIsCollapsed(false)}
+  const miniPlayer = (
+    <section
+      ref={floatingWindowRef}
+      className="pointer-events-auto fixed flex w-[min(calc(100vw-1rem),22rem)] flex-col md:w-[22rem]"
+      style={floatingWindowStyle}
+    >
+      <div className={cn(shellClassName, "overflow-hidden p-2")}>
+        <div className="relative">
+          {primaryMiniSessionId ? (
+            <ParticipantTile
+              sessionId={primaryMiniSessionId}
+              type={primaryMiniTrackType}
+              className="h-[220px] rounded-[22px] sm:h-[240px]"
+              labelClassName="px-3 pb-3 pt-14 text-xs"
+            />
+          ) : (
+            <div className="flex h-[220px] items-center justify-center rounded-[22px] bg-black/[0.06] px-4 text-center dark:bg-white/[0.05] sm:h-[240px]">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-ds-ink dark:text-white">{meetingStateLabel}</p>
+                <p className="text-xs text-ds-text-secondary dark:text-white/62">{copy.keepTabOpen}</p>
+              </div>
+            </div>
+          )}
+
+          {secondaryMiniSessionId ? (
+            <ParticipantInset
+              sessionId={secondaryMiniSessionId}
+              className="absolute bottom-3 right-3 h-20 w-28 border border-white/12 shadow-[0_18px_40px_rgba(0,0,0,0.24)]"
+            />
+          ) : null}
+
+          <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 px-3 pt-3">
+            <div
+              className={cn(
+                "min-w-0 flex-1 cursor-grab select-none rounded-[18px] bg-black/38 px-3 py-2 text-white backdrop-blur-sm transition-colors active:cursor-grabbing touch-none",
+                isDragging && "bg-black/48"
+              )}
+              onPointerDown={handleDragStart}
+              onPointerMove={handleDragMove}
+              onPointerUp={handleDragEnd}
+              onPointerCancel={handleDragEnd}
+              aria-label={copy.dragWindow}
             >
+              <div className="flex items-center gap-2">
+                <GripHorizontal className="h-4 w-4 shrink-0 text-white/80" aria-hidden />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">{lessonTitle}</p>
+                  <p className="truncate text-[11px] text-white/72">{meetingStateLabel}</p>
+                </div>
+              </div>
+            </div>
+
+            <button type="button" className={miniChromeButtonClass} onClick={handleExpandWindow} aria-label={copy.expandWindow}>
               <Maximize2 className="h-4 w-4" aria-hidden />
-              {copy.returnToCall}
-            </button>
-            <button
-              type="button"
-              className="grid h-9 w-9 place-items-center rounded-full bg-white/10 transition-colors hover:bg-white/18 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25"
-              onClick={toggleDockPosition}
-              aria-label={dock === "bottom-right" ? copy.moveToTopLeft : copy.moveToBottomRight}
-            >
-              {dock === "bottom-right" ? <ArrowUpLeft className="h-4 w-4" aria-hidden /> : <ArrowDownRight className="h-4 w-4" aria-hidden />}
             </button>
           </div>
         </div>
+
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          <button type="button" className={miniControlButtonClass} onClick={handleToggleAudio} aria-label={isMicEnabled ? copy.mute : copy.unmute} disabled={isBusy}>
+            {isMicEnabled ? <Mic className="h-4 w-4" aria-hidden /> : <MicOff className="h-4 w-4" aria-hidden />}
+          </button>
+          <button type="button" className={miniControlButtonClass} onClick={handleToggleVideo} aria-label={isCameraEnabled ? copy.stopVideo : copy.startVideo} disabled={isBusy}>
+            {isCameraEnabled ? <Video className="h-4 w-4" aria-hidden /> : <VideoOff className="h-4 w-4" aria-hidden />}
+          </button>
+          <button
+            type="button"
+            className="grid h-11 w-full place-items-center rounded-[14px] bg-[#d93f4f] text-white transition-colors hover:bg-[#c93445] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d93f4f]/35 disabled:opacity-50"
+            onClick={handleLeave}
+            aria-label={copy.leaveLesson}
+            disabled={isBusy}
+          >
+            <PhoneOff className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
       </div>
-    )
-  }
+    </section>
+  )
 
   if (isFloating) {
     return (
       <div className="pointer-events-none fixed inset-0 z-50">
         <DailyAudio />
-        <section
-          className={cn(
-            "pointer-events-auto fixed flex w-[min(calc(100vw-1.5rem),30rem)] flex-col",
-            "max-h-[calc(100vh-1.5rem)] min-h-[24rem] md:w-[28rem]",
-            floatingPositionClass
-          )}
-        >
-          <div className={cn(shellClassName, "flex min-h-0 flex-1 flex-col p-4 sm:p-5")}>
-            <header className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-[11px] font-medium text-ds-text-tertiary dark:text-white/45">
-                  {titleLine}
-                </p>
-                <h1 className="mt-1 text-lg font-semibold text-ds-ink dark:text-white">{lessonTitle}</h1>
-                <p className="mt-1 text-sm text-ds-text-secondary dark:text-white/62">{meetingStateLabel}</p>
-              </div>
-              <div className="flex items-center gap-2">
+        {isMiniMode && !showLoading && !joinError ? (
+          miniPlayer
+        ) : (
+          <section
+            ref={floatingWindowRef}
+            className={cn(
+              "pointer-events-auto fixed flex w-[min(calc(100vw-1rem),30rem)] flex-col",
+              "max-h-[calc(100vh-1rem)] min-h-[24rem] md:w-[28rem]"
+            )}
+            style={floatingWindowStyle}
+          >
+            <div className={cn(shellClassName, "flex min-h-0 flex-1 flex-col p-4 sm:p-5")}>
+              <header className="flex items-start gap-3">
+                <div
+                  className={cn(
+                    "min-w-0 flex-1 cursor-grab select-none rounded-[20px] bg-black/[0.04] px-3 py-3 touch-none dark:bg-white/[0.06]",
+                    isDragging && "bg-black/[0.08] dark:bg-white/[0.1]"
+                  )}
+                  onPointerDown={handleDragStart}
+                  onPointerMove={handleDragMove}
+                  onPointerUp={handleDragEnd}
+                  onPointerCancel={handleDragEnd}
+                  aria-label={copy.dragWindow}
+                >
+                  <div className="flex items-center gap-2 text-ds-text-tertiary dark:text-white/45">
+                    <GripHorizontal className="h-4 w-4 shrink-0" aria-hidden />
+                    <p className="truncate text-[11px] font-medium">{titleLine}</p>
+                  </div>
+                  <h1 className="mt-1 text-lg font-semibold text-ds-ink dark:text-white">{lessonTitle}</h1>
+                  <p className="mt-1 text-sm text-ds-text-secondary dark:text-white/62">{meetingStateLabel}</p>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    className={chromeButtonClass}
+                    onClick={handleMinimizeWindow}
+                    aria-label={copy.minimizeWindow}
+                    disabled={showLoading || Boolean(joinError)}
+                  >
+                    <Minimize2 className="h-4 w-4" aria-hidden />
+                  </button>
+                  <Button type="button" variant="destructive" size="sm" className="rounded-full px-4" onClick={handleLeave} disabled={isBusy}>
+                    <PhoneOff aria-hidden />
+                    {copy.leaveLesson}
+                  </Button>
+                </div>
+              </header>
+
+              <div className="mt-4 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  className={chromeButtonClass}
-                  onClick={toggleDockPosition}
-                  aria-label={dock === "bottom-right" ? copy.moveToTopLeft : copy.moveToBottomRight}
+                  className={cn(tabButtonBase, activePanel === "call" ? activeTabButtonClass : idleTabButtonClass)}
+                  onClick={() => setActivePanel("call")}
                 >
-                  {dock === "bottom-right" ? <ArrowUpLeft className="h-4 w-4" aria-hidden /> : <ArrowDownRight className="h-4 w-4" aria-hidden />}
+                  <Video className="h-4 w-4" aria-hidden />
+                  {copy.callTab}
                 </button>
                 <button
                   type="button"
-                  className={chromeButtonClass}
-                  onClick={() => setIsCollapsed(true)}
-                  aria-label={copy.collapse}
+                  className={cn(tabButtonBase, activePanel === "board" ? activeTabButtonClass : idleTabButtonClass)}
+                  onClick={() => setActivePanel("board")}
                 >
-                  <ChevronsDownUp className="h-4 w-4" aria-hidden />
+                  <Waves className="h-4 w-4" aria-hidden />
+                  {copy.boardTab}
                 </button>
-                <Button type="button" variant="destructive" size="sm" className="rounded-full px-4" onClick={handleLeave} disabled={isBusy}>
-                  <PhoneOff aria-hidden />
-                  {copy.leaveLesson}
-                </Button>
               </div>
-            </header>
 
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                className={cn(tabButtonBase, activePanel === "call" ? activeTabButtonClass : idleTabButtonClass)}
-                onClick={() => setActivePanel("call")}
-              >
-                <Video className="h-4 w-4" aria-hidden />
-                {copy.callTab}
-              </button>
-              <button
-                type="button"
-                className={cn(tabButtonBase, activePanel === "board" ? activeTabButtonClass : idleTabButtonClass)}
-                onClick={() => setActivePanel("board")}
-              >
-                <Waves className="h-4 w-4" aria-hidden />
-                {copy.boardTab}
-              </button>
+              <div className="mt-4 min-h-0 flex-1 overflow-y-auto">{contentPanel}</div>
+
+              <div className="mt-4">{controlBar}</div>
             </div>
-
-            <div className={cn("mt-4 min-h-0 flex-1 overflow-y-auto", isCompactViewport && "pb-1")}>
-              {contentPanel}
-            </div>
-
-            <div className="mt-4">{controlBar}</div>
-          </div>
-        </section>
+          </section>
+        )}
       </div>
     )
   }

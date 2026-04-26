@@ -707,6 +707,22 @@
   opacity: 0.92;
 }
 
+.cc-hsk-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.cc-hsk-hero-actions > * {
+  display: inline-flex;
+}
+
+.cc-hsk-hero-actions .cc-hsk-hero-cta {
+  margin-top: 0;
+}
+
 .cc-hsk-hero-cta {
   display: inline-flex;
   align-items: center;
@@ -721,6 +737,7 @@
   font-family: inherit;
   font-size: 15px;
   font-weight: 600;
+  line-height: 1;
   cursor: pointer;
   transition: background-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
 }

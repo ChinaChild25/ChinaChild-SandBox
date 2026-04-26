@@ -146,7 +146,7 @@ export default function StudentLessonPage() {
               <JoinLessonButton
                 lessonId={lessonId}
                 label={callButtonLabel}
-                className="h-12 whitespace-normal rounded-[18px] bg-black px-5 text-[15px] font-semibold text-white hover:bg-black/90 dark:bg-black dark:text-white dark:hover:bg-black/90"
+                className="mt-0 h-12 min-h-12 items-center whitespace-normal rounded-[999px] bg-black px-[22px] py-0 text-[15px] font-semibold leading-none text-white hover:bg-black/90 dark:bg-black dark:text-white dark:hover:bg-black/90"
               />
             }
           />

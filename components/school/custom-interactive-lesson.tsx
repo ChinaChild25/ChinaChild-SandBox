@@ -875,7 +875,7 @@ export function CustomInteractiveLesson({
                 <h1 className="cc-hsk-hero-title">{lessonTitle}</h1>
                 {heroLead ? <p className="cc-hsk-hero-lead">{heroLead}</p> : null}
                 {sections[0] || heroActions ? (
-                  <div className="mt-6 flex flex-wrap items-center gap-3">
+                  <div className="cc-hsk-hero-actions">
                     {sections[0] ? (
                       <button type="button" className="cc-hsk-hero-cta mt-0" onClick={() => setActiveId(sections[0]!.id)}>
                         Начать урок
