@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { SchoolLessonShell } from "@/layouts/school-lesson-shell"
 import { CustomInteractiveLesson } from "@/components/school/custom-interactive-lesson"
@@ -84,7 +84,13 @@ export default function StudentLessonPage() {
   const backHref = isTeacher ? `/teacher/lessons/${lessonId}` : courseId ? `/courses/${courseId}` : "/courses"
   const backLabel = isTeacher ? "Редактор" : (courseTitle?.trim() || "Курс")
   const callButtonLabel =
-    roomUrl
+    isLiveMode
+      ? locale === "en"
+        ? "Return to call"
+        : locale === "zh"
+          ? "返回通话"
+          : "Вернуться в звонок"
+      : roomUrl
       ? locale === "en"
         ? "Rejoin call"
         : locale === "zh"
@@ -95,6 +101,13 @@ export default function StudentLessonPage() {
         : locale === "zh"
           ? "进入通话"
           : "Открыть звонок"
+
+  const handleDismissLiveMode = useCallback(() => {
+    const nextParams = new URLSearchParams(searchParams.toString())
+    nextParams.delete("join")
+    const nextQuery = nextParams.toString()
+    router.replace(nextQuery ? `/lesson/${lessonId}?${nextQuery}` : `/lesson/${lessonId}`)
+  }, [lessonId, router, searchParams])
 
   if (!authReady || !isAuthenticated) {
     return (
@@ -111,39 +124,43 @@ export default function StudentLessonPage() {
       logoHref={isTeacher ? "/teacher/dashboard" : "/dashboard"}
       renderSidebar={(props) => (isTeacher ? <TeacherSidebar variant={props.variant} /> : <AppSidebar variant={props.variant} />)}
     >
+      <SchoolLessonShell>
+        {isLoading ? (
+          <div className="flex min-h-[40vh] items-center justify-center text-[18px] text-ds-text-secondary">Загрузка урока...</div>
+        ) : error ? (
+          <div className="rounded-[28px] border border-[#d98b95]/35 bg-[#fff4f5] px-5 py-5 text-[15px] leading-7 text-[#9b3948] dark:border-[#7d3d49] dark:bg-[#2e1d21] dark:text-[#ffb8c4]">
+            {error}
+          </div>
+        ) : (
+          <CustomInteractiveLesson
+            lessonId={lessonId}
+            lessonTitle={lessonTitle}
+            courseTitle={courseTitle}
+            courseCoverColor={courseCoverColor}
+            courseCoverStyle={courseCoverStyle}
+            courseCoverImageUrl={courseCoverImageUrl}
+            backHref={backHref}
+            backLabel={backLabel}
+            blocks={blocks}
+            heroActions={
+              <JoinLessonButton
+                lessonId={lessonId}
+                label={callButtonLabel}
+                className="h-12 whitespace-normal rounded-[18px] bg-black px-5 text-[15px] font-semibold text-white hover:bg-black/90 dark:bg-black dark:text-white dark:hover:bg-black/90"
+              />
+            }
+          />
+        )}
+      </SchoolLessonShell>
+
       {!isLoading && !error && isLiveMode ? (
-        <LessonLiveSession lessonId={lessonId} lessonTitle={lessonTitle} courseTitle={courseTitle} />
-      ) : (
-        <SchoolLessonShell>
-          {isLoading ? (
-            <div className="flex min-h-[40vh] items-center justify-center text-[18px] text-ds-text-secondary">Загрузка урока...</div>
-          ) : error ? (
-            <div className="rounded-[28px] border border-[#d98b95]/35 bg-[#fff4f5] px-5 py-5 text-[15px] leading-7 text-[#9b3948] dark:border-[#7d3d49] dark:bg-[#2e1d21] dark:text-[#ffb8c4]">
-              {error}
-            </div>
-          ) : (
-            <CustomInteractiveLesson
-              lessonId={lessonId}
-              lessonTitle={lessonTitle}
-              courseTitle={courseTitle}
-              courseCoverColor={courseCoverColor}
-              courseCoverStyle={courseCoverStyle}
-              courseCoverImageUrl={courseCoverImageUrl}
-              backHref={backHref}
-              backLabel={backLabel}
-              blocks={blocks}
-              heroActions={
-                <JoinLessonButton
-                  lessonId={lessonId}
-                  label={callButtonLabel}
-                  variant="secondary"
-                  className="h-12 rounded-[18px] px-5 text-[15px] font-semibold"
-                />
-              }
-            />
-          )}
-        </SchoolLessonShell>
-      )}
+        <LessonLiveSession
+          lessonId={lessonId}
+          lessonTitle={lessonTitle}
+          courseTitle={courseTitle}
+          onDismiss={handleDismissLiveMode}
+        />
+      ) : null}
     </FigmaAppShell>
   )
 }

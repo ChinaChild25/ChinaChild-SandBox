@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { LoaderCircle, Video } from "lucide-react"
 import { buildLessonCallHref } from "@/lib/daily/links"
 import { useUiLocale } from "@/lib/ui-locale"
@@ -23,17 +23,30 @@ export function JoinLessonButton({
   size = "default"
 }: Props) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { locale } = useUiLocale()
   const [isOpening, setIsOpening] = useState(false)
 
   const resolvedLabel =
     label ??
     (locale === "en" ? "Join lesson" : locale === "zh" ? "进入课堂" : "Подключиться")
+  const targetHref = buildLessonCallHref(lessonId)
+  const currentHref = `${pathname}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`
+
+  useEffect(() => {
+    setIsOpening(false)
+  }, [currentHref])
 
   function handleJoin() {
     if (isOpening) return
+    if (currentHref === targetHref) {
+      window.dispatchEvent(new CustomEvent("chinachild:return-to-call"))
+      return
+    }
+
     setIsOpening(true)
-    router.push(buildLessonCallHref(lessonId))
+    router.push(targetHref)
   }
 
   return (

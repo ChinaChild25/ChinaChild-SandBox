@@ -29,12 +29,15 @@ type DailyCallSessionProps = {
   initialTitle: string
   initialSubtitle?: string | null
   backHref: string
+  variant?: "page" | "floating"
+  onDismiss?: () => void
 }
 
 type LessonLiveSessionProps = {
   lessonId: string
   lessonTitle: string
   courseTitle?: string | null
+  onDismiss?: () => void
 }
 
 function useDailyCallCopy() {
@@ -78,7 +81,9 @@ export function DailyCallSession({
   roomRequest,
   initialTitle,
   initialSubtitle,
-  backHref
+  backHref,
+  variant = "page",
+  onDismiss
 }: DailyCallSessionProps) {
   const router = useRouter()
   const { user } = useAuth()
@@ -93,6 +98,8 @@ export function DailyCallSession({
   const lessonId = roomRequest.lessonId?.trim() || undefined
   const scheduleSlotId = roomRequest.scheduleSlotId?.trim() || undefined
   const requestKey = `${roomRequest.lessonId ?? ""}::${roomRequest.scheduleSlotId ?? ""}`
+  const isFloating = variant === "floating"
+  const handleBack = onDismiss ?? (() => router.push(backHref))
 
   useEffect(() => {
     setTitle(initialTitle)
@@ -151,24 +158,62 @@ export function DailyCallSession({
   }, [attempt, copy.defaultError, initialSubtitle, initialTitle, lessonId, locale, requestKey, scheduleSlotId])
 
   if (loading || !session) {
-    return (
-      <div className="-mx-[0.875rem] -my-[0.875rem] min-h-screen bg-[#050816] px-4 py-10 text-white md:-m-10 lg:px-6">
-        <div className="mx-auto flex min-h-[80vh] max-w-xl items-center justify-center">
-          <div className="w-full rounded-[32px] border border-white/10 bg-white/[0.04] p-8 shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
-            <div className="flex items-center gap-3 text-sm uppercase tracking-[0.22em] text-white/45">
+    if (isFloating) {
+      return (
+        <div className="pointer-events-none fixed inset-0 z-50">
+          <div className="pointer-events-auto fixed right-3 bottom-3 w-[min(calc(100vw-1.5rem),28rem)] rounded-[28px] bg-[rgba(255,255,255,0.96)] p-5 text-ds-ink shadow-[0_28px_90px_rgba(15,23,42,0.18)] backdrop-blur-xl md:right-6 md:bottom-6 dark:bg-[#171717]/96 dark:text-white">
+            <div className="flex items-center gap-3 text-sm uppercase tracking-[0.22em] text-ds-text-tertiary dark:text-white/45">
               <Video className="h-4 w-4" aria-hidden />
               {copy.eyebrow}
             </div>
-            <h1 className="mt-4 text-3xl font-semibold text-white">{title}</h1>
-            <p className="mt-2 text-sm leading-6 text-white/60">{subtitle || copy.fallbackSubtitle}</p>
+            <h1 className="mt-4 text-2xl font-semibold text-ds-ink dark:text-white">{title}</h1>
+            <p className="mt-2 text-sm leading-6 text-ds-text-secondary dark:text-white/62">{subtitle || copy.fallbackSubtitle}</p>
 
             {loading ? (
-              <div className="mt-8 flex items-center gap-3 rounded-[24px] border border-white/8 bg-black/20 px-4 py-4 text-sm text-white/75">
+              <div className="mt-6 flex items-center gap-3 rounded-[24px] bg-black/[0.04] px-4 py-4 text-sm text-ds-text-secondary dark:bg-white/[0.05] dark:text-white/72">
                 <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden />
                 {copy.loading}
               </div>
             ) : (
-              <div className="mt-8 rounded-[24px] border border-[#8f4355] bg-[#2a1520] px-4 py-4 text-sm leading-6 text-white/75">
+              <div className="mt-6 rounded-[24px] bg-[#fff4f5] px-4 py-4 text-sm leading-6 text-[#8d4150] dark:bg-[#2a1c21] dark:text-white/72">
+                {error ?? copy.defaultError}
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              {!loading ? (
+                <Button type="button" onClick={() => setAttempt((value) => value + 1)}>
+                  {copy.retry}
+                </Button>
+              ) : null}
+              <Button type="button" variant="outline" onClick={handleBack}>
+                <ArrowLeft aria-hidden />
+                {copy.back}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="min-h-screen bg-ds-canvas px-4 py-10 text-ds-ink md:px-6 dark:bg-ds-canvas dark:text-white">
+        <div className="mx-auto flex min-h-[80vh] max-w-xl items-center justify-center">
+          <div className="w-full rounded-[32px] bg-[rgba(255,255,255,0.96)] p-8 shadow-[0_28px_90px_rgba(15,23,42,0.16)] backdrop-blur-xl dark:bg-[#171717]/96">
+            <div className="flex items-center gap-3 text-sm uppercase tracking-[0.22em] text-ds-text-tertiary dark:text-white/45">
+              <Video className="h-4 w-4" aria-hidden />
+              {copy.eyebrow}
+            </div>
+            <h1 className="mt-4 text-3xl font-semibold text-ds-ink dark:text-white">{title}</h1>
+            <p className="mt-2 text-sm leading-6 text-ds-text-secondary dark:text-white/62">{subtitle || copy.fallbackSubtitle}</p>
+
+            {loading ? (
+              <div className="mt-8 flex items-center gap-3 rounded-[24px] bg-black/[0.04] px-4 py-4 text-sm text-ds-text-secondary dark:bg-white/[0.05] dark:text-white/72">
+                <LoaderCircle className="h-5 w-5 animate-spin" aria-hidden />
+                {copy.loading}
+              </div>
+            ) : (
+              <div className="mt-8 rounded-[24px] bg-[#fff4f5] px-4 py-4 text-sm leading-6 text-[#8d4150] dark:bg-[#2a1c21] dark:text-white/72">
                 {error ?? copy.defaultError}
               </div>
             )}
@@ -179,7 +224,7 @@ export function DailyCallSession({
                   {copy.retry}
                 </Button>
               ) : null}
-              <Button type="button" variant="outline" onClick={() => router.push(backHref)}>
+              <Button type="button" variant="outline" onClick={handleBack}>
                 <ArrowLeft aria-hidden />
                 {copy.back}
               </Button>
@@ -191,26 +236,27 @@ export function DailyCallSession({
   }
 
   return (
-    <div className="-mx-[0.875rem] -my-[0.875rem] md:-m-10">
-      <VideoRoom
-        roomUrl={session.roomUrl}
-        meetingToken={session.token}
-        lessonTitle={title}
-        courseTitle={subtitle || null}
-        displayName={user?.profileFullName || user?.name || undefined}
-        onLeave={() => router.push(backHref)}
-      />
-    </div>
+    <VideoRoom
+      roomUrl={session.roomUrl}
+      meetingToken={session.token}
+      lessonTitle={title}
+      courseTitle={subtitle || null}
+      displayName={user?.profileFullName || user?.name || undefined}
+      onLeave={handleBack}
+      variant={variant}
+    />
   )
 }
 
-export function LessonLiveSession({ lessonId, lessonTitle, courseTitle }: LessonLiveSessionProps) {
+export function LessonLiveSession({ lessonId, lessonTitle, courseTitle, onDismiss }: LessonLiveSessionProps) {
   return (
     <DailyCallSession
       roomRequest={{ lessonId }}
       initialTitle={lessonTitle}
       initialSubtitle={courseTitle}
       backHref={`/lesson/${lessonId}`}
+      variant="floating"
+      onDismiss={onDismiss}
     />
   )
 }
