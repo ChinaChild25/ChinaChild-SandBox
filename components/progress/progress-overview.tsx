@@ -17,6 +17,7 @@ type ProgressOverviewProps = {
   accent?: UiAccentKey | null
   studentName?: string | null
   studentAvatarUrl?: string | null
+  showStudentIdentity?: boolean
 }
 
 type RangeValue = "1m" | "3m" | "6m"
@@ -210,6 +211,7 @@ export function ProgressOverview({
   accent,
   studentName,
   studentAvatarUrl,
+  showStudentIdentity = true,
 }: ProgressOverviewProps) {
   const [selectedRange, setSelectedRange] = useState<RangeValue>("1m")
 
@@ -238,18 +240,20 @@ export function ProgressOverview({
         <section className="overflow-hidden rounded-[40px] border border-black/[0.06] bg-[var(--ds-surface)]/95 px-6 py-6 shadow-[0_24px_80px_rgba(15,23,42,0.06)] dark:border-white/10 dark:shadow-[0_24px_80px_rgba(0,0,0,0.22)] sm:px-8 sm:py-8">
           <div className="grid gap-8 xl:grid-cols-[minmax(340px,0.92fr)_minmax(0,1.08fr)] xl:items-center">
             <div className="order-2 space-y-6 xl:order-1">
-              <div className="flex flex-wrap items-center gap-3">
-                <Avatar className="h-14 w-14 ring-1 ring-black/[0.06] dark:ring-white/10">
-                  <AvatarImage src={fallbackStudentAvatar} alt={fallbackStudentName} className="object-cover" />
-                  <AvatarFallback className="bg-[var(--ds-neutral-row)] text-[14px] font-semibold text-ds-ink">
-                    {initials(fallbackStudentName)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="min-w-0">
-                  <p className="text-[13px] font-semibold text-ds-text-tertiary">Успеваемость</p>
-                  <p className="truncate text-[18px] font-semibold text-ds-ink">{fallbackStudentName}</p>
+              {showStudentIdentity ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <Avatar className="h-14 w-14 ring-1 ring-black/[0.06] dark:ring-white/10">
+                    <AvatarImage src={fallbackStudentAvatar} alt={fallbackStudentName} className="object-cover" />
+                    <AvatarFallback className="bg-[var(--ds-neutral-row)] text-[14px] font-semibold text-ds-ink">
+                      {initials(fallbackStudentName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold text-ds-text-tertiary">Успеваемость</p>
+                    <p className="truncate text-[18px] font-semibold text-ds-ink">{fallbackStudentName}</p>
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
               <div>
                 <h1 className="text-[28px] font-bold leading-tight text-ds-ink sm:text-[36px]">{title}</h1>

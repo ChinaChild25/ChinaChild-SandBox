@@ -64,6 +64,7 @@ export default async function TeacherStudentProgressPage({
       accent={profile.ui_accent}
       studentName={overview.studentName}
       studentAvatarUrl={overview.studentAvatarUrl}
+      showStudentIdentity
       current={overview.skillMap}
       previous={overview.previousSkillMap}
       sessions={overview.sessions}

@@ -45,11 +45,17 @@ export function TeacherSidebar({ variant = "sidebar" }: TeacherSidebarProps) {
   const firstName = user?.name?.split(" ")[0] ?? "Преподаватель"
   const avatarSrc = user?.avatar ?? "/staff/zhao-li.png"
   const subtitle = user?.profileSubtitle ?? "преподаватель"
+  const isTeacherStudentProgressRoute = /^\/teacher\/students\/[^/]+\/progress(?:\/|$)/.test(pathname)
 
   const isActive = (href: string) => {
     if (href === "/teacher/dashboard") return pathname === "/teacher/dashboard"
     if (href === "/teacher/courses") return pathname.startsWith("/teacher/courses")
-    if (href === "/teacher/students") return pathname === "/teacher/students" || pathname.startsWith("/teacher/students/")
+    if (href === "/teacher/progress") {
+      return pathname === "/teacher/progress" || pathname.startsWith("/teacher/progress/") || isTeacherStudentProgressRoute
+    }
+    if (href === "/teacher/students") {
+      return pathname === "/teacher/students" || (pathname.startsWith("/teacher/students/") && !isTeacherStudentProgressRoute)
+    }
     return pathname === href || pathname.startsWith(`${href}/`)
   }
 
