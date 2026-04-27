@@ -892,20 +892,24 @@ function SpeakingSplit({
 
   return (
     <div className="w-full">
-      <div className="mb-3 flex flex-col gap-2.5">
-        <SpeakerLegend
-          name={studentName}
-          avatarUrl={studentAvatarUrl || placeholderImages.studentAvatar}
-          fallbackLabel="Ученик"
-          compact
-        />
-        <SpeakerLegend
-          name={teacherName}
-          avatarUrl={teacherAvatarUrl || placeholderImages.teacherAvatar}
-          fallbackLabel="Преподаватель"
-          align="end"
-          compact
-        />
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <SpeakerLegend
+            name={studentName}
+            avatarUrl={studentAvatarUrl || placeholderImages.studentAvatar}
+            fallbackLabel="Ученик"
+            compact
+          />
+        </div>
+        <div className="min-w-0 flex-1">
+          <SpeakerLegend
+            name={teacherName}
+            avatarUrl={teacherAvatarUrl || placeholderImages.teacherAvatar}
+            fallbackLabel="Преподаватель"
+            align="end"
+            compact
+          />
+        </div>
       </div>
       <div className="h-4 overflow-hidden rounded-full bg-black/[0.07] dark:bg-white/10">
         <div className="flex h-full">
