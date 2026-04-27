@@ -283,7 +283,7 @@ export function ProgressOverview({
                       className={[
                         "inline-flex min-h-10 items-center rounded-full px-4 text-[13px] font-semibold transition-all duration-200",
                         active
-                          ? "bg-[color:var(--progress-accent-strong)] text-white shadow-[0_12px_24px_rgba(15,23,42,0.12)] dark:bg-[color:var(--progress-accent)] dark:text-[#141414]"
+                          ? "bg-[#111111] text-white shadow-[0_12px_24px_rgba(15,23,42,0.12)] dark:bg-white dark:text-[#141414]"
                           : "bg-[var(--ds-neutral-row)] text-ds-text-secondary hover:-translate-y-0.5 hover:bg-[var(--ds-neutral-row-hover)] hover:text-ds-ink",
                       ].join(" ")}
                     >
@@ -328,7 +328,7 @@ export function ProgressOverview({
           </div>
         </section>
 
-        <LessonFeed sessions={sessions} current={heroCurrent} previous={heroPrevious} />
+        <LessonFeed sessions={sessions} current={heroCurrent} previous={heroPrevious} accent={accent} />
       </div>
     </div>
   )

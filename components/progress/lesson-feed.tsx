@@ -20,7 +20,7 @@ import {
   ThumbsUp,
   Volume2,
 } from "lucide-react"
-import type { LessonFeedItem, SkillMap } from "@/lib/lesson-analytics/server"
+import type { LessonFeedItem, SkillMap, UiAccentKey } from "@/lib/lesson-analytics/server"
 import { placeholderImages } from "@/lib/placeholders"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -51,6 +51,7 @@ type LessonFeedProps = {
   sessions: LessonFeedItem[]
   current: SkillMap
   previous?: SkillMap | null
+  accent?: UiAccentKey | null
 }
 
 type InsightTab = "overview" | "recap" | "progress" | "feedback" | "vocabulary" | "practice"
@@ -712,37 +713,53 @@ function chartTooltipLabel(label: string | number | undefined, payload: ChartToo
   return payload?.[0]?.payload?.fullDate ?? (typeof label === "string" && label.trim() ? label : "Дата уточняется")
 }
 
-function chartTooltipValue(value: ChartTooltipValue, name: string | number): [string, string] {
-  const dataKey = String(name)
-  return [formatPlainMetricValue(dataKey, normalizeChartTooltipValue(value)), metricSeriesLabel(dataKey)]
+type ProgressChartTooltipProps = {
+  active?: boolean
+  label?: string | number
+  payload?: Array<{
+    color?: string
+    dataKey?: string | number
+    name?: string | number
+    payload?: MetricHistoryPoint
+    value?: ChartTooltipValue
+  }>
 }
 
-const chartTooltipContentStyle = {
-  borderRadius: "18px",
-  border: "1px solid color-mix(in srgb, var(--ds-ink) 8%, transparent)",
-  backgroundColor: "var(--ds-surface)",
-  boxShadow: "0 18px 40px rgba(15, 23, 42, 0.14)",
-  padding: "12px 16px",
-}
+function ProgressChartTooltip({ active, label, payload }: ProgressChartTooltipProps) {
+  if (!active || !payload?.length) return null
 
-const chartTooltipLabelStyle = {
-  color: "var(--ds-text-tertiary)",
-  fontSize: "13px",
-  fontWeight: 500,
-  marginBottom: "8px",
-}
+  const tooltipLabel = chartTooltipLabel(label, payload.map((entry) => ({ payload: entry.payload })))
 
-const chartTooltipItemStyle = {
-  color: "var(--ds-ink)",
-  fontSize: "13px",
-  fontWeight: 600,
+  return (
+    <div className="rounded-[18px] border border-black/[0.08] bg-[var(--ds-surface)] px-4 py-3 text-ds-ink shadow-[0_18px_40px_rgba(15,23,42,0.14)] dark:border-white/10 dark:bg-[#171717] dark:text-white dark:shadow-[0_18px_40px_rgba(0,0,0,0.35)]">
+      <p className="mb-2 text-[13px] font-medium text-ds-text-tertiary">{tooltipLabel}</p>
+      <div className="space-y-2">
+        {payload.map((entry, index) => {
+          const dataKey = String(entry.dataKey ?? entry.name ?? `series-${index}`)
+          const resolvedColor = entry.color ?? "var(--progress-accent-strong)"
+
+          return (
+            <div key={`${dataKey}-${index}`} className="flex items-center justify-between gap-4 text-[13px] font-semibold">
+              <div className="flex items-center gap-2 text-ds-text-secondary">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: resolvedColor }} />
+                <span>{metricSeriesLabel(dataKey)}</span>
+              </div>
+              <span className="text-ds-ink dark:text-white">
+                {formatPlainMetricValue(dataKey, normalizeChartTooltipValue(entry.value))}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 function DeltaBadge({ value, suffix = "" }: { value: number | null; suffix?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex rounded-full px-2 py-1 text-[12px] font-semibold",
+        "inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-semibold",
         value === null
           ? "bg-[var(--ds-neutral-row)] text-ds-text-tertiary"
           : value > 0
@@ -979,8 +996,22 @@ function MetricCard({
 }
 
 function TranscriptTone({ speakerRole }: { speakerRole: LessonFeedItem["transcript"][number]["speakerRole"] }) {
-  if (speakerRole === "student") return <span className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-[color:var(--progress-accent-strong)]" />
-  if (speakerRole === "teacher") return <span className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-[color:var(--progress-accent-secondary)]" />
+  if (speakerRole === "student") {
+    return (
+      <span className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--progress-accent-soft)] text-[color:var(--progress-accent-strong)]">
+        <Mic className="h-4 w-4" />
+      </span>
+    )
+  }
+
+  if (speakerRole === "teacher") {
+    return (
+      <span className="mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--progress-accent-secondary-soft)] text-[color:var(--progress-accent-secondary)]">
+        <GraduationCap className="h-4 w-4" />
+      </span>
+    )
+  }
+
   return <span className="mt-1 inline-flex h-2.5 w-2.5 rounded-full bg-black/18" />
 }
 
@@ -1123,7 +1154,7 @@ function TabLabel({
 function DetailFact({ value, label }: { value: ReactNode; label: string }) {
   return (
     <div>
-      <p className="text-[36px] font-semibold leading-none text-ds-ink">{value}</p>
+      <p className="text-[30px] font-semibold leading-none tracking-tight text-ds-ink sm:text-[32px]">{value}</p>
       <p className="mt-2 text-[15px] text-ds-text-secondary">{label}</p>
     </div>
   )
@@ -1181,12 +1212,14 @@ function MetricDetailSheet({
   history,
   selectedSession,
   metrics,
+  accentKey,
 }: {
   metric: ProgressMetricKey | null
   onClose: () => void
   history: MetricHistoryPoint[]
   selectedSession: LessonFeedItem
   metrics: LessonMetrics
+  accentKey?: UiAccentKey | null
 }) {
   const currentPoint = history[history.length - 1] ?? null
   const previousPoint = history.length > 1 ? history[history.length - 2] : null
@@ -1240,6 +1273,7 @@ function MetricDetailSheet({
       <SheetContent
         side="right"
         sheetTitle={metricTitle}
+        data-progress-accent={accentKey ?? "sage"}
         className="w-[min(96vw,760px)] max-w-[760px] gap-0 rounded-l-[34px] rounded-r-none border-l border-black/[0.08] bg-[var(--ds-surface)] p-0 shadow-[0_24px_80px_rgba(15,23,42,0.14)] dark:border-white/10 dark:shadow-[0_24px_80px_rgba(0,0,0,0.35)]"
       >
         <div className="flex h-full min-h-0 flex-col">
@@ -1278,8 +1312,8 @@ function MetricDetailSheet({
                     <>
                       <div>
                         <p className="text-[16px] text-ds-text-secondary">{currentPoint.fullDate}</p>
-                        <div className="mt-4 flex items-center gap-3">
-                          <p className="text-[56px] font-semibold leading-none text-ds-ink">{currentPoint.masteryScore}%</p>
+                        <div className="mt-4 flex flex-wrap items-center gap-2">
+                          <p className="text-[42px] font-semibold leading-none tracking-tight text-ds-ink sm:text-[46px]">{currentPoint.masteryScore}%</p>
                           <DeltaBadge value={masteryDelta} suffix="%" />
                         </div>
                       </div>
@@ -1290,15 +1324,7 @@ function MetricDetailSheet({
                             <CartesianGrid vertical={false} stroke="var(--progress-grid)" strokeDasharray="4 6" />
                             <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
                             <YAxis orientation="right" domain={[0, 100]} tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} tickFormatter={(value: number) => `${value}%`} />
-                            <RechartsTooltip
-                              cursor={false}
-                              wrapperStyle={{ zIndex: 40 }}
-                              contentStyle={chartTooltipContentStyle}
-                              labelStyle={chartTooltipLabelStyle}
-                              itemStyle={chartTooltipItemStyle}
-                              labelFormatter={chartTooltipLabel}
-                              formatter={chartTooltipValue}
-                            />
+                            <RechartsTooltip cursor={false} wrapperStyle={{ zIndex: 40 }} content={<ProgressChartTooltip />} />
                             <Area type="monotone" dataKey="masteryScore" stroke={historyStroke} strokeWidth={3} fill={historyFill} fillOpacity={1} dot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} activeDot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} />
                           </AreaChart>
                         </ResponsiveContainer>
@@ -1331,9 +1357,9 @@ function MetricDetailSheet({
                 <>
                   <div>
                     <p className="text-[16px] text-ds-text-secondary">{currentPoint.fullDate}</p>
-                    <div className="mt-4 flex flex-wrap items-end gap-3">
-                      <p className="text-[56px] font-semibold leading-none text-ds-ink">{resolveLevelScale(currentPoint.speechLevelScore).code}</p>
-                      <p className="pb-1 text-[30px] font-semibold text-ds-ink">{resolveLevelScale(currentPoint.speechLevelScore).label}</p>
+                    <div className="mt-4 flex flex-wrap items-end gap-2">
+                      <p className="text-[42px] font-semibold leading-none tracking-tight text-ds-ink sm:text-[46px]">{resolveLevelScale(currentPoint.speechLevelScore).code}</p>
+                      <p className="pb-1 text-[24px] font-semibold text-ds-ink sm:text-[26px]">{resolveLevelScale(currentPoint.speechLevelScore).label}</p>
                     </div>
                   </div>
 
@@ -1355,8 +1381,8 @@ function MetricDetailSheet({
                 <>
                   <div>
                     <p className="text-[16px] text-ds-text-secondary">{currentPoint.fullDate}</p>
-                    <div className="mt-4 flex items-center gap-3">
-                      <p className="text-[56px] font-semibold leading-none text-ds-ink">{currentPoint.vocabularySize.toLocaleString("ru-RU")}</p>
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <p className="text-[42px] font-semibold leading-none tracking-tight text-ds-ink sm:text-[46px]">{currentPoint.vocabularySize.toLocaleString("ru-RU")}</p>
                       <DeltaBadge value={vocabularyGrowth} />
                     </div>
                   </div>
@@ -1367,15 +1393,7 @@ function MetricDetailSheet({
                         <CartesianGrid vertical={false} stroke="var(--progress-grid)" strokeDasharray="4 6" />
                         <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
                         <YAxis orientation="right" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
-                        <RechartsTooltip
-                          cursor={false}
-                          wrapperStyle={{ zIndex: 40 }}
-                          contentStyle={chartTooltipContentStyle}
-                          labelStyle={chartTooltipLabelStyle}
-                          itemStyle={chartTooltipItemStyle}
-                          labelFormatter={chartTooltipLabel}
-                          formatter={chartTooltipValue}
-                        />
+                        <RechartsTooltip cursor={false} wrapperStyle={{ zIndex: 40 }} content={<ProgressChartTooltip />} />
                         <Area type="monotone" dataKey="vocabularySize" stroke={historyStroke} strokeWidth={3} fill={historyFill} fillOpacity={1} dot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} activeDot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} />
                       </AreaChart>
                     </ResponsiveContainer>
@@ -1395,8 +1413,8 @@ function MetricDetailSheet({
                 <>
                   <div>
                     <p className="text-[16px] text-ds-text-secondary">{currentPoint.fullDate}</p>
-                    <div className="mt-4 flex items-center gap-3">
-                      <p className="text-[56px] font-semibold leading-none text-ds-ink">
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <p className="text-[42px] font-semibold leading-none tracking-tight text-ds-ink sm:text-[46px]">
                         {currentPoint.speechSpeed ?? 0} сл/мин
                       </p>
                       <DeltaBadge
@@ -1417,15 +1435,7 @@ function MetricDetailSheet({
                         <ReferenceArea y1={90} y2={140} fill={historyFill} fillOpacity={0.9} />
                         <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
                         <YAxis orientation="right" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} tickFormatter={(value: number) => `${value}`} />
-                        <RechartsTooltip
-                          cursor={false}
-                          wrapperStyle={{ zIndex: 40 }}
-                          contentStyle={chartTooltipContentStyle}
-                          labelStyle={chartTooltipLabelStyle}
-                          itemStyle={chartTooltipItemStyle}
-                          labelFormatter={chartTooltipLabel}
-                          formatter={chartTooltipValue}
-                        />
+                        <RechartsTooltip cursor={false} wrapperStyle={{ zIndex: 40 }} content={<ProgressChartTooltip />} />
                         <Line type="monotone" dataKey="speechSpeed" stroke={historyStroke} strokeWidth={3} dot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} activeDot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} />
                       </RechartsLineChart>
                     </ResponsiveContainer>
@@ -1451,8 +1461,8 @@ function MetricDetailSheet({
                 <>
                   <div>
                     <p className="text-[16px] text-ds-text-secondary">{currentPoint.fullDate}</p>
-                    <div className="mt-4 flex items-center gap-3">
-                      <p className="text-[56px] font-semibold leading-none text-ds-ink">
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <p className="text-[42px] font-semibold leading-none tracking-tight text-ds-ink sm:text-[46px]">
                         {formatMinutes(currentPoint.studentMinutes)}
                       </p>
                       <DeltaBadge value={speakingTimeDelta} suffix=" мин" />
@@ -1465,15 +1475,7 @@ function MetricDetailSheet({
                         <CartesianGrid vertical={false} stroke="var(--progress-grid)" strokeDasharray="4 6" />
                         <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
                         <YAxis orientation="right" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} tickFormatter={formatMinutesTick} />
-                        <RechartsTooltip
-                          cursor={false}
-                          wrapperStyle={{ zIndex: 40 }}
-                          contentStyle={chartTooltipContentStyle}
-                          labelStyle={chartTooltipLabelStyle}
-                          itemStyle={chartTooltipItemStyle}
-                          labelFormatter={chartTooltipLabel}
-                          formatter={chartTooltipValue}
-                        />
+                        <RechartsTooltip cursor={false} wrapperStyle={{ zIndex: 40 }} content={<ProgressChartTooltip />} />
                         <Bar dataKey="studentMinutes" stackId="speech" fill={accent} radius={[10, 10, 0, 0]} />
                         <Bar dataKey="teacherMinutes" stackId="speech" fill="var(--progress-accent-secondary)" radius={[10, 10, 0, 0]} />
                       </BarChart>
@@ -1520,8 +1522,8 @@ function MetricDetailSheet({
                 <>
                   <div>
                     <p className="text-[16px] text-ds-text-secondary">{currentPoint.fullDate}</p>
-                    <div className="mt-4 flex items-center gap-3">
-                      <p className="text-[56px] font-semibold leading-none text-ds-ink">
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <p className="text-[42px] font-semibold leading-none tracking-tight text-ds-ink sm:text-[46px]">
                         {currentPoint.sentenceLength ?? 0} {pluralizeRu(currentPoint.sentenceLength ?? 0, ["слово", "слова", "слов"])}
                       </p>
                       <DeltaBadge value={sentenceDelta} />
@@ -1534,15 +1536,7 @@ function MetricDetailSheet({
                         <CartesianGrid vertical={false} stroke="var(--progress-grid)" strokeDasharray="4 6" />
                         <XAxis dataKey="shortDate" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
                         <YAxis orientation="right" tickLine={false} axisLine={false} tick={{ fill: "var(--ds-text-tertiary)", fontSize: 13 }} />
-                        <RechartsTooltip
-                          cursor={false}
-                          wrapperStyle={{ zIndex: 40 }}
-                          contentStyle={chartTooltipContentStyle}
-                          labelStyle={chartTooltipLabelStyle}
-                          itemStyle={chartTooltipItemStyle}
-                          labelFormatter={chartTooltipLabel}
-                          formatter={chartTooltipValue}
-                        />
+                        <RechartsTooltip cursor={false} wrapperStyle={{ zIndex: 40 }} content={<ProgressChartTooltip />} />
                         <Area type="monotone" dataKey="sentenceLength" stroke={historyStroke} strokeWidth={3} fill={historyFill} fillOpacity={1} dot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} activeDot={{ r: 7, fill: "var(--ds-surface)", stroke: historyStroke, strokeWidth: 3 }} />
                       </AreaChart>
                     </ResponsiveContainer>
@@ -1601,7 +1595,7 @@ function MetricDetailSheet({
   )
 }
 
-export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
+export function LessonFeed({ sessions, current, previous, accent }: LessonFeedProps) {
   const [selectedSessionId, setSelectedSessionId] = useState(sessions[0]?.sessionId ?? "")
   const [activeTab, setActiveTab] = useState<InsightTab>("overview")
   const [activeMetric, setActiveMetric] = useState<ProgressMetricKey | null>(null)
@@ -1747,24 +1741,22 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
                 </OverviewCard>
 
                 <OverviewCard title="Прогресс" onOpen={() => setActiveTab("progress")}>
-                  <div className="rounded-[24px] bg-[var(--ds-neutral-row)] p-4">
-                    <div className="rounded-[20px] bg-[var(--ds-surface)] px-4 py-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-[15px] font-semibold text-ds-ink">Говорил ученик</p>
-                        <span className="text-[15px] font-semibold text-ds-ink">
-                          {formatSpeakingRatio(metrics.speakingRatioValue)}
-                        </span>
-                      </div>
-                      <div className="mt-4">
-                        <SpeakingSplit
-                          studentMinutes={metrics.studentMinutes}
-                          teacherMinutes={metrics.teacherMinutes}
-                          studentName={selectedSession.studentName}
-                          teacherName={selectedSession.teacherName}
-                          studentAvatarUrl={selectedSession.studentAvatarUrl}
-                          teacherAvatarUrl={selectedSession.teacherAvatarUrl}
-                        />
-                      </div>
+                  <div className="rounded-[24px] bg-[var(--ds-neutral-row)] px-4 py-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[15px] font-semibold text-ds-ink">Говорил ученик</p>
+                      <span className="text-[15px] font-semibold text-ds-ink">
+                        {formatSpeakingRatio(metrics.speakingRatioValue)}
+                      </span>
+                    </div>
+                    <div className="mt-4">
+                      <SpeakingSplit
+                        studentMinutes={metrics.studentMinutes}
+                        teacherMinutes={metrics.teacherMinutes}
+                        studentName={selectedSession.studentName}
+                        teacherName={selectedSession.teacherName}
+                        studentAvatarUrl={selectedSession.studentAvatarUrl}
+                        teacherAvatarUrl={selectedSession.teacherAvatarUrl}
+                      />
                     </div>
                   </div>
                 </OverviewCard>
@@ -2237,6 +2229,7 @@ export function LessonFeed({ sessions, current, previous }: LessonFeedProps) {
         history={metricHistory}
         selectedSession={selectedSession}
         metrics={metrics}
+        accentKey={accent}
       />
     </section>
   )

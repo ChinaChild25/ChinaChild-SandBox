@@ -202,7 +202,7 @@ export default async function TeacherProgressPage() {
                   </div>
                   <Link
                     href={`/teacher/students/${student.studentId}/progress`}
-                    className="rounded-full bg-[color:var(--progress-accent-strong)] px-4 py-2.5 text-[14px] font-semibold text-white no-underline transition-[transform,opacity,box-shadow] hover:-translate-y-0.5 hover:opacity-92 hover:shadow-[0_14px_28px_rgba(15,23,42,0.16)] dark:bg-[color:var(--progress-accent)] dark:text-[#151515] dark:hover:shadow-[0_14px_28px_rgba(0,0,0,0.26)]"
+                    className="rounded-full bg-[#111111] px-4 py-2.5 text-[14px] font-semibold text-white no-underline transition-[transform,opacity,box-shadow] hover:-translate-y-0.5 hover:bg-[#1a1a1a] hover:shadow-[0_14px_28px_rgba(15,23,42,0.16)] dark:bg-white dark:text-[#151515] dark:hover:bg-white/92 dark:hover:shadow-[0_14px_28px_rgba(0,0,0,0.26)]"
                   >
                     Открыть успеваемость
                   </Link>
