@@ -252,7 +252,7 @@ export function ProgressOverview({
               </div>
 
               <div>
-                <h1 className="text-[30px] font-bold leading-[1.05] text-ds-ink sm:text-[42px]">{title}</h1>
+                <h1 className="text-[28px] font-bold leading-tight text-ds-ink sm:text-[36px]">{title}</h1>
                 <p className="mt-4 max-w-[40rem] text-[15px] leading-7 text-ds-text-secondary">{subtitle}</p>
               </div>
 

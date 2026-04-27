@@ -152,7 +152,7 @@ export default async function TeacherProgressPage() {
       <div className="mx-auto w-full max-w-[min(100%,1440px)] space-y-6">
         <header className="rounded-[34px] bg-[var(--ds-neutral-row)] p-6 ring-1 ring-black/[0.05] dark:ring-white/[0.06] sm:p-8">
           <p className="text-[14px] font-semibold text-ds-text-tertiary">Прогресс учеников</p>
-          <h1 className="mt-3 text-[34px] font-bold leading-[1.02] text-ds-ink dark:text-white sm:text-[48px]">
+          <h1 className="mt-3 text-[28px] font-bold leading-tight text-ds-ink dark:text-white sm:text-[36px]">
             Живая успеваемость по каждому ученику
           </h1>
           <p className="mt-4 max-w-[44rem] text-[15px] leading-7 text-ds-text-secondary dark:text-white/[0.70]">
